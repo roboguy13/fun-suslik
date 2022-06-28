@@ -1,6 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Backend.DOT where
 
@@ -13,7 +14,11 @@ import           Data.Foldable
 import           Data.Map (Map)
 import qualified Data.Map as Map
 
+import qualified Data.Set as Set
+
 import           Data.Data (Data, toConstr)
+
+import           Data.Void
 
 import           Control.Monad.State
 
@@ -43,38 +48,114 @@ genConfig DOTConfig {..} =
   , "edge [color=" <> edgeColor <> "]"
   ]
 
-data RenderState =
+data RenderState a =
   RenderState
   { renderStateNodeUniq :: Int
+  , renderStateNodeMap :: Map a String
   }
 
-newtype RenderM a = RenderM { getRenderM :: State RenderState a }
-  deriving (Functor, Applicative, Monad, MonadState RenderState)
+data EGraphObj n = ENodeObj (ENode n) | EClassIdObj EClassId
+  deriving (Eq, Ord)
 
-initialRenderState :: RenderState
-initialRenderState = RenderState 0
+newtype RenderM t a = RenderM { getRenderM :: State (RenderState t) a }
+  deriving (Functor, Applicative, Monad, MonadState (RenderState t))
 
-runRenderM :: RenderM a -> a
+initialRenderState :: RenderState t
+initialRenderState = RenderState 0 Map.empty
+
+runRenderM :: RenderM t a -> a
 runRenderM (RenderM m) = evalState m initialRenderState
 
-freshNodeName :: RenderM String
+insertFreshNode :: Ord t => t -> RenderM t String
+insertFreshNode n = do
+  nodeName <- freshNodeName
+  modify $
+    \x -> x { renderStateNodeMap = Map.insert n nodeName (renderStateNodeMap x) }
+  pure nodeName
+
+lookupNodeName :: Ord t => t -> RenderM t String
+lookupNodeName n =
+  fmap (Map.lookup n . renderStateNodeMap) get >>= \case
+    Nothing -> error "lookupNodeName"
+    Just r -> pure r
+
+freshNodeName :: RenderM t String
 freshNodeName = do
   currUniq <- renderStateNodeUniq <$> get
   modify $ \x -> x { renderStateNodeUniq = succ currUniq }
   return $ show currUniq
 
-renderEGraphState :: (Show n) => EGraphState n -> RenderM String
-renderEGraphState egraphState =
-  go (Map.keys (hashcons egraphState))
+renderEGraphState :: forall n. (Show n, Ord n) => EGraphState n -> RenderM (EGraphObj n) String
+renderEGraphState egraphState = do
+  subgraphs <- mapM renderEClass (Map.elems (eclasses egraphState))
+  enodeConnections <- mapM connectENode (Map.keys (hashcons egraphState))
+  pure $
+    unlines
+      [ "strict digraph {"
+      , indent subgraphs
+      , indent enodeConnections
+      , "}"
+      ]
   where
-    go = undefined
+    makeNewNode :: ENode n -> RenderM (EGraphObj n) String
+    makeNewNode enode = do
+      nodeName <- insertFreshNode (ENodeObj enode)
+      pure $ genNode nodeName (enodeFun enode)
+
+    makeNewClass :: EClassId -> RenderM (EGraphObj n) String
+    makeNewClass eclassId =
+      insertFreshNode (EClassIdObj eclassId)
+
+      -- Used so that we have a DOT graph node to point to for the e-class
+    eclassRepr :: EClassId -> RenderM (EGraphObj n) (ENode n)
+    eclassRepr eclassId =
+      case Map.lookup eclassId (eclasses egraphState) of
+        Nothing -> error "renderEGraphState.eclassRepr"
+        Just eclass ->
+          pure $ Set.findMin (eclassNodes eclass)
+
+    connectENode :: ENode n -> RenderM (EGraphObj n) String
+    connectENode enode = do
+      childClassReprs <- mapM eclassRepr (enodeChildren enode)
+
+      unlines <$> mapM (enode `connectWithClasses`) childClassReprs
+
+    renderEClass :: EClass n -> RenderM (EGraphObj n) String
+    renderEClass eclass = do
+      nodeDefs <- mapM makeNewNode (toList (eclassNodes eclass))
+      className <- makeNewClass (eclassId eclass)
+      pure $ genSubgraph className nodeDefs
+
+    connectWithClasses :: ENode n -> ENode n -> RenderM (EGraphObj n) String
+    connectWithClasses src tgt = do
+      let Just srcClassId = Map.lookup src (hashcons egraphState)
+          Just tgtClassId = Map.lookup tgt (hashcons egraphState)
+
+      srcClassName <- lookupNodeName (EClassIdObj srcClassId)
+      tgtClassName <- lookupNodeName (EClassIdObj tgtClassId)
+
+      srcName <- lookupNodeName (ENodeObj src)
+      tgtName <- lookupNodeName (ENodeObj tgt)
+
+      pure $
+        (srcName `connect` tgtName)
+          ++ " [ltail=" ++ srcClassName ++ ", lhead=" ++ tgtClassName ++ "]"
+
+
+genSubgraph :: String -> [String] -> String
+genSubgraph name body =
+  unlines
+    [ "subgraph " ++ name ++ " {"
+    , indent body
+    , "}"
+    ]
 
 
 -- | A datatype generic renderer
-genericRender :: forall a. (Show a, Data a, ToParts a) => a -> RenderM String
+genericRender :: forall a. (Show a, Data a, ToParts a) => a -> RenderM Void String
 genericRender = renderParts . toParts
 
-renderParts :: forall a. (Show a, Data a) => Parts a -> RenderM String
+renderParts :: forall a. (Show a, Data a) => Parts a -> RenderM Void String
 renderParts parts0 = do
   edges <- snd <$> go parts0
 
@@ -84,7 +165,7 @@ renderParts parts0 = do
     , "}"
     ]
   where
-    go :: Parts a -> RenderM (String, [String])
+    go :: Parts a -> RenderM Void (String, [String])
     go parts@(Leaf x) = do
       nodeName <- freshNodeName
       pure (nodeName, [genNode nodeName (rebuild parts)])
