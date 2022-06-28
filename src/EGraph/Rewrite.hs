@@ -28,35 +28,6 @@ data Rewrite f uv a =
 
 pattern lhs :=> rhs = Rewrite lhs rhs
 
-
--- | Gives the children as well as a function to reconstruct the node
--- given a new list of children
--- nodeDestruct :: Data n => n -> (Str n, Str n -> n)
--- nodeDestruct = uniplate
-
-class ToParts n where
-  toParts :: n -> Parts n
-
-  nodeChildren :: n -> [n] -- This must eventually give back the empty list
-  nodeChildren = map rebuild . partsChildren . toParts
-  -- nodeChildren = toList . fst . nodeDestruct
-
-
--- toParts :: Data n => n -> Parts n
--- toParts n =
---   case nodeChildren n of
---     [] -> Leaf n
---     (x:xs) ->
---       Parts (toConstr n) (fmap toParts (x :| xs)) (snd (uniplate n) . listStr . toList)
-
-fromParts :: Parts n -> n
-fromParts (Parts cs f) = f (fmap fromParts cs)
-fromParts (Leaf x) = x
-
-
--- instance Data a => TreeNode a where
---   nodeChildren x = gfoldl (\fs x -> x : map ($ x) fs) (const []) x
-
 class Unify f where
   isUVar :: f uv a -> Maybe uv
   anyUVar :: f Void a -> f uv a

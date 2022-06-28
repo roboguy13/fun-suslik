@@ -5,6 +5,7 @@
 module Backend.DOT where
 
 import           Representation.Parts
+import           EGraph.EGraph
 
 import           Data.List.NonEmpty (NonEmpty (..))
 import           Data.Foldable
@@ -61,6 +62,17 @@ freshNodeName = do
   currUniq <- renderStateNodeUniq <$> get
   modify $ \x -> x { renderStateNodeUniq = succ currUniq }
   return $ show currUniq
+
+renderEGraphState :: (Show n) => EGraphState n -> RenderM String
+renderEGraphState egraphState =
+  go (Map.keys (hashcons egraphState))
+  where
+    go = undefined
+
+
+-- | A datatype generic renderer
+genericRender :: forall a. (Show a, Data a, ToParts a) => a -> RenderM String
+genericRender = renderParts . toParts
 
 renderParts :: forall a. (Show a, Data a) => Parts a -> RenderM String
 renderParts parts0 = do

@@ -29,3 +29,14 @@ overParts :: (Parts a -> Parts a) -> Parts a -> Parts a
 overParts f (Parts xs g) = Parts (fmap f xs) g
 overParts f (Leaf x) = f (Leaf x)
 
+class ToParts n where
+  toParts :: n -> Parts n
+
+  nodeChildren :: n -> [n] -- This must eventually give back the empty list
+  nodeChildren = map rebuild . partsChildren . toParts
+
+
+fromParts :: Parts n -> n
+fromParts (Parts cs f) = f (fmap fromParts cs)
+fromParts (Leaf x) = x
+

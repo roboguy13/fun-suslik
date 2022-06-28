@@ -31,6 +31,7 @@ import           Data.Map (Map)
 import qualified Data.Map as Map
 
 import           EGraph.Rewrite
+import           Representation.Parts
 
 newtype EClassId = EClassId { getEClassId :: Int }
   deriving (Eq, Ord, Show)
@@ -99,6 +100,7 @@ runEGraphM node act =
         constructENode node 
         x <- act
         classMap <- eclasses <$> get
+        rebuildEGraph
         pure x
 
 workListPop :: EGraphM s n (Maybe EClassId)
@@ -126,7 +128,7 @@ whileHasWorkList :: EGraphM s n () -> EGraphM s n ()
 whileHasWorkList m = go
   where
     go = do
-      b <- null . workList <$> get
+      b <- not . null . workList <$> get
       if b
       then m *> go
       else pure ()
@@ -238,8 +240,8 @@ merge ident1 ident2 = do
     workListPush newIdent
     pure newIdent
 
-rebuild :: Ord n => EGraphM s n ()
-rebuild =
+rebuildEGraph :: Ord n => EGraphM s n ()
+rebuildEGraph =
   whileHasWorkList $ do
     todo <- mapM (lookupEClass <=< efind) =<< workListTake
 
