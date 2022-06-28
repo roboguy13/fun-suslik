@@ -269,6 +269,11 @@ repair eclass = do
       canonEClass <- efind p_eclass
       go (Map.insert p_node canonEClass newParents) rest
 
+type Subst n = [(String, n)]
+
+ematch :: n -> EGraphM s n (Subst n, EClass n)
+ematch = undefined
+
 -- type NodeRef s a = STRef s (Node s a)
 --
 -- type EClass s a = NonEmpty (NodeRef s a)
