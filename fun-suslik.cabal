@@ -30,7 +30,9 @@ executable fun-suslik
     other-modules:
       Nucleus.Expr,
       EGraph.EGraph,
-      EGraph.Rewrite
+      EGraph.Rewrite,
+      Backend.DOT,
+      Representation.Parts
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:

@@ -18,42 +18,7 @@ import           Data.List.NonEmpty (NonEmpty (..))
 
 import           Control.Monad
 
-data Parts a
-  = Parts (NonEmpty (Parts a)) (NonEmpty a -> a)
-  | Leaf a
-
-instance Eq a => Eq (Parts a) where
-  x == y = rebuild x == rebuild y
-  -- Parts ctrX csX _ == Parts ctrY csY _ = ctrX == ctrY && csX == csY
-  -- Leaf x == Leaf y = x == y
-  -- _ == _ = False
-
-instance Ord a => Ord (Parts a) where
-  compare x y = compare (rebuild x) (rebuild y)
-  --   -- TODO: Does this work ok?
-  -- compare (Parts ctrX csX _) (Parts ctrY csY _) = compare (show ctrX, csX) (show ctrY, csY)
-  -- compare (Leaf x) (Leaf y) = compare x y
-  -- compare (Leaf {}) (Parts {}) = LT
-  -- compare (Parts {}) (Leaf {}) = GT
-
-instance Show a => Show (Parts a) where
-  show = show . rebuild
-
-rebuild :: Parts a -> a
-rebuild (Parts cs f) = f $ fmap rebuild cs
-rebuild (Leaf x) = x
-
-partsChildren :: Parts a -> [Parts a]
-partsChildren (Parts xs _) = toList xs
-partsChildren (Leaf _) = []
-
--- partsSplit :: Parts a -> ([Parts a], [Parts a] -> a)
--- partsSplit (Parts xs f) = (toList xs, f . xs)
--- partsSplit (Leaf x) = ([], const x)
-
-overParts :: (Parts a -> Parts a) -> Parts a -> Parts a
-overParts f (Parts xs g) = Parts (fmap f xs) g
-overParts f (Leaf x) = f (Leaf x)
+import           Representation.Parts
 
 data Rewrite f uv a =
   Rewrite
@@ -101,7 +66,7 @@ isUVar' :: Unify f => Parts (f uv a) -> Maybe uv
 isUVar' (Leaf e) = isUVar e
 isUVar' _ = Nothing
 
-applyRewrite :: (Eq uv, Eq a, Eq (f uv a), Unify f) => Rewrite f uv a -> Parts (f Void a) -> Maybe (Parts (f uv a))
+applyRewrite :: (Eq uv, Eq a, Eq (f uv a), Eq (f Void a), Unify f) => Rewrite f uv a -> Parts (f Void a) -> Maybe (Parts (f uv a))
 applyRewrite (Rewrite lhs rhs) e = do
   env <- matchParts [] lhs e
   pure $ rewriteSubst env rhs
@@ -123,7 +88,7 @@ rewriteSubst env e =
       -- in
       -- f $ fmap (rewriteSubst env) children
 
-matchPartsList :: (Eq (f uv a), Eq uv, Unify f) => RewriteEnv f uv a -> [Parts (f uv a)] -> [Parts (f Void a)] -> Maybe (RewriteEnv f uv a)
+matchPartsList :: (Eq (f uv a), Eq (f Void a), Eq uv, Unify f) => RewriteEnv f uv a -> [Parts (f uv a)] -> [Parts (f Void a)] -> Maybe (RewriteEnv f uv a)
 matchPartsList env [] [] = Just env
 
 matchPartsList env (Parts matchX fX : matchXS) (Parts e fE : es) = do
@@ -131,17 +96,20 @@ matchPartsList env (Parts matchX fX : matchXS) (Parts e fE : es) = do
   matchPartsList env' matchXS es
 
 matchPartsList env (Leaf matchX : xs) (Leaf e : es) = do
-  case isUVar matchX of
-    Just uv -> void $ tryExtendEnv env uv (Leaf e)
+  env' <- case isUVar matchX of
+    Just uv -> tryExtendEnv env uv (Leaf e)
     Nothing ->
-      guard (matchX == anyUVar e)
-  matchPartsList env xs es
+      if matchX == anyUVar e
+        then pure env
+        else Nothing
+
+  matchPartsList env' xs es
 
 matchPartsList _env _ _ = Nothing
 
   -- matchParts <$> (matchParts env (nodeChildren matchX) (nodeChildren e)) <*> pure matchXS <*> pure es
 
-matchParts :: (Eq (f uv a), Eq uv, Unify f) => RewriteEnv f uv a -> Parts (f uv a) -> Parts (f Void a) -> Maybe (RewriteEnv f uv a)
+matchParts :: (Eq (f uv a), Eq (f Void a), Eq uv, Unify f) => RewriteEnv f uv a -> Parts (f uv a) -> Parts (f Void a) -> Maybe (RewriteEnv f uv a)
 matchParts env x y = matchPartsList env [x] [y]
 
 -- matchParts :: (Eq (f uv a), Eq uv, Unify f) => RewriteEnv f uv a -> Parts (f uv a) -> Parts (f Void a) -> Maybe (RewriteEnv f uv a)
@@ -169,9 +137,11 @@ matchParts env x y = matchPartsList env [x] [y]
 --   -- matchParts <$> (matchParts env (nodeChildren matchX) (nodeChildren e)) <*> pure matchXS <*> pure es
 -- matchParts _env _ _ = Nothing
 --
-tryExtendEnv :: (Eq uv) => RewriteEnv f uv a -> uv -> Parts (f Void a) -> Maybe (RewriteEnv f uv a)
+tryExtendEnv :: (Eq uv, Eq (f Void a)) => RewriteEnv f uv a -> uv -> Parts (f Void a) -> Maybe (RewriteEnv f uv a)
 tryExtendEnv env uv e =
   case lookup uv env of
     Nothing -> Just ((uv, e) : env)
-    Just {} -> Nothing
+    Just e' -> do
+      guard (e' == e)
+      Just env
 

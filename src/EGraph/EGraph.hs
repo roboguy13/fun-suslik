@@ -68,6 +68,7 @@ data EGraphState n =
   , nextClassId :: EClassId
   , workList :: [EClassId]
   }
+  deriving Show
 
 emptyEGraphState :: Ord n => EGraphState n
 emptyEGraphState =
@@ -90,15 +91,15 @@ constructENode n = do
 
   snd <$> addENode (ENode n childClassIds)
 
-runEGraphM :: (GraphNode n) => n -> (forall s. EGraphM s n a) -> (EClassMap n, a)
+runEGraphM :: (GraphNode n) => n -> (forall s. EGraphM s n a) -> (a, EGraphState n)
 runEGraphM node act =
-  flip evalState emptyEGraphState $
+  flip runState emptyEGraphState $
     runEquivT Set.singleton mempty $
       getEGraphM $ do
         constructENode node 
         x <- act
         classMap <- eclasses <$> get
-        pure (classMap, x)
+        pure x
 
 workListPop :: EGraphM s n (Maybe EClassId)
 workListPop = 

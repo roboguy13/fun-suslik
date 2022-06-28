@@ -24,13 +24,15 @@ import           Data.Deriving (deriveShow1, deriveEq1, deriveOrd1)
 import           Data.Void
 import           Data.List.NonEmpty (NonEmpty (..))
 
-import           EGraph.EGraph
-import           EGraph.Rewrite
-
 import           Data.Bifunctor.TH
 import           Data.Bifunctor
 
 import           Unsafe.Coerce
+
+import           EGraph.EGraph
+import           EGraph.Rewrite
+import           Representation.Parts
+import           Backend.DOT
 
 data Type a where
   (:->) :: Type a -> Type a -> Type a
