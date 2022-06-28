@@ -118,7 +118,7 @@ parseExpr =
   try parseAnd <|>
   try parseOr <|>
   try parseApply <|>
-  parseEnclosedExpr
+  try parseEnclosedExpr
 
 parseEnclosedExpr :: Parser (Expr String)
 parseEnclosedExpr =

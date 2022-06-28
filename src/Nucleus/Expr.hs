@@ -38,6 +38,7 @@ import           EGraph.Rewrite
 import           Representation.Parts
 import           Backend.DOT
 
+infixr 0 :->
 data Type a where
   (:->) :: Type a -> Type a -> Type a
   TyVar :: a -> Type a
