@@ -47,6 +47,10 @@ data Type a where
   IntType :: Type a
   ListType :: Type a -> Type a
 
+  UnitType :: Type a
+
+  PairType :: Type a -> Type a -> Type a
+
   Refinement :: a -> Type a -> [ExprEq Void a] -> Type a
 
 data ExprEq uv a = WrappedExpr uv a :=: WrappedExpr uv a

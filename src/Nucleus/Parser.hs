@@ -20,6 +20,9 @@ lexeme = Lexer.lexeme (Lexer.space space1 mzero mzero)
 token :: String -> Parser String
 token = lexeme . chunk
 
+parseTopLevel :: Parser [TopLevel]
+parseTopLevel = some (fmap TopLevelDef parseDef)
+
 parseDef :: Parser Def
 parseDef = do
   (sigName, ty) <- parseTypeSig
@@ -63,9 +66,11 @@ parseType =
 
 parseEnclosedType :: Parser (Type String)
 parseEnclosedType =
-  (token "(" *> parseType <* token ")") <|>
+  (chunk "(" *> many space1 *> parseType <* many space1 <* chunk ")") <|>
   (chunk "Bool" *> pure BoolType) <|>
   (chunk "Int" *> pure IntType) <|>
+  (chunk "Unit" *> pure UnitType) <|>
+  parsePairType <|>
   parseListType <|>
   parseRefinement <|>
   fmap TyVar parseTyIdent
@@ -74,6 +79,14 @@ parseListType :: Parser (Type String)
 parseListType = do
   token "List"
   ListType <$> parseEnclosedType
+
+parsePairType :: Parser (Type String)
+parsePairType = do
+  token "Pair"
+  a <- parseEnclosedType
+  some space1
+  b <- parseEnclosedType
+  pure (PairType a b)
 
 parseFnType :: Parser (Type String)
 parseFnType = do
@@ -88,12 +101,15 @@ parseRefinement = do
   token "{"
   ident <- parseIdent
   many space1
+
   token ":"
   ty <- parseType
   many space1
+
   token "|"
   cond <- parseRefinementCondition
   many space1
+
   token "}"
   pure (Refinement ident ty cond)
 
@@ -104,7 +120,7 @@ parseRefinementCondition =
 
 parseExprEq :: Parser (ExprEq Void String)
 parseExprEq = do
-  lhs <- parseExpr
+  lhs <- try parseApply <|> parseEnclosedExpr
   many space1
   token "="
   rhs <- parseExpr
@@ -122,7 +138,7 @@ parseExpr =
 
 parseEnclosedExpr :: Parser (Expr String)
 parseEnclosedExpr =
-  (token "(" *> parseExpr <* token ")") <|>
+  (chunk "(" *> many space1 *> parseExpr <* many space1 <* chunk ")") <|>
   try parseInt <|>
   parseBool <|>
   fmap Comb parseComb <|>
@@ -165,10 +181,14 @@ parseOr =
   parseBinOp "||" (\x y -> Comb Or :@ x :@ y) parseEnclosedExpr parseExpr
 
 parseApply :: Parser (Expr String)
-parseApply = do
-  f <- parseEnclosedExpr
-  xs <- some (some space1 *> parseEnclosedExpr)
-  pure $ foldl1 (:@) (f:xs)
+parseApply = foldl1 (:@) <$> go
+  where
+    go =
+      try ((:) <$> parseEnclosedExpr <*> (some space1 *> go)) <|>
+      fmap (:[]) parseEnclosedExpr
+  -- f <- parseEnclosedExpr
+  -- xs <- some (some space1 *> parseEnclosedExpr)
+  -- pure $ foldl1 (:@) (f:xs)
 
 parseTyIdent :: Parser String
 parseTyIdent =
