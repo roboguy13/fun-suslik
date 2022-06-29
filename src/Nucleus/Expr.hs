@@ -65,11 +65,11 @@ setSrcLocKind _ NoSrcLoc = NoSrcLoc
 setSrcLocKind kind (SrcLoc _ pos) = SrcLoc kind pos
 
 class HasSrcLoc a where
-  -- getSrcLoc :: a -> SrcLoc
+  getSrcLoc :: a -> SrcLoc
   removeSrcLoc :: a -> a
 
 instance HasSrcLoc SrcLoc where
-  -- getSrcLoc = id
+  getSrcLoc = id
   removeSrcLoc = const NoSrcLoc
 
 infixr 0 :->
@@ -88,6 +88,15 @@ data Type a where
   Refinement :: SrcLoc -> a -> Type a -> [ExprEq Void a] -> Type a
 
 instance HasSrcLoc (Type a) where
+  getSrcLoc (Arr srcLoc _ _) = srcLoc
+  getSrcLoc (TyVar srcLoc x) = srcLoc
+  getSrcLoc (BoolType srcLoc) = srcLoc
+  getSrcLoc (IntType srcLoc) = srcLoc
+  getSrcLoc (ListType srcLoc a) = srcLoc
+  getSrcLoc (UnitType srcLoc) = srcLoc
+  getSrcLoc (PairType srcLoc a b) = srcLoc
+  getSrcLoc (Refinement srcLoc v ty eqs) = srcLoc
+
   removeSrcLoc (Arr _ x y) =
     Arr NoSrcLoc (removeSrcLoc x) (removeSrcLoc y)
   removeSrcLoc (TyVar _ x) = TyVar NoSrcLoc x
@@ -109,6 +118,7 @@ data ExprEq uv a = WrappedExpr uv a :=: WrappedExpr uv a
   deriving (Show, Eq, Ord)
 
 instance HasSrcLoc (ExprEq uv a) where
+  getSrcLoc (x :=: _) = getSrcLoc x
   removeSrcLoc (x :=: y) =
     removeSrcLoc x :=: removeSrcLoc y
 
@@ -125,21 +135,23 @@ data WrappedExpr uv a =
     (forall uvZ z. (Eq uvZ, Eq z) => ExprU uvZ z -> ExprU uvZ z -> Bool)
     (forall uvZ z. (Ord uvZ, Ord z) => ExprU uvZ z -> ExprU uvZ z -> Ordering)
     (forall uvZ z. (Show uvZ, Show z) => ExprU uvZ z -> String)
+    (forall uvZ z. ExprU uvZ z -> SrcLoc)
     (forall uvZ z. ExprU uvZ z -> ExprU uvZ z)
 
 
 instance (Eq uv, Eq a) => Eq (WrappedExpr uv a) where
-  WrappedExpr x eq _ _ _ == WrappedExpr y _ _ _ _ = eq x y
+  WrappedExpr x eq _ _ _ _ == WrappedExpr y _ _ _ _ _ = eq x y
 instance (Ord uv, Ord a) => Ord (WrappedExpr uv a) where
-  compare (WrappedExpr x _ comp _ _) (WrappedExpr y _ _ _ _) = comp x y
+  compare (WrappedExpr x _ comp _ _ _) (WrappedExpr y _ _ _ _ _) = comp x y
 instance (Show uv, Show a) => Show (WrappedExpr uv a) where
-  show (WrappedExpr x _ _ showIt _) = showIt x
+  show (WrappedExpr x _ _ showIt _ _) = showIt x
 instance HasSrcLoc (WrappedExpr uv a) where
-  removeSrcLoc (WrappedExpr x eq ord showIt f) =
-    WrappedExpr (f x) eq ord showIt f
+  getSrcLoc (WrappedExpr x _ _ _ f _) = f x
+  removeSrcLoc (WrappedExpr x eq ord showIt f g) =
+    WrappedExpr (g x) eq ord showIt f g
 
 unwrapExpr :: WrappedExpr uv a -> ExprU uv a
-unwrapExpr (WrappedExpr e _ _ _ _) = e
+unwrapExpr (WrappedExpr e _ _ _ _ _) = e
 
 data ExprU uv a where
   UVar :: SrcLoc -> uv -> ExprU uv a
@@ -222,6 +234,19 @@ deriving instance Functor (Type)
 deriving instance (Show a) => Show (Type a)
 
 instance HasSrcLoc (ExprU uv a) where
+  getSrcLoc (UVar srcLoc uv) = srcLoc
+  getSrcLoc (Var srcLoc v) = srcLoc
+  getSrcLoc (IntLit srcLoc i) = srcLoc
+  getSrcLoc (BoolLit srcLoc b) = srcLoc
+  getSrcLoc (Add srcLoc x y) = srcLoc
+  getSrcLoc (Sub srcLoc x y) = srcLoc
+  getSrcLoc (Mul srcLoc x y) = srcLoc
+  getSrcLoc (Apply srcLoc x y) = srcLoc
+  getSrcLoc (Lam srcLoc v body) = srcLoc
+  getSrcLoc (Let srcLoc v e body) = srcLoc
+  getSrcLoc (Ann srcLoc ty e) = srcLoc
+  getSrcLoc (Comb srcLoc c) = srcLoc
+
   removeSrcLoc (UVar _ uv) = UVar NoSrcLoc uv
   removeSrcLoc (Var _ v) = Var NoSrcLoc v
   removeSrcLoc (IntLit _ i) = IntLit NoSrcLoc i
@@ -310,7 +335,7 @@ deriving instance (Ord uv, Ord a) => Ord (ExprU uv a)
 --   nodeChildren (Comb {}) = []
 
 wrappedExpr :: ExprU uv a -> WrappedExpr uv a
-wrappedExpr e = WrappedExpr e (==) compare show removeSrcLoc
+wrappedExpr e = WrappedExpr e (==) compare show getSrcLoc removeSrcLoc
 
 
 instance (Data uv, Data a, Ord uv, Ord a) => GraphNode (ExprU uv a) where
@@ -363,6 +388,9 @@ data Def =
     }
 
 deriving instance Show Def
+
+defName :: Def -> String
+defName (Def _ (name, _, _)) = name
 
 data TopLevel
   = TopLevelDef Def

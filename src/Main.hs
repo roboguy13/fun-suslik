@@ -18,6 +18,7 @@ import           Data.Maybe
 import           System.Timeout
 import           System.Environment
 import           System.IO
+import           System.Exit
 
 import           Text.Megaparsec
 
@@ -39,9 +40,9 @@ main = do
   print env
 
   forM_ defs $ \def ->
-    if not $ typeCheckDef def
-      then error ("Failed to type check the definition " ++ ppr def)
-      else pure ()
+    case typeCheckDef def of
+      Left err -> hFlush stdout >> putStrLn ("\nFailed to type check the definition " ++ defName def ++ "\n" ++ ppr err) >> exitFailure
+      Right _ -> pure ()
 
   repl env
 
