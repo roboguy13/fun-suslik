@@ -10,14 +10,19 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
 
+{-# OPTIONS -Wincomplete-patterns #-}
+
 module Nucleus.Expr where
 
 import           Bound
+import           Bound.Scope
 
 import           Data.List
 import           Data.Maybe
+import           Data.Char
 
 import           Data.Data
+import           Data.Foldable
 
 import           Control.Monad
 import           Control.Applicative
@@ -399,4 +404,110 @@ eval env e0 =
   case step1 env e0 of
     Nothing -> e0
     Just e' -> eval env e'
+
+data Parens = WithParens | NoParens
+
+withParens :: Parens -> String -> String
+withParens WithParens s = "(" ++ s ++ ")"
+withParens NoParens s = s
+
+class Ppr a where
+  pprP :: Parens -> a -> String
+
+ppr :: Ppr a => a -> String
+ppr = pprP NoParens
+
+pprBinOp :: Ppr a => Parens -> String -> a -> a -> String
+pprBinOp parens op x y =
+  withParens parens $ pprP WithParens x ++ " " ++ op ++ " " ++ pprP WithParens y
+
+instance Ppr a => Ppr (Var () a) where
+  pprP _ (B ()) = "???"
+  pprP _ (F v) = ppr v
+
+instance (Ppr uv, Ppr a) => Ppr (ExprU uv a) where
+  pprP parens (UVar uv) = ppr uv
+  pprP parens (Var v) = ppr v
+  pprP parens (IntLit i) = show i
+  pprP parens (BoolLit b) = show b
+
+  pprP parens (Add x y) = pprBinOp parens "+" x y
+  pprP parens (Sub x y) = pprBinOp parens "-" x y
+  pprP parens (Mul x y) = pprBinOp parens "*" x y
+
+  pprP parens (Lam body) =
+    withParens parens $
+      "\\ " ++ ppr (head (toList body)) ++ " -> " ++ ppr (unscope body)
+
+  pprP parens (Let bnd body) =
+    withParens parens $
+      "let " ++ ppr (head (toList body)) ++ " := " ++ ppr bnd
+      ++ " in " ++ ppr (unscope body)
+
+  pprP parens (Comb And :@ x :@ y) = pprBinOp parens "&&" x y
+  pprP parens (Comb Or :@ x :@ y) = pprBinOp parens "||" x y
+  pprP parens e@(Comb Cons :@ x :@ xs) =
+    case getListExpr e of
+      Nothing -> pprBinOp parens "::" x xs
+      Just list -> pprList list
+
+  pprP parens (Comb c) = pprP parens c
+
+  pprP parens (Ann e ty) =
+    withParens parens $
+      ppr e ++ " : " ++ ppr ty
+
+  pprP parens (f :@ x) =
+    withParens parens $
+      ppr f ++ " " ++ pprP WithParens x
+
+instance (Ppr uv, Ppr a) => Ppr (ExprEq uv a) where
+  pprP parens (wX :=: wY) =
+    withParens parens $
+      ppr (unwrapExpr wX) ++ " = " ++ ppr (unwrapExpr wY)
+
+instance Ppr String where pprP _ = id
+
+instance Ppr Void where
+  pprP _ = absurd
+
+instance Ppr a => Ppr (Type a) where
+  pprP parens (x :-> y) =
+    withParens parens $
+      pprP WithParens x ++ " -> " ++ ppr y
+
+  pprP parens (TyVar x) = ppr x
+  pprP _parens BoolType = "Bool"
+  pprP _parens IntType = "Int"
+  pprP parens (ListType a) =
+    withParens parens $
+      "List " ++ pprP WithParens a
+  pprP _parens UnitType = "unit"
+  pprP parens (PairType a b) =
+    withParens parens $
+      "Pair " ++ pprP WithParens a ++ " " ++ pprP WithParens b
+
+  pprP _parens (Refinement name ty eqs) =
+    "{" ++ ppr name ++ " : " ++ ppr ty ++ " | " ++
+      intercalate " & " (map ppr eqs) ++ "}"
+
+
+
+instance Ppr Combinator where
+  pprP _parens ConstF = "const"
+  pprP _parens ComposeF = "compose"
+  pprP _parens c = onHead toLower (show c)
+
+onHead :: (a -> a) -> [a] -> [a]
+onHead _ [] = []
+onHead f (x:xs) = f x : xs
+
+getListExpr :: ExprU uv a -> Maybe [ExprU uv a]
+getListExpr (Comb Nil) = Just []
+getListExpr (Comb Cons :@ x :@ xs) = fmap (x:) (getListExpr xs)
+getListExpr _ = Nothing
+
+pprList :: Ppr a => [a] -> String
+pprList xs = 
+    "[" ++ intercalate "," (map ppr xs) ++ "]"
 

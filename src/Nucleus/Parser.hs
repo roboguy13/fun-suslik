@@ -238,6 +238,8 @@ keywordToken str = token str <* lookAhead delimiter
 comb :: String -> a -> Parser a
 comb str c = keyword str *> pure c
 
+-- TODO: Replace with an implementation using an Enum instance for
+-- Combinator and Ppr
 parseComb :: Parser Combinator
 parseComb =
   comb "const" ConstF <|>
