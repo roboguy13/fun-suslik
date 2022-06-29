@@ -131,6 +131,7 @@ parseExpr = try parseCompose <|> parseExpr1
 
 parseExpr1 :: Parser (Expr String)
 parseExpr1 =
+  try parseLambda <|>
   try parseAdd <|>
   try parseSub <|>
   try parseMul <|>
@@ -234,6 +235,16 @@ keyword str = chunk str <* lookAhead delimiter
 
 keywordToken :: String -> Parser String
 keywordToken str = token str <* lookAhead delimiter
+
+parseLambda :: Parser (Expr String)
+parseLambda = do
+  token "\\"
+  x <- parseIdent
+  many space1
+  token "->"
+  body <- parseExpr
+
+  pure $ lam x body
 
 comb :: String -> a -> Parser a
 comb str c = keyword str *> pure c

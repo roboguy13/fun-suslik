@@ -94,10 +94,10 @@ data ExprU uv a where
   Mul :: ExprU uv a -> ExprU uv a -> ExprU uv a
 
   (:@) :: ExprU uv a -> ExprU uv a -> ExprU uv a
-  Lam :: Scope () (ExprU uv) a -> ExprU uv a
+  Lam :: String -> Scope () (ExprU uv) a -> ExprU uv a
 
     -- Non-recursive
-  Let :: ExprU uv a -> Scope () (ExprU uv) a -> ExprU uv a
+  Let :: String -> ExprU uv a -> Scope () (ExprU uv) a -> ExprU uv a
 
   Ann :: Type Void -> ExprU uv a -> ExprU uv a
 
@@ -173,9 +173,9 @@ instance Monad (ExprU uv) where
   Mul x y >>= f = Mul (x >>= f) (y >>= f)
 
   (x :@ y) >>= f = (x >>= f) :@ (y >>= f)
-  Lam e >>= f = Lam (e >>>= f)
-  Let rhs body >>= f =
-    Let (rhs >>= f) (body >>>= f)
+  Lam v e >>= f = Lam v (e >>>= f)
+  Let v rhs body >>= f =
+    Let v (rhs >>= f) (body >>>= f)
 
   Ann ty e >>= f = Ann ty (e >>= f)
   Comb c >>= _ = Comb c
@@ -281,10 +281,10 @@ getDef :: TopLevel -> Maybe Def
 getDef (TopLevelDef d) = Just d
 getDef _ = Nothing
 
-lam :: Eq a => a -> Expr a -> Expr a
-lam x = Lam . abstract1 x
+lam :: String -> Expr String -> Expr String
+lam x = Lam x . abstract1 x
 
-mkLams :: Eq a => [a] -> Expr a -> Expr a
+mkLams :: [String] -> Expr String -> Expr String
 mkLams [] body = body
 mkLams (arg:args) body = lam arg (mkLams args body)
 
@@ -351,7 +351,7 @@ step env (Add x y) = stepApplyPair env Add x y
 step env (Sub x y) = stepApplyPair env Sub x y
 step env (Mul x y) = stepApplyPair env Mul x y
 
-step env (Apply (Lam scoped) x) =
+step env (Apply (Lam _ scoped) x) =
   Just $ instantiate1 x scoped
 
 step env (Comb ConstF :@ x :@ y) = Just y
@@ -385,9 +385,9 @@ step env (Comb Sum :@ (Comb Cons :@ x :@ xs)) = Just (Add x (Comb Sum :@ xs))
   -- Non-strict evaluation order
 step env (Apply f arg) = stepApplyPair env Apply f arg
 
-step env (Lam _) = Nothing
+step env (Lam {}) = Nothing
 
-step env (Let rhs body) = Just $ instantiate1 rhs body
+step env (Let _ rhs body) = Just $ instantiate1 rhs body
 
 step env (Ann {}) = Nothing
 step env (Comb {}) = Nothing
@@ -435,13 +435,13 @@ instance (Ppr uv, Ppr a) => Ppr (ExprU uv a) where
   pprP parens (Sub x y) = pprBinOp parens "-" x y
   pprP parens (Mul x y) = pprBinOp parens "*" x y
 
-  pprP parens (Lam body) =
+  pprP parens (Lam v body) =
     withParens parens $
-      "\\ " ++ ppr (head (toList body)) ++ " -> " ++ ppr (unscope body)
+      "\\ " ++ v ++ " -> " ++ ppr (unscope body)
 
-  pprP parens (Let bnd body) =
+  pprP parens (Let v bnd body) =
     withParens parens $
-      "let " ++ ppr (head (toList body)) ++ " := " ++ ppr bnd
+      "let " ++ v ++ " := " ++ ppr bnd
       ++ " in " ++ ppr (unscope body)
 
   pprP parens (Comb And :@ x :@ y) = pprBinOp parens "&&" x y

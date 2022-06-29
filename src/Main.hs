@@ -53,3 +53,4 @@ repl env = do
 -- main = putStrLn $ runRenderM $ renderParts $ toParts test1
 -- main = print $ applyRewrite rewrite1 $ toParts test1
 -- main = print $ runEGraphM (test1 :: Expr ()) (pure ())
+
