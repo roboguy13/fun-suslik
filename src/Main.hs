@@ -33,7 +33,7 @@ main = do
     _ -> error "Wrong number of arguments. Expected one or zero."
 
   let env = map defToExprAssoc defs
-  print defs
+  mapM_ putStrLn $ map ppr defs
   print env
 
   repl env

@@ -10,7 +10,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
 
-{-# OPTIONS -Wincomplete-patterns #-}
+-- {-# OPTIONS -Wincomplete-patterns #-}
 
 module Nucleus.Expr where
 
@@ -491,12 +491,17 @@ instance Ppr a => Ppr (Type a) where
     "{" ++ ppr name ++ " : " ++ ppr ty ++ " | " ++
       intercalate " & " (map ppr eqs) ++ "}"
 
-
-
 instance Ppr Combinator where
   pprP _parens ConstF = "const"
   pprP _parens ComposeF = "compose"
   pprP _parens c = onHead toLower (show c)
+
+instance Ppr Def where
+  pprP _ (Def ty (name, params, body)) =
+    unlines
+      [ name ++ " : " ++ ppr ty ++ ";"
+      , name ++ " " ++ intercalate " " params ++ " := " ++ ppr body ++ ";"
+      ]
 
 onHead :: (a -> a) -> [a] -> [a]
 onHead _ [] = []
