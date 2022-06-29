@@ -1,3 +1,6 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE PatternSynonyms #-}
+
 module Nucleus.Parser
   where
 
@@ -9,16 +12,38 @@ import           Control.Monad
 
 import           Data.Void
 import           Data.Maybe
+import           Data.List
 
 import           Nucleus.Expr
+
+data SourcePosLine = SourcePosLine (Maybe String) SourcePos
+
+pattern SrcOffset x = SrcLoc InSrc x
+
+getOffset' :: Parser SrcLoc
+getOffset' = SrcOffset <$> getOffset
+
+offsetsToSourcePosList :: forall s. TraversableStream s => PosState s -> [SrcOffset] -> [SourcePosLine]
+offsetsToSourcePosList posState0 =
+  reverse . fst . foldl' go ([], posState0)
+  where
+    go :: ([SourcePosLine], PosState s) -> SrcOffset -> ([SourcePosLine], PosState s)
+    go (srcPosLines, posState1) offset =
+      (SourcePosLine line_maybe srcPos : srcPosLines, posState)
+      where
+        (line_maybe, posState) = reachOffset offset posState1
+        srcPos = pstateSourcePos posState
 
 type Parser = Parsec String String
 
 lexeme :: Parser a -> Parser a
 lexeme = Lexer.lexeme (Lexer.space space1 mzero mzero)
 
-token :: String -> Parser String
-token = lexeme . chunk
+token :: String -> Parser SrcLoc
+token str = do
+  loc <- getOffset'
+  lexeme $ chunk str
+  pure loc
 
 parseTopLevel :: Parser [TopLevel]
 parseTopLevel = some (fmap TopLevelDef parseDef)
@@ -29,7 +54,7 @@ parseDef = do
 
   many space1
 
-  bndName <- parseIdent
+  (bndNameOff, bndName) <- parseIdent
   guard (sigName == bndName)
   many space1
 
@@ -46,7 +71,7 @@ parseDef = do
 
 parseTypeSig :: Parser (String, Type String)
 parseTypeSig = do
-  sigName <- parseIdent
+  (sigNameOff, sigName) <- parseIdent
   many space1
   token ":"
   ty <- parseType
@@ -54,7 +79,7 @@ parseTypeSig = do
   token ";"
   pure (sigName, ty)
 
-parseParamList :: Parser [String]
+parseParamList :: Parser [(SrcLoc, String)]
 parseParamList =
   try ((:) <$> parseIdent <*> (some space1 *> parseParamList)) <|>
   fmap (:[]) parseIdent
@@ -67,39 +92,40 @@ parseType =
 parseEnclosedType :: Parser (Type String)
 parseEnclosedType =
   (chunk "(" *> many space1 *> parseType <* many space1 <* chunk ")") <|>
-  (keyword "Bool" *> pure BoolType) <|>
-  (keyword "Int" *> pure IntType) <|>
-  (keyword "Unit" *> pure UnitType) <|>
+  (BoolType <$> keyword "Bool") <|>
+  (IntType <$> keyword "Int") <|>
+  (UnitType <$> keyword "Unit") <|>
   parsePairType <|>
   parseListType <|>
   parseRefinement <|>
-  fmap TyVar parseTyIdent
+  fmap (uncurry TyVar) parseTyIdent
 
 parseListType :: Parser (Type String)
 parseListType = do
-  token "List"
-  ListType <$> parseEnclosedType
+  off <- token "List"
+  ListType off <$> parseEnclosedType
 
 parsePairType :: Parser (Type String)
 parsePairType = do
-  token "Pair"
+  loc <- token "Pair"
   a <- parseEnclosedType
   some space1
   b <- parseEnclosedType
-  pure (PairType a b)
+  pure (PairType loc a b)
 
 parseFnType :: Parser (Type String)
 parseFnType = do
+  loc <- getOffset'
   src <- parseEnclosedType
   many space1
   token "->"
   tgt <- parseType
-  pure (src :-> tgt)
+  pure (Arr loc src tgt)
 
 parseRefinement :: Parser (Type String)
 parseRefinement = do
-  token "{"
-  ident <- parseIdent
+  loc <- token "{"
+  (_, ident) <- parseIdent
   many space1
 
   token ":"
@@ -111,7 +137,7 @@ parseRefinement = do
   many space1
 
   token "}"
-  pure (Refinement ident ty cond)
+  pure (Refinement loc ident ty cond)
 
 parseRefinementCondition :: Parser [ExprEq Void String]
 parseRefinementCondition =
@@ -145,43 +171,49 @@ parseEnclosedExpr =
   (chunk "(" *> many space1 *> parseExpr <* many space1 <* chunk ")") <|>
   try parseInt <|>
   parseBool <|>
-  try (fmap Comb parseComb) <|>
+  try (fmap (uncurry Comb) parseComb) <|>
   parseVar <|>
   parseList
 
 parseList :: Parser (Expr String)
 parseList = try parseNil <|> do
-  token "["
+  loc <- token "["
   list <- go
   many space1
   chunk "]"
-  pure $ foldr (\x xs -> Comb Cons :@ x :@ xs) (Comb Nil) list
+  pure $ foldr (\x xs -> Comb loc Cons :@ x :@ xs) (Comb loc Nil) list
   where
     go =
       try ((:) <$> parseExpr <*> (many space1 *> token "," *> go)) <|>
       fmap (:[]) parseExpr
 
 parseNil :: Parser (Expr String)
-parseNil = token "[" *> chunk "]" *> pure (Comb Nil)
+parseNil = do
+  loc <- token "["
+  chunk "]"
+  pure (Comb loc Nil)
 
 parseVar :: Parser (Expr String)
-parseVar = Var <$> parseIdent
+parseVar = uncurry Var <$> parseIdent
 
 parseInt :: Parser (Expr String)
-parseInt = IntLit . read <$> some numberChar
+parseInt = do
+  loc <- getOffset'
+  IntLit loc . read <$> some numberChar
 
 parseBool :: Parser (Expr String)
 parseBool =
-  (token "False" *> pure (BoolLit False)) <|>
-  (token "True" *> pure (BoolLit True))
+  (BoolLit <$> token "False" <*> pure False) <|>
+  (BoolLit <$> token "True" <*> pure True)
 
-parseBinOp :: String -> (a -> b -> c) -> Parser a -> Parser b -> Parser c
+parseBinOp :: String -> (SrcLoc -> a -> b -> c) -> Parser a -> Parser b -> Parser c
 parseBinOp name op p q = do
+  loc <- getOffset'
   x <- p
   many space1
   token name
   y <- q
-  pure (op x y)
+  pure (op loc x y)
 
 parseAdd :: Parser (Expr String)
 parseAdd = parseBinOp "+" Add parseEnclosedExpr parseExpr
@@ -194,20 +226,21 @@ parseMul = parseBinOp "*" Mul parseEnclosedExpr parseExpr
 
 parseAnd :: Parser (Expr String)
 parseAnd =
-  parseBinOp "&&" (\x y -> Comb And :@ x :@ y) parseEnclosedExpr parseExpr
+  parseBinOp "&&" (\loc x y -> Comb loc And :@ x :@ y) parseEnclosedExpr parseExpr
 
 parseOr :: Parser (Expr String)
 parseOr =
-  parseBinOp "||" (\x y -> Comb Or :@ x :@ y) parseEnclosedExpr parseExpr
+  parseBinOp "||" (\loc x y -> Comb loc Or :@ x :@ y) parseEnclosedExpr parseExpr
 
 parseCompose :: Parser (Expr String)
 parseCompose = do
+  loc <- getOffset'
   x <- parseExpr1
   some space1
   chunk "."
   some space1
   y <- parseExpr
-  pure (Comb ComposeF :@ x :@ y)
+  pure (Comb loc ComposeF :@ x :@ y)
 
 parseApply :: Parser (Expr String)
 parseApply = try $ foldl1 (:@) <$> go
@@ -216,13 +249,13 @@ parseApply = try $ foldl1 (:@) <$> go
       try ((:) <$> parseEnclosedExpr <*> (some space1 *> go)) <|>
       fmap (:[]) parseEnclosedExpr
 
-parseTyIdent :: Parser String
+parseTyIdent :: Parser (SrcLoc, String)
 parseTyIdent =
-  (:) <$> lowerChar <*> many (alphaNumChar <|> char '_')
+  (,) <$> getOffset' <*> ((:) <$> lowerChar <*> many (alphaNumChar <|> char '_'))
 
-parseIdent :: Parser String
+parseIdent :: Parser (SrcLoc, String)
 parseIdent =
-  (:) <$> (letterChar <|> char '_') <*> many (alphaNumChar <|> char '_')
+  (,) <$> getOffset' <*> ((:) <$> (letterChar <|> char '_') <*> many (alphaNumChar <|> char '_'))
 
 delimiter :: Parser ()
 delimiter =
@@ -230,50 +263,55 @@ delimiter =
   space1 <|>
   void (satisfy (not . (`elem` (['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ "_"))))
 
-keyword :: String -> Parser String
-keyword str = chunk str <* lookAhead delimiter
+keyword :: String -> Parser SrcLoc
+keyword str = do
+  loc <- getOffset'
+  chunk str <* lookAhead delimiter
+  pure loc
 
-keywordToken :: String -> Parser String
+keywordToken :: String -> Parser SrcLoc
 keywordToken str = token str <* lookAhead delimiter
 
 parseLambda :: Parser (Expr String)
 parseLambda = do
-  token "\\"
-  x <- parseIdent
+  loc <- token "\\"
+  (_, x) <- parseIdent
   many space1
   token "->"
   body <- parseExpr
 
-  pure $ lam x body
+  pure $ lam loc x body
 
 comb :: String -> a -> Parser a
 comb str c = keyword str *> pure c
 
 -- TODO: Replace with an implementation using an Enum instance for
 -- Combinator and Ppr
-parseComb :: Parser Combinator
+parseComb :: Parser (SrcLoc, Combinator)
 parseComb =
-  comb "const" ConstF <|>
-  comb "compose" ComposeF <|>
-  comb "nil" Nil <|>
-  comb "cons" Cons <|>
-  comb "head" Head <|>
-  comb "tail" Tail <|>
-  comb "foldr" Foldr <|>
-  comb "scanr" Scanr <|>
-  comb "map" Map <|>
-  comb "sum" Sum <|>
-  comb "pair" Pair <|>
-  comb "dup" Dup <|>
-  comb "fst" Fst <|>
-  comb "snd" Snd <|>
-  comb "swap" Swap <|>
-  comb "pairJoin" PairJoin <|>
-  comb "unit" Unit <|>
-  comb "ifThenElse" IfThenElse <|>
-  comb "le" Le <|>
-  comb "eq" IntEq <|>
-  comb "not" Not <|>
-  comb "and" And <|>
-  comb "or" Or
+  (,) <$> getOffset' <*> (
+    comb "const" ConstF <|>
+    comb "compose" ComposeF <|>
+    comb "nil" Nil <|>
+    comb "cons" Cons <|>
+    comb "head" Head <|>
+    comb "tail" Tail <|>
+    comb "foldr" Foldr <|>
+    comb "scanr" Scanr <|>
+    comb "map" Map <|>
+    comb "sum" Sum <|>
+    comb "pair" Pair <|>
+    comb "dup" Dup <|>
+    comb "fst" Fst <|>
+    comb "snd" Snd <|>
+    comb "swap" Swap <|>
+    comb "pairJoin" PairJoin <|>
+    comb "unit" Unit <|>
+    comb "ifThenElse" IfThenElse <|>
+    comb "le" Le <|>
+    comb "eq" IntEq <|>
+    comb "not" Not <|>
+    comb "and" And <|>
+    comb "or" Or
+    )
 

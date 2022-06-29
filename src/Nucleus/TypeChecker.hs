@@ -57,18 +57,18 @@ checkType env (Lam srcLoc v body) ty =
       checkType ((v, a):env) (instantiate1 (Var srcLoc v) body) b
     _ -> Nothing
 
-checkType env (Ann ty e) ty' = do
+checkType env (Ann srcLoc ty e) ty' = do
   knownType (fmap absurd ty) ty'
   checkType env e (fmap absurd ty)
 
-checkType env (Comb ConstF) ty =
+checkType env (Comb srcLoc ConstF) ty =
   case ty of
     a :-> b :-> a' -> do
       knownType a a'
       pure ty
     _ -> Nothing
 
-checkType env (Comb ComposeF) ty =
+checkType env (Comb srcLoc ComposeF) ty =
   case ty of
     (b :-> c) :-> (a :-> b') :-> (a' :-> c') -> do
       knownType a a'
@@ -77,32 +77,32 @@ checkType env (Comb ComposeF) ty =
       pure ty
     _ -> Nothing
 
-checkType env (Comb Nil) ty =
+checkType env (Comb srcLoc Nil) ty =
   case ty of
-    ListType _ -> Just ty
+    ListType _ _ -> Just ty
     _ -> Nothing
 
-checkType env (Comb Cons) ty =
+checkType env (Comb srcLoc Cons) ty =
   case ty of
-    a :-> ListType a' :-> ListType a'' -> do
+    a :-> ListType _ a' :-> ListType _ a'' -> do
       knownType a a'
       knownType a a''
       pure ty
     _ -> Nothing
 
-checkType env (Comb Head) ty =
+checkType env (Comb srcLoc Head) ty =
   case ty of
-    ListType a :-> a' -> knownType a a' *> pure ty
+    ListType _ a :-> a' -> knownType a a' *> pure ty
     _ -> Nothing
 
-checkType env (Comb Tail) ty =
+checkType env (Comb srcLoc Tail) ty =
   case ty of
-    ListType a :-> ListType a' -> knownType a a' *> pure ty
+    ListType _ a :-> ListType _ a' -> knownType a a' *> pure ty
     _ -> Nothing
 
-checkType env (Comb Foldr) ty =
+checkType env (Comb srcLoc Foldr) ty =
   case ty of
-    (a :-> b :-> b') :-> b'' :-> ListType a' :-> b''' -> do
+    (a :-> b :-> b') :-> b'' :-> ListType _ a' :-> b''' -> do
       knownType a a'
       knownType b b'
       knownType b b''
@@ -110,9 +110,9 @@ checkType env (Comb Foldr) ty =
       pure ty
     _ -> Nothing
 
-checkType env (Comb Scanr) ty =
+checkType env (Comb srcLoc Scanr) ty =
   case ty of
-    (a :-> b :-> b') :-> b'' :-> ListType a' :-> ListType b''' -> do
+    (a :-> b :-> b') :-> b'' :-> ListType _ a' :-> ListType _ b''' -> do
       knownType a a'
       knownType b b'
       knownType b b''
@@ -120,82 +120,85 @@ checkType env (Comb Scanr) ty =
       pure ty
     _ -> Nothing
 
-checkType env (Comb Map) ty =
+checkType env (Comb srcLoc Map) ty =
   case ty of
-    (a :-> b) :-> ListType a' :-> ListType b' -> do
+    (a :-> b) :-> ListType _ a' :-> ListType _ b' -> do
       knownType a a'
       knownType b b'
       pure ty
     _ -> Nothing
 
-checkType env (Comb Pair) ty =
+checkType env (Comb srcLoc Pair) ty =
   case ty of
-    a :-> b :-> PairType a' b' -> do
+    a :-> b :-> PairType _ a' b' -> do
       knownType a a'
       knownType b b'
       pure ty
     _ -> Nothing
 
-checkType env (Comb Dup) ty =
+checkType env (Comb srcLoc Dup) ty =
   case ty of
-    a :-> PairType a' a'' -> do
+    a :-> PairType _ a' a'' -> do
       knownType a a'
       knownType a a''
       pure ty
     _ -> Nothing
 
-checkType env (Comb Fst) ty =
+checkType env (Comb srcLoc Fst) ty =
   case ty of
-    PairType a b :-> a' -> knownType a a' *> pure ty
+    PairType _ a b :-> a' -> knownType a a' *> pure ty
     _ -> Nothing
 
-checkType env (Comb Snd) ty =
+checkType env (Comb srcLoc Snd) ty =
   case ty of
-    PairType a b :-> b' -> knownType b b' *> pure ty
+    PairType _ a b :-> b' -> knownType b b' *> pure ty
     _ -> Nothing
 
-checkType env (Comb Swap) ty =
+checkType env (Comb srcLoc Swap) ty =
   case ty of
-    PairType a b :-> PairType b' a' -> do
+    PairType _ a b :-> PairType _ b' a' -> do
       knownType a a'
       knownType b b'
       pure ty
     _ -> Nothing
 
-checkType env (Comb PairJoin) ty = error "checkType: PairJoin"
+checkType env (Comb srcLoc PairJoin) ty = error "checkType: PairJoin"
 
-checkType env (Comb IfThenElse) ty =
+checkType env (Comb srcLoc IfThenElse) ty =
   case ty of
-    BoolType :-> a :-> a' :-> a'' -> do
+    BoolType _ :-> a :-> a' :-> a'' -> do
       knownType a a'
       knownType a a''
       pure ty
     _ -> Nothing
 
-checkType env (Comb Le) ty =
+checkType env (Comb srcLoc Le) ty =
   case ty of
-    IntType :-> IntType :-> BoolType -> pure ty
-    BoolType :-> BoolType :-> BoolType -> pure ty
+    IntType _ :-> IntType _ :-> BoolType _ -> pure ty
+    BoolType _ :-> BoolType _ :-> BoolType _ -> pure ty
     _ -> Nothing
 
-checkType env (Comb IntEq) ty =
+checkType env (Comb srcLoc IntEq) ty =
   case ty of
-    IntType :-> IntType :-> BoolType -> pure ty
+    IntType _ :-> IntType _ :-> BoolType _ -> pure ty
     _ -> Nothing
 
-checkType env (Comb c) ty = do
-  ty' <- inferType env (Comb c)
+checkType env (Comb srcLoc c) ty = do
+  ty' <- inferType env (Comb srcLoc c)
   knownType ty ty'
   pure ty'
 
 inferType :: TcEnv String -> Expr String -> Maybe (Type String)
-inferType env (Var v) = lookup v env -- TODO: Should this produce a scope error?
-inferType env (IntLit {}) = Just IntType
-inferType env (BoolLit {}) = Just BoolType
+inferType env (Var srcLoc v) = lookup v env -- TODO: Should this produce a scope error?
+inferType env (IntLit srcLoc _) = Just (IntType (setSrcLocKind InferredAt srcLoc))
+inferType env (BoolLit srcLoc _) = Just (BoolType (setSrcLocKind InferredAt srcLoc))
 
-inferType env (Add x y) = endoArgs env IntType [x, y]
-inferType env (Sub x y) = endoArgs env IntType [x, y]
-inferType env (Mul x y) = endoArgs env IntType [x, y]
+inferType env (Add srcLoc x y) = 
+  endoArgs env (IntType (setSrcLocKind InferredAt srcLoc)) [x, y]
+inferType env (Sub srcLoc x y) =
+  endoArgs env (IntType (setSrcLocKind InferredAt srcLoc)) [x, y]
+inferType env (Mul srcLoc x y) =
+  endoArgs env (IntType (setSrcLocKind InferredAt srcLoc)) [x, y]
 
 inferType env (f :@ x) = do
   (a :-> b) <- inferType env f
@@ -205,15 +208,20 @@ inferType env (f :@ x) = do
 
 inferType env (Lam {}) = Nothing
 
-inferType env (Ann ty e) = checkType env e (fmap absurd ty)
+inferType env (Ann srcLoc ty e) = checkType env e (fmap absurd ty)
 
-inferType env (Comb Sum) = Just $ ListType IntType :-> IntType
+inferType env (Comb srcLoc Sum) =
+  Just $ Arr (setSrcLocKind InferredAt srcLoc) (ListType NoSrcLoc (IntType NoSrcLoc)) (IntType NoSrcLoc)
 
-inferType env (Comb Unit) = Just UnitType
-inferType env (Comb IntEq) = Just $ IntType :-> IntType :-> BoolType
+inferType env (Comb srcLoc Unit) = Just (UnitType (setSrcLocKind InferredAt srcLoc))
+inferType env (Comb srcLoc IntEq) =
+  Just $ Arr (setSrcLocKind InferredAt srcLoc) (IntType NoSrcLoc) (IntType NoSrcLoc :-> BoolType NoSrcLoc)
 
-inferType env (Comb Not) = Just $ BoolType :-> BoolType
-inferType env (Comb And) = Just $ BoolType :-> BoolType :-> BoolType
-inferType env (Comb Or) = Just $ BoolType :-> BoolType :-> BoolType
+inferType env (Comb srcLoc Not) =
+  Just $ Arr (setSrcLocKind InferredAt srcLoc) (BoolType NoSrcLoc) (BoolType NoSrcLoc)
+inferType env (Comb srcLoc And) =
+  Just $ Arr (setSrcLocKind InferredAt srcLoc) (BoolType NoSrcLoc) (BoolType NoSrcLoc :-> BoolType NoSrcLoc)
+inferType env (Comb srcLoc Or) =
+  Just $ Arr (setSrcLocKind InferredAt srcLoc) (BoolType NoSrcLoc) (BoolType NoSrcLoc :-> BoolType NoSrcLoc)
 inferType env (Comb {}) = Nothing
 

@@ -47,15 +47,24 @@ import           Text.Megaparsec (PosState (..))
 
 deriving instance Ord a => Ord (PosState a)
 
-data SrcLoc = NoSrcLoc | SrcLoc (PosState String)
+data SrcLocKind = InSrc | InferredAt
   deriving (Eq, Ord, Show)
 
+type SrcOffset = Int
+
+data SrcLoc = NoSrcLoc | SrcLoc SrcLocKind SrcOffset
+  deriving (Eq, Ord, Show)
+
+setSrcLocKind :: SrcLocKind -> SrcLoc -> SrcLoc
+setSrcLocKind _ NoSrcLoc = NoSrcLoc
+setSrcLocKind kind (SrcLoc _ pos) = SrcLoc kind pos
+
 class HasSrcLoc a where
-  getSrcLoc :: a -> SrcLoc
+  -- getSrcLoc :: a -> SrcLoc
   removeSrcLoc :: a -> a
 
 instance HasSrcLoc SrcLoc where
-  getSrcLoc = id
+  -- getSrcLoc = id
   removeSrcLoc = const NoSrcLoc
 
 infixr 0 :->
@@ -86,7 +95,8 @@ instance HasSrcLoc (Type a) where
   removeSrcLoc (Refinement _ v ty eqs) =
     Refinement NoSrcLoc v (removeSrcLoc ty) (map removeSrcLoc eqs)
 
-pattern a :-> b <- Arr a b _
+pattern a :-> b <- Arr _ a b where
+  a :-> b = Arr NoSrcLoc a b
 
 a .-> b = Arr NoSrcLoc a b
 
