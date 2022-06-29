@@ -52,10 +52,13 @@ data SrcLocKind = InSrc | InferredAt
 
 type SrcOffset = Int
 
-data SrcSpan = SrcSpan' SrcOffset SrcOffset
+data SrcSpan = SrcSpan' { spanStart :: SrcOffset, spanEnd :: SrcOffset }
   deriving (Eq, Ord, Show)
 
 pattern SrcSpan x y = SrcLoc InSrc (SrcSpan' x y)
+
+spanLength :: SrcSpan -> Int
+spanLength sp = spanEnd sp - spanStart sp
 
 data SrcLoc = NoSrcLoc | SrcLoc SrcLocKind SrcSpan
   deriving (Eq, Ord, Show)
@@ -387,10 +390,10 @@ data Def =
     , defBinding :: (String, [(SrcLoc, String)], Expr String)
     }
 
-deriving instance Show Def
-
 defName :: Def -> String
 defName (Def _ (name, _, _)) = name
+
+deriving instance Show Def
 
 data TopLevel
   = TopLevelDef Def

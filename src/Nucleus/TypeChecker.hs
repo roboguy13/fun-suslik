@@ -3,6 +3,9 @@
 module Nucleus.TypeChecker
   where
 
+import           Text.Megaparsec
+import           Nucleus.Parser (offsetsToSourcePosList, SourcePosLine (..))
+
 import           Nucleus.Expr
 
 import           Data.List
@@ -14,19 +17,21 @@ import           Control.Monad
 import           Bound.Scope
 
 data ErrorMessage = ErrMsg String SrcLoc
-
+  deriving (Show)
 data TcError = TcError [ErrorMessage]
-
-instance Ppr ErrorMessage where
-  pprP _ (ErrMsg text NoSrcLoc) = text
-  pprP _ (ErrMsg text loc) = ppr loc ++ ": " ++ text
-
-instance Ppr TcError where
-  pprP _ (TcError msgs) = unwords (map ppr msgs)
+  deriving (Show)
 
 err = Left . TcError
 errNode node = ErrMsg (ppr node) (getSrcLoc node)
-msg str = ErrMsg str NoSrcLoc
+tcMsg str = ErrMsg str NoSrcLoc
+
+getFirstErrorLine :: TraversableStream s => PosState s -> TcError -> Maybe SourcePosLine
+getFirstErrorLine _posState (TcError []) = Nothing
+getFirstErrorLine _posState (TcError (ErrMsg _ NoSrcLoc : _)) = Nothing
+getFirstErrorLine posState (TcError (ErrMsg _ (SrcLoc _ sp) : _)) =
+  case offsetsToSourcePosList posState [spanStart sp] of
+    (r:_) -> Just r
+    [] -> Nothing
 
 typeCheckDef :: Def -> Either TcError (Type String)
 typeCheckDef (Def ty (name, params, body)) =
@@ -40,9 +45,9 @@ knownType ty ty' =
     then pure ()
     else
       err
-        [ msg "Cannot match expected type"
+        [ tcMsg "Cannot match expected type"
         , errNode ty
-        , msg "with actual type"
+        , tcMsg "with actual type"
         , errNode ty'
         ]
 
@@ -61,9 +66,9 @@ lookup' origin srcLoc x env =
   case lookup x env of
     Nothing ->
       err
-        [ msg $ origin ++ ": Cannot find "
+        [ tcMsg $ origin ++ ": Cannot find "
         , ErrMsg (ppr x) srcLoc
-        , msg " in environment"
+        , tcMsg " in environment"
         ]
     Just r -> pure r
 

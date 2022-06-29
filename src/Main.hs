@@ -10,6 +10,9 @@ import           Nucleus.Parser
 
 import           Nucleus.TypeChecker
 
+import           Error.Error
+import           Error.Render
+
 import           Representation.Parts
 import           Backend.DOT
 
@@ -26,13 +29,16 @@ import           Control.Monad
 
 main :: IO ()
 main = do
-  defs <- getArgs >>= \case
+  (pState, defs) <- getArgs >>= \case
     [fileName] -> do
       contents <- readFile fileName
-      case parse (parseTopLevel <* eof) fileName contents of
-        Left err -> error $ show err
-        Right r -> pure $ mapMaybe getDef r
-    [] -> pure []
+
+      let state = initialState fileName contents
+
+      case runParser' (parseTopLevel <* eof) state of
+        (pState, Left err) -> error $ show err
+        (pState, Right r) -> pure (pState, mapMaybe getDef r)
+    [] -> pure (initialState "<empty>" "", [])
     _ -> error "Wrong number of arguments. Expected one or zero."
 
   let env = map defToExprAssoc defs
@@ -41,7 +47,15 @@ main = do
 
   forM_ defs $ \def ->
     case typeCheckDef def of
-      Left err -> hFlush stdout >> putStrLn ("\nFailed to type check the definition " ++ defName def ++ "\n" ++ ppr err) >> exitFailure
+      Left err -> do
+        hFlush stdout
+        putStrLn ("\nFailed to type check the definition " ++ defName def)
+        case getFirstErrorLine (statePosState pState) err of
+          Just (SourcePosLine (Just offendingLine) _) -> do
+            putStrLn (renderTcError offendingLine err)
+          _ ->
+            putStrLn (show err)
+        exitFailure
       Right _ -> pure ()
 
   repl env
@@ -61,4 +75,24 @@ repl env = do
 -- main = putStrLn $ runRenderM $ renderParts $ toParts test1
 -- main = print $ applyRewrite rewrite1 $ toParts test1
 -- main = print $ runEGraphM (test1 :: Expr ()) (pure ())
+
+
+-- NOTE: From megaparsec source (this should probably be exported):
+-- | Given the name of source file and the input construct the initial state
+-- for a parser.
+initialState :: String -> s -> State s e
+initialState name s =
+  State
+    { stateInput = s,
+      stateOffset = 0,
+      statePosState =
+        PosState
+          { pstateInput = s,
+            pstateOffset = 0,
+            pstateSourcePos = initialPos name,
+            pstateTabWidth = defaultTabWidth,
+            pstateLinePrefix = ""
+          },
+      stateParseErrors = []
+    }
 
