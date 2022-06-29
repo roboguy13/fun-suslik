@@ -67,9 +67,9 @@ parseType =
 parseEnclosedType :: Parser (Type String)
 parseEnclosedType =
   (chunk "(" *> many space1 *> parseType <* many space1 <* chunk ")") <|>
-  (chunk "Bool" *> pure BoolType) <|>
-  (chunk "Int" *> pure IntType) <|>
-  (chunk "Unit" *> pure UnitType) <|>
+  (keyword "Bool" *> pure BoolType) <|>
+  (keyword "Int" *> pure IntType) <|>
+  (keyword "Unit" *> pure UnitType) <|>
   parsePairType <|>
   parseListType <|>
   parseRefinement <|>
@@ -127,21 +127,24 @@ parseExprEq = do
   pure (wrappedExpr lhs :=: wrappedExpr rhs)
 
 parseExpr :: Parser (Expr String)
-parseExpr =
+parseExpr = try parseCompose <|> parseExpr1
+
+parseExpr1 :: Parser (Expr String)
+parseExpr1 =
   try parseAdd <|>
   try parseSub <|>
   try parseMul <|>
   try parseAnd <|>
   try parseOr <|>
   try parseApply <|>
-  try parseEnclosedExpr
+  parseEnclosedExpr
 
 parseEnclosedExpr :: Parser (Expr String)
 parseEnclosedExpr =
   (chunk "(" *> many space1 *> parseExpr <* many space1 <* chunk ")") <|>
   try parseInt <|>
   parseBool <|>
-  fmap Comb parseComb <|>
+  try (fmap Comb parseComb) <|>
   parseVar
 
 parseVar :: Parser (Expr String)
@@ -180,15 +183,21 @@ parseOr :: Parser (Expr String)
 parseOr =
   parseBinOp "||" (\x y -> Comb Or :@ x :@ y) parseEnclosedExpr parseExpr
 
+parseCompose :: Parser (Expr String)
+parseCompose = do
+  x <- parseExpr1
+  some space1
+  chunk "."
+  some space1
+  y <- parseExpr
+  pure (Comb ComposeF :@ x :@ y)
+
 parseApply :: Parser (Expr String)
-parseApply = foldl1 (:@) <$> go
+parseApply = try $ foldl1 (:@) <$> go
   where
     go =
       try ((:) <$> parseEnclosedExpr <*> (some space1 *> go)) <|>
       fmap (:[]) parseEnclosedExpr
-  -- f <- parseEnclosedExpr
-  -- xs <- some (some space1 *> parseEnclosedExpr)
-  -- pure $ foldl1 (:@) (f:xs)
 
 parseTyIdent :: Parser String
 parseTyIdent =
@@ -198,8 +207,20 @@ parseIdent :: Parser String
 parseIdent =
   (:) <$> (letterChar <|> char '_') <*> many (alphaNumChar <|> char '_')
 
+delimiter :: Parser ()
+delimiter =
+  eof <|>
+  space1 <|>
+  void (satisfy (not . (`elem` (['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ "_"))))
+
+keyword :: String -> Parser String
+keyword str = chunk str <* lookAhead delimiter
+
+keywordToken :: String -> Parser String
+keywordToken str = token str <* lookAhead delimiter
+
 comb :: String -> a -> Parser a
-comb str c = chunk str *> pure c
+comb str c = keyword str *> pure c
 
 parseComb :: Parser Combinator
 parseComb =
@@ -211,6 +232,8 @@ parseComb =
   comb "tail" Tail <|>
   comb "foldr" Foldr <|>
   comb "scanr" Scanr <|>
+  comb "map" Map <|>
+  comb "sum" Sum <|>
   comb "pair" Pair <|>
   comb "dup" Dup <|>
   comb "fst" Fst <|>

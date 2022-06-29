@@ -115,6 +115,10 @@ data Combinator
   --   - Folds
   | Foldr | Scanr
 
+  --   - Misc derived
+  | Map
+  | Sum
+
   -- * Pairs
   --   - CCC product operations
   | Pair | Dup
@@ -257,20 +261,27 @@ instance ToParts (ExprU uv a) where
 
 -- | Top-level definition
 data Def =
-  forall a b. (Show a, Show b) =>
   Def
-    { defType :: Type a
-    , defBinding :: (String, [String], Expr b)
+    { defType :: Type String
+    , defBinding :: (String, [String], Expr String)
     }
 
 deriving instance Show Def
 
 data TopLevel
   = TopLevelDef Def
-  | forall a. Theorem (ExprEq Void a) -- Can also function as a rewrite
+  | Theorem (ExprEq Void String) -- Can also function as a rewrite
+
+getDef :: TopLevel -> Maybe Def
+getDef (TopLevelDef d) = Just d
+getDef _ = Nothing
 
 lam :: Eq a => a -> Expr a -> Expr a
 lam x = Lam . abstract1 x
+
+mkLams :: Eq a => [a] -> Expr a -> Expr a
+mkLams [] body = body
+mkLams (arg:args) body = lam arg (mkLams args body)
 
 test1 :: Expr ()
 test1 = Add (Mul (IntLit 5) (IntLit 1)) (Mul (IntLit 10) (IntLit 2))
@@ -290,6 +301,9 @@ reverseTest =
         ] :: Type String
   , defBinding = ("reverse", ["xs"], undefined :: Expr String)
   }
+
+defToExprAssoc :: Def -> (String, Expr String)
+defToExprAssoc (Def ty (name, params, body)) = (name, mkLams params body)
 
 rewrite1 :: Rewrite ExprU String ()
 rewrite1 = toParts (Mul (UVar "?x") (IntLit 1)) :=> toParts (UVar "?x")
@@ -350,6 +364,12 @@ step env (Comb IntEq :@ IntLit x :@ IntLit y) = Just (BoolLit (x == y))
 step env (Comb Not :@ BoolLit b) = Just (BoolLit (not b))
 step env (Comb And :@ BoolLit x :@ BoolLit y) = Just (BoolLit (x && y))
 step env (Comb Or :@ BoolLit x :@ BoolLit y) = Just (BoolLit (x || y))
+
+step env (Comb Map :@ _ :@ Comb Nil) = Just $ Comb Nil
+step env (Comb Map :@ f :@ (Comb Cons :@ x :@ xs)) = Just (Comb Cons :@ (f :@ x) :@ xs)
+
+step env (Comb Sum :@ Comb Nil) = Just $ IntLit 0
+step env (Comb Sum :@ (Comb Cons :@ x :@ xs)) = Just (Add x (Comb Sum :@ xs))
 
 -- step env (Comb Scanr :@ f :@ z :@ (Comb Cons :@ x :@ xs)) =
 --   let v = fresh env
