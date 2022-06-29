@@ -27,7 +27,8 @@ tcMsg str = ErrMsg str NoSrcLoc
 
 getFirstErrorLine :: TraversableStream s => PosState s -> TcError -> Maybe SourcePosLine
 getFirstErrorLine _posState (TcError []) = Nothing
-getFirstErrorLine _posState (TcError (ErrMsg _ NoSrcLoc : _)) = Nothing
+getFirstErrorLine posState (TcError (ErrMsg _ NoSrcLoc : xs)) =
+  getFirstErrorLine posState (TcError xs)
 getFirstErrorLine posState (TcError (ErrMsg _ (SrcLoc _ sp) : _)) =
   case offsetsToSourcePosList posState [spanStart sp] of
     (r:_) -> Just r
@@ -45,10 +46,10 @@ knownType ty ty' =
     then pure ()
     else
       err
-        [ tcMsg "Cannot match expected type"
-        , errNode ty
-        , tcMsg "with actual type"
-        , errNode ty'
+        [ tcMsg "Cannot match "
+        , ErrMsg ("expected type " ++ ppr ty) (getSrcLoc ty')
+        , tcMsg "with"
+        , ErrMsg ("actual type " ++ ppr ty') (getSrcLoc ty)
         ]
 
 endoArgs :: TcEnv String -> Type String -> [Expr String] -> Either TcError (Type String)
