@@ -145,7 +145,23 @@ parseEnclosedExpr =
   try parseInt <|>
   parseBool <|>
   try (fmap Comb parseComb) <|>
-  parseVar
+  parseVar <|>
+  parseList
+
+parseList :: Parser (Expr String)
+parseList = try parseNil <|> do
+  token "["
+  list <- go
+  many space1
+  chunk "]"
+  pure $ foldr (\x xs -> Comb Cons :@ x :@ xs) (Comb Nil) list
+  where
+    go =
+      try ((:) <$> parseExpr <*> (many space1 *> token "," *> go)) <|>
+      fmap (:[]) parseExpr
+
+parseNil :: Parser (Expr String)
+parseNil = token "[" *> chunk "]" *> pure (Comb Nil)
 
 parseVar :: Parser (Expr String)
 parseVar = Var <$> parseIdent

@@ -366,7 +366,7 @@ step env (Comb And :@ BoolLit x :@ BoolLit y) = Just (BoolLit (x && y))
 step env (Comb Or :@ BoolLit x :@ BoolLit y) = Just (BoolLit (x || y))
 
 step env (Comb Map :@ _ :@ Comb Nil) = Just $ Comb Nil
-step env (Comb Map :@ f :@ (Comb Cons :@ x :@ xs)) = Just (Comb Cons :@ (f :@ x) :@ xs)
+step env (Comb Map :@ f :@ (Comb Cons :@ x :@ xs)) = Just (Comb Cons :@ (f :@ x) :@ (Comb Map :@ f :@ xs))
 
 step env (Comb Sum :@ Comb Nil) = Just $ IntLit 0
 step env (Comb Sum :@ (Comb Cons :@ x :@ xs)) = Just (Add x (Comb Sum :@ xs))
