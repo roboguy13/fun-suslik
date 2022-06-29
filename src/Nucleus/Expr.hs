@@ -63,6 +63,14 @@ spanLength sp = spanEnd sp - spanStart sp
 data SrcLoc = NoSrcLoc | SrcLoc SrcLocKind SrcSpan
   deriving (Eq, Ord, Show)
 
+instance Semigroup SrcLoc where
+  NoSrcLoc <> x = x
+  x <> NoSrcLoc = x
+  x <> _ = x
+
+instance Monoid SrcLoc where
+  mempty = NoSrcLoc
+
 setSrcLocKind :: SrcLocKind -> SrcLoc -> SrcLoc
 setSrcLocKind _ NoSrcLoc = NoSrcLoc
 setSrcLocKind kind (SrcLoc _ pos) = SrcLoc kind pos
@@ -112,10 +120,10 @@ instance HasSrcLoc (Type a) where
   removeSrcLoc (Refinement _ v ty eqs) =
     Refinement NoSrcLoc v (removeSrcLoc ty) (map removeSrcLoc eqs)
 
-pattern a :-> b <- Arr _ a b where
-  a :-> b = Arr NoSrcLoc a b
+pattern a :-> b <- Arr _ a b
+  -- a :-> b = Arr NoSrcLoc a b
 
-a .-> b = Arr NoSrcLoc a b
+-- a .-> b = Arr NoSrcLoc a b
 
 data ExprEq uv a = WrappedExpr uv a :=: WrappedExpr uv a
   deriving (Show, Eq, Ord)
@@ -176,10 +184,10 @@ data ExprU uv a where
 
   Comb :: SrcLoc -> Combinator -> ExprU uv a
 
-infixl 0 :@
-pattern (:@) :: ExprU uv a -> ExprU uv a -> ExprU uv a
+pattern (:@) :: HasSrcLoc (ExprU uv a) => ExprU uv a -> ExprU uv a -> ExprU uv a
 pattern f :@ arg <- Apply _ f arg where
-  f :@ arg = Apply NoSrcLoc f arg
+  f :@ arg = Apply (getSrcLoc f) f arg
+
 
 type Expr = ExprU Void
 

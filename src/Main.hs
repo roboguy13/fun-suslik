@@ -43,18 +43,19 @@ main = do
 
   let env = map defToExprAssoc defs
   mapM_ putStrLn $ map ppr defs
-  print env
+  print (zip (map defType defs) env)
 
   forM_ defs $ \def ->
     case typeCheckDef def of
       Left err -> do
         hFlush stdout
         putStrLn ("\nFailed to type check the definition " ++ defName def)
+        putStrLn (show err ++ "\n")
         case getFirstErrorLine (statePosState pState) err of
           Just (SourcePosLine (Just offendingLine) _) -> do
             putStrLn (renderTcError offendingLine err)
           _ ->
-            putStrLn (show err)
+            pure ()
         exitFailure
       Right _ -> pure ()
 

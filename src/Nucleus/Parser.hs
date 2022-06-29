@@ -220,6 +220,7 @@ parseBool =
   (basicKeyword (`BoolLit` False) "False") <|>
   (basicKeyword (`BoolLit` True) "True")
 
+-- TODO: Figure out how to deal with application SrcLocs here
 parseBinOp :: String -> (SrcLoc -> a -> b -> c) -> Parser a -> Parser b -> Parser c
 parseBinOp name op p q = do
   startLoc <- getOffset
