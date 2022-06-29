@@ -52,7 +52,12 @@ data SrcLocKind = InSrc | InferredAt
 
 type SrcOffset = Int
 
-data SrcLoc = NoSrcLoc | SrcLoc SrcLocKind SrcOffset
+data SrcSpan = SrcSpan' SrcOffset SrcOffset
+  deriving (Eq, Ord, Show)
+
+pattern SrcSpan x y = SrcLoc InSrc (SrcSpan' x y)
+
+data SrcLoc = NoSrcLoc | SrcLoc SrcLocKind SrcSpan
   deriving (Eq, Ord, Show)
 
 setSrcLocKind :: SrcLocKind -> SrcLoc -> SrcLoc

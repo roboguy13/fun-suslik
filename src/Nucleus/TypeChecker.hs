@@ -11,6 +11,8 @@ import           Control.Monad
 
 import           Bound.Scope
 
+data TcError = TcError SrcOffset String
+
 typeCheckDef :: Def -> Bool
 typeCheckDef (Def ty (name, params, body)) =
   case checkType mempty (mkLams params body) ty of
