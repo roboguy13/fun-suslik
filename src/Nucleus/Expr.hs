@@ -28,7 +28,7 @@ import           Control.Monad
 import           Control.Applicative
 
 import           Data.Functor.Classes
-import           Data.Deriving (deriveShow1, deriveEq1, deriveOrd1, deriveEq)
+import           Data.Deriving
 
 import           Data.Void
 import           Data.List.NonEmpty (NonEmpty (..))
@@ -43,26 +43,63 @@ import           EGraph.Rewrite
 import           Representation.Parts
 import           Backend.DOT
 
+import           Text.Megaparsec (PosState (..))
+
+deriving instance Ord a => Ord (PosState a)
+
+data SrcLoc = NoSrcLoc | SrcLoc (PosState String)
+  deriving (Eq, Ord, Show)
+
+class HasSrcLoc a where
+  getSrcLoc :: a -> SrcLoc
+  removeSrcLoc :: a -> a
+
+instance HasSrcLoc SrcLoc where
+  getSrcLoc = id
+  removeSrcLoc = const NoSrcLoc
+
 infixr 0 :->
 data Type a where
-  (:->) :: Type a -> Type a -> Type a
-  TyVar :: a -> Type a
+  Arr :: SrcLoc -> Type a -> Type a -> Type a
+  TyVar :: SrcLoc -> a -> Type a
 
-  BoolType :: Type a
-  IntType :: Type a
-  ListType :: Type a -> Type a
+  BoolType :: SrcLoc -> Type a
+  IntType :: SrcLoc -> Type a
+  ListType :: SrcLoc -> Type a -> Type a
 
-  UnitType :: Type a
+  UnitType :: SrcLoc -> Type a
 
-  PairType :: Type a -> Type a -> Type a
+  PairType :: SrcLoc -> Type a -> Type a -> Type a
 
-  Refinement :: a -> Type a -> [ExprEq Void a] -> Type a
+  Refinement :: SrcLoc -> a -> Type a -> [ExprEq Void a] -> Type a
+
+instance HasSrcLoc (Type a) where
+  removeSrcLoc (Arr _ x y) =
+    Arr NoSrcLoc (removeSrcLoc x) (removeSrcLoc y)
+  removeSrcLoc (TyVar _ x) = TyVar NoSrcLoc x
+  removeSrcLoc (BoolType _) = BoolType NoSrcLoc
+  removeSrcLoc (IntType _) = IntType NoSrcLoc
+  removeSrcLoc (ListType _ a) = ListType NoSrcLoc (removeSrcLoc a)
+  removeSrcLoc (UnitType _) = UnitType NoSrcLoc
+  removeSrcLoc (PairType _ a b) =
+    PairType NoSrcLoc (removeSrcLoc a) (removeSrcLoc b)
+  removeSrcLoc (Refinement _ v ty eqs) =
+    Refinement NoSrcLoc v (removeSrcLoc ty) (map removeSrcLoc eqs)
+
+pattern a :-> b <- Arr a b _
+
+a .-> b = Arr NoSrcLoc a b
 
 data ExprEq uv a = WrappedExpr uv a :=: WrappedExpr uv a
   deriving (Show, Eq, Ord)
 
-deriving instance Ord a => Eq (Type a)
-deriving instance Ord a => Ord (Type a)
+instance HasSrcLoc (ExprEq uv a) where
+  removeSrcLoc (x :=: y) =
+    removeSrcLoc x :=: removeSrcLoc y
+
+
+deriving instance (Ord a) => Eq (Type a)
+deriving instance (Ord a) => Ord (Type a)
 
 -- deriving instance Functor Type
 
@@ -70,43 +107,49 @@ deriving instance Ord a => Ord (Type a)
 data WrappedExpr uv a =
   WrappedExpr
     (ExprU uv a)
-    (forall uvX x. (Eq uvX, Eq x) => ExprU uvX x -> ExprU uvX x -> Bool)
-    (forall uvX x. (Ord uvX, Ord x) => ExprU uvX x -> ExprU uvX x -> Ordering)
-    (forall uvX x. (Show uvX, Show x) => ExprU uvX x -> String)
+    (forall uvZ z. (Eq uvZ, Eq z) => ExprU uvZ z -> ExprU uvZ z -> Bool)
+    (forall uvZ z. (Ord uvZ, Ord z) => ExprU uvZ z -> ExprU uvZ z -> Ordering)
+    (forall uvZ z. (Show uvZ, Show z) => ExprU uvZ z -> String)
+    (forall uvZ z. ExprU uvZ z -> ExprU uvZ z)
 
 
 instance (Eq uv, Eq a) => Eq (WrappedExpr uv a) where
-  WrappedExpr x eq _ _ == WrappedExpr y _ _ _ = eq x y
+  WrappedExpr x eq _ _ _ == WrappedExpr y _ _ _ _ = eq x y
 instance (Ord uv, Ord a) => Ord (WrappedExpr uv a) where
-  compare (WrappedExpr x _ comp _) (WrappedExpr y _ _ _) = comp x y
+  compare (WrappedExpr x _ comp _ _) (WrappedExpr y _ _ _ _) = comp x y
 instance (Show uv, Show a) => Show (WrappedExpr uv a) where
-  show (WrappedExpr x _ _ showIt) = showIt x
+  show (WrappedExpr x _ _ showIt _) = showIt x
+instance HasSrcLoc (WrappedExpr uv a) where
+  removeSrcLoc (WrappedExpr x eq ord showIt f) =
+    WrappedExpr (f x) eq ord showIt f
 
 unwrapExpr :: WrappedExpr uv a -> ExprU uv a
-unwrapExpr (WrappedExpr e _ _ _) = e
+unwrapExpr (WrappedExpr e _ _ _ _) = e
 
-infixl 0 :@
 data ExprU uv a where
-  UVar :: uv -> ExprU uv a
-  Var :: a -> ExprU uv a
-  IntLit :: Int -> ExprU uv a
-  BoolLit :: Bool -> ExprU uv a
+  UVar :: SrcLoc -> uv -> ExprU uv a
+  Var :: SrcLoc -> a -> ExprU uv a
+  IntLit :: SrcLoc -> Int -> ExprU uv a
+  BoolLit :: SrcLoc -> Bool -> ExprU uv a
 
-  Add :: ExprU uv a -> ExprU uv a -> ExprU uv a
-  Sub :: ExprU uv a -> ExprU uv a -> ExprU uv a
-  Mul :: ExprU uv a -> ExprU uv a -> ExprU uv a
+  Add :: SrcLoc -> ExprU uv a -> ExprU uv a -> ExprU uv a
+  Sub :: SrcLoc -> ExprU uv a -> ExprU uv a -> ExprU uv a
+  Mul :: SrcLoc -> ExprU uv a -> ExprU uv a -> ExprU uv a
 
-  (:@) :: ExprU uv a -> ExprU uv a -> ExprU uv a
-  Lam :: String -> Scope () (ExprU uv) a -> ExprU uv a
+  Apply :: SrcLoc -> ExprU uv a -> ExprU uv a -> ExprU uv a
+  Lam :: SrcLoc -> String -> Scope () (ExprU uv) a -> ExprU uv a
 
     -- Non-recursive
-  Let :: String -> ExprU uv a -> Scope () (ExprU uv) a -> ExprU uv a
+  Let :: SrcLoc -> String -> ExprU uv a -> Scope () (ExprU uv) a -> ExprU uv a
 
-  Ann :: Type Void -> ExprU uv a -> ExprU uv a
+  Ann :: SrcLoc -> Type Void -> ExprU uv a -> ExprU uv a
 
-  Comb :: Combinator -> ExprU uv a
+  Comb :: SrcLoc -> Combinator -> ExprU uv a
 
-pattern Apply f x = f :@ x
+infixl 0 :@
+pattern (:@) :: ExprU uv a -> ExprU uv a -> ExprU uv a
+pattern f :@ arg <- Apply _ f arg where
+  f :@ arg = Apply NoSrcLoc f arg
 
 type Expr = ExprU Void
 
@@ -147,6 +190,8 @@ data Combinator
 
 type Env a = [(a, Expr a)]
 
+-- instance (Show x) => Show1 (ExprU) where
+--   liftShowsPrec = $(makeLiftShowsPrec ''ExprU)
 deriveShow1 ''ExprU
 
 deriving instance Functor (ExprU uv)
@@ -157,39 +202,62 @@ deriving instance (Show uv, Show a) => Show (ExprU uv a)
 
 deriving instance Functor (WrappedExpr uv)
 deriving instance Functor (ExprEq uv)
-deriving instance Functor Type
+deriving instance Functor (Type)
 
-deriving instance Show a => Show (Type a)
+deriving instance (Show a) => Show (Type a)
 
+instance HasSrcLoc (ExprU uv a) where
+  removeSrcLoc (UVar _ uv) = UVar NoSrcLoc uv
+  removeSrcLoc (Var _ v) = Var NoSrcLoc v
+  removeSrcLoc (IntLit _ i) = IntLit NoSrcLoc i
+  removeSrcLoc (BoolLit _ b) = BoolLit NoSrcLoc b
+  removeSrcLoc (Add _ x y) =
+    Add NoSrcLoc (removeSrcLoc x) (removeSrcLoc y)
+  removeSrcLoc (Sub _ x y) =
+    Sub NoSrcLoc (removeSrcLoc x) (removeSrcLoc y)
+  removeSrcLoc (Mul _ x y) =
+    Mul NoSrcLoc (removeSrcLoc x) (removeSrcLoc y)
+  removeSrcLoc (Apply _ x y) =
+    Apply NoSrcLoc (removeSrcLoc x) (removeSrcLoc y)
+  removeSrcLoc (Lam _ v body) =
+    Lam NoSrcLoc v (hoistScope removeSrcLoc body)
+  removeSrcLoc (Let _ v e body) =
+    Let NoSrcLoc v (removeSrcLoc e) (hoistScope removeSrcLoc body)
+  removeSrcLoc (Ann _ ty e) =
+    Ann NoSrcLoc (removeSrcLoc ty) (removeSrcLoc e)
+  removeSrcLoc (Comb _ c) = Comb NoSrcLoc c
 
 instance Applicative (ExprU uv) where
-  pure = Var
+  pure = Var NoSrcLoc
   (<*>) = ap
 
 instance Monad (ExprU uv) where
-  return = Var
+  return = Var NoSrcLoc
 
-  UVar x >>= _ = UVar x
-  Var x >>= f = f x
+  UVar _ x >>= _ = UVar NoSrcLoc x
+  Var _ x >>= f = f x
 
-  IntLit i >>= _ = IntLit i
-  BoolLit b >>= _ = BoolLit b
+  IntLit x i >>= _ = IntLit x i
+  BoolLit x b >>= _ = BoolLit x b
 
-  Add x y >>= f = Add (x >>= f) (y >>= f)
-  Sub x y >>= f = Sub (x >>= f) (y >>= f)
-  Mul x y >>= f = Mul (x >>= f) (y >>= f)
+  Add x a b >>= f = Add x (a >>= f) (b >>= f)
+  Sub x a b >>= f = Sub x (a >>= f) (b >>= f)
+  Mul x a b >>= f = Mul x (a >>= f) (b >>= f)
 
-  (x :@ y) >>= f = (x >>= f) :@ (y >>= f)
-  Lam v e >>= f = Lam v (e >>>= f)
-  Let v rhs body >>= f =
-    Let v (rhs >>= f) (body >>>= f)
+  Apply x a b >>= f = Apply x (a >>= f) (b >>= f)
+  Lam x v e >>= f = Lam x v (e >>>= f)
+  Let x v rhs body >>= f =
+    Let x v (rhs >>= f) (body >>>= f)
 
-  Ann ty e >>= f = Ann ty (e >>= f)
-  Comb c >>= _ = Comb c
+  Ann x ty e >>= f = Ann x ty (e >>= f)
+  Comb x c >>= _ = Comb x c
 
-
+-- instance (Eq uv, Eq x) => Eq1 (ExprU uv) where
+--   liftEq = $(makeLiftEq ''ExprU)
 $(deriveEq1 ''ExprU)
 -- deriveEq1 ''Type
+-- instance (Ord uv, Ord x) => Ord1 (ExprU uv) where
+--   liftCompare = $(makeLiftCompare ''ExprU)
 deriveOrd1 ''ExprU
 
 -- instance Eq1 Type
@@ -227,14 +295,15 @@ deriving instance (Ord uv, Ord a) => Ord (ExprU uv a)
 --   nodeChildren (Comb {}) = []
 
 wrappedExpr :: ExprU uv a -> WrappedExpr uv a
-wrappedExpr e = WrappedExpr e (==) compare show
+wrappedExpr e = WrappedExpr e (==) compare show removeSrcLoc
+
 
 instance (Data uv, Data a, Ord uv, Ord a) => GraphNode (ExprU uv a) where
   -- nodeCost e = 1 + sum (map nodeCost (partsChildren e))
   nodeCost e = 1 + sum (map nodeCost (nodeChildren e))
 
-instance Unify ExprU where
-  isUVar (UVar x) = Just x
+instance Unify (ExprU) where
+  isUVar (UVar _ x) = Just x
   isUVar _ = Nothing
   anyUVar x = unsafeCoerce x
   anyUVar' x = unsafeCoerce x
@@ -252,22 +321,22 @@ unaryParts :: ToParts a => a -> (a -> a) -> Parts a
 unaryParts x f = Parts (fmap toParts (x :| [])) (unaryOp f)
 
 instance ToParts (ExprU uv a) where
-  toParts e@(UVar _) = Leaf e
-  toParts e@(Var _) = Leaf e
-  toParts e@(IntLit _) = Leaf e
-  toParts e@(BoolLit _) = Leaf e
+  toParts e@(UVar _ _) = Leaf e
+  toParts e@(Var _ _) = Leaf e
+  toParts e@(IntLit _ _) = Leaf e
+  toParts e@(BoolLit _ _) = Leaf e
 
-  toParts (Add x y) = binaryParts x y Add
-  toParts (Sub x y) = binaryParts x y Sub
-  toParts (Mul x y) = binaryParts x y Mul
+  toParts (Add x a b) = binaryParts a b (Add x)
+  toParts (Sub x a b) = binaryParts a b (Sub x)
+  toParts (Mul x a b) = binaryParts a b (Mul x)
 
-  toParts (Apply x y) = binaryParts x y Apply
+  toParts (Apply x a b) = binaryParts a b (Apply x)
 
     -- TODO: Should we descend into these? If so, how?
   toParts e@(Lam {}) = Leaf e
   toParts e@(Let {}) = Leaf e
 
-  toParts (Ann ty e) = unaryParts e (Ann ty)
+  toParts (Ann x ty e) = unaryParts e (Ann x ty)
 
 -- instance Unify ExprU
 
@@ -275,7 +344,7 @@ instance ToParts (ExprU uv a) where
 data Def =
   Def
     { defType :: Type String
-    , defBinding :: (String, [String], Expr String)
+    , defBinding :: (String, [(SrcLoc, String)], Expr String)
     }
 
 deriving instance Show Def
@@ -288,37 +357,37 @@ getDef :: TopLevel -> Maybe Def
 getDef (TopLevelDef d) = Just d
 getDef _ = Nothing
 
-lam :: String -> Expr String -> Expr String
-lam x = Lam x . abstract1 x
+lam :: SrcLoc -> String -> Expr String -> Expr String
+lam srcLoc v = Lam srcLoc v . abstract1 v
 
-mkLams :: [String] -> Expr String -> Expr String
+mkLams :: [(SrcLoc, String)] -> Expr String -> Expr String
 mkLams [] body = body
-mkLams (arg:args) body = lam arg (mkLams args body)
+mkLams ((srcLoc, arg):args) body = lam srcLoc arg (mkLams args body)
 
-test1 :: Expr ()
-test1 = Add (Mul (IntLit 5) (IntLit 1)) (Mul (IntLit 10) (IntLit 2))
+-- test1 :: Expr ()
+-- test1 = Add (Mul (IntLit 5) (IntLit 1)) (Mul (IntLit 10) (IntLit 2))
 
-test2 :: Expr ()
-test2 = test1 `Mul` IntLit 1
+-- test2 :: Expr ()
+-- test2 = test1 `Mul` IntLit 1
 
-reverseTest :: Def
-reverseTest =
-  Def
-  { defType =
-      Refinement "rev" (ListType IntType :-> ListType IntType)
-        [ wrappedExpr (Var "rev" :@ Var "xs") :=: wrappedExpr (Var "rev" :@ (Var "rev" :@ Var "xs"))
-        , wrappedExpr (Var "append" :@ (Var "rev" :@ Var "ys") :@ (Var "rev" :@ Var "xs"))
-            :=:
-          wrappedExpr (Var "rev" :@ (Var "append" :@ Var "xs" :@ Var "ys"))
-        ] :: Type String
-  , defBinding = ("reverse", ["xs"], undefined :: Expr String)
-  }
+-- reverseTest :: Def ()
+-- reverseTest =
+--   Def
+--   { defType =
+--       Refinement "rev" (ListType IntType .-> ListType IntType)
+--         [ wrappedExpr (Var "rev" :@ Var "xs") :=: wrappedExpr (Var "rev" :@ (Var "rev" :@ Var "xs"))
+--         , wrappedExpr (Var "append" :@ (Var "rev" :@ Var "ys") :@ (Var "rev" :@ Var "xs"))
+--             :=:
+--           wrappedExpr (Var "rev" :@ (Var "append" :@ Var "xs" :@ Var "ys"))
+--         ] :: Type () String
+--   , defBinding = ("reverse", ["xs"], undefined :: Expr () String)
+--   }
 
 defToExprAssoc :: Def -> (String, Expr String)
 defToExprAssoc (Def ty (name, params, body)) = (name, mkLams params body)
 
-rewrite1 :: Rewrite ExprU String ()
-rewrite1 = toParts (Mul (UVar "?x") (IntLit 1)) :=> toParts (UVar "?x")
+-- rewrite1 :: Rewrite (ExprU ()) String ()
+-- rewrite1 = toParts (Mul (UVar "?x") (IntLit 1)) :=> toParts (UVar "?x")
 
 stepPair :: (Eq a, Show a) => Env a -> Expr a -> Expr a -> Maybe (Expr a, Expr a)
 stepPair env x y = do
@@ -342,46 +411,46 @@ class Fresh a where
   fresh :: Env a -> a
 
 step :: (Eq a, Show a) => Env a -> Expr a -> Maybe (Expr a)
-step env (Var v) =
+step env (Var _ v) =
   case lookup v env of
     Nothing -> error $ "No such binding " ++ show v
     Just e -> Just e
 
-step _env (IntLit _) = Nothing
-step _env (BoolLit _) = Nothing
+step _env (IntLit _ _) = Nothing
+step _env (BoolLit _ _) = Nothing
 
-step env (Add (IntLit x) (IntLit y)) = Just $ IntLit (x + y)
-step env (Sub (IntLit x) (IntLit y)) = Just $ IntLit (x - y)
-step env (Mul (IntLit x) (IntLit y)) = Just $ IntLit (x * y)
+step env (Add _ (IntLit _ x) (IntLit _ y)) = Just $ IntLit NoSrcLoc (x + y)
+step env (Sub _ (IntLit _ x) (IntLit _ y)) = Just $ IntLit NoSrcLoc (x - y)
+step env (Mul _ (IntLit _ x) (IntLit _ y)) = Just $ IntLit NoSrcLoc (x * y)
 
-step env (Add x y) = stepApplyPair env Add x y
-step env (Sub x y) = stepApplyPair env Sub x y
-step env (Mul x y) = stepApplyPair env Mul x y
+step env (Add _ x y) = stepApplyPair env (Add NoSrcLoc) x y
+step env (Sub _ x y) = stepApplyPair env (Sub NoSrcLoc) x y
+step env (Mul _ x y) = stepApplyPair env (Mul NoSrcLoc) x y
 
-step env (Apply (Lam _ scoped) x) =
+step env (Apply _ (Lam _ _ scoped) x) =
   Just $ instantiate1 x scoped
 
-step env (Comb ConstF :@ x :@ y) = Just y
-step env (Comb ComposeF :@ f :@ g :@ x) = Just (f :@ (g :@ x))
-step env (Comb Nil) = Nothing
-step env (Comb Head :@ (Comb Cons :@ x :@ xs)) = Just x
-step env (Comb Tail :@ (Comb Cons :@ x :@ xs)) = Just xs
-step env (Comb Foldr :@ f :@ z :@ (Comb Cons :@ x :@ xs)) =
-  Just (f :@ x :@ (Comb Foldr :@ f :@ z :@ xs))
+step env (Comb _ ConstF :@ x :@ y) = Just y
+step env (Comb _ ComposeF :@ f :@ g :@ x) = Just (f :@ (g :@ x))
+step env (Comb _ Nil) = Nothing
+step env (Comb _ Head :@ (Comb _ Cons :@ x :@ xs)) = Just x
+step env (Comb _ Tail :@ (Comb _ Cons :@ x :@ xs)) = Just xs
+step env (Comb _ Foldr :@ f :@ z :@ (Comb _ Cons :@ x :@ xs)) =
+  Just (f :@ x :@ (Comb NoSrcLoc Foldr :@ f :@ z :@ xs))
 
-step env (Comb Le :@ IntLit x :@ IntLit y) = Just (BoolLit (x <= y))
-step env (Comb Le :@ BoolLit x :@ BoolLit y) = Just (BoolLit (x <= y))
-step env (Comb IntEq :@ IntLit x :@ IntLit y) = Just (BoolLit (x == y))
+step env (Comb _ Le :@ IntLit _ x :@ IntLit _ y) = Just (BoolLit NoSrcLoc (x <= y))
+step env (Comb _ Le :@ BoolLit _ x :@ BoolLit _ y) = Just (BoolLit NoSrcLoc (x <= y))
+step env (Comb _ IntEq :@ IntLit _ x :@ IntLit _ y) = Just (BoolLit NoSrcLoc (x == y))
 
-step env (Comb Not :@ BoolLit b) = Just (BoolLit (not b))
-step env (Comb And :@ BoolLit x :@ BoolLit y) = Just (BoolLit (x && y))
-step env (Comb Or :@ BoolLit x :@ BoolLit y) = Just (BoolLit (x || y))
+step env (Comb _ Not :@ BoolLit _ b) = Just (BoolLit NoSrcLoc (not b))
+step env (Comb _ And :@ BoolLit _ x :@ BoolLit _ y) = Just (BoolLit NoSrcLoc (x && y))
+step env (Comb _ Or :@ BoolLit _ x :@ BoolLit _ y) = Just (BoolLit NoSrcLoc (x || y))
 
-step env (Comb Map :@ _ :@ Comb Nil) = Just $ Comb Nil
-step env (Comb Map :@ f :@ (Comb Cons :@ x :@ xs)) = Just (Comb Cons :@ (f :@ x) :@ (Comb Map :@ f :@ xs))
+step env (Comb _ Map :@ _ :@ Comb _ Nil) = Just $ Comb NoSrcLoc Nil
+step env (Comb _ Map :@ f :@ (Comb _ Cons :@ x :@ xs)) = Just (Comb NoSrcLoc Cons :@ (f :@ x) :@ (Comb NoSrcLoc Map :@ f :@ xs))
 
-step env (Comb Sum :@ Comb Nil) = Just $ IntLit 0
-step env (Comb Sum :@ (Comb Cons :@ x :@ xs)) = Just (Add x (Comb Sum :@ xs))
+step env (Comb _ Sum :@ Comb _ Nil) = Just $ IntLit NoSrcLoc 0
+step env (Comb _ Sum :@ (Comb _ Cons :@ x :@ xs)) = Just (Add NoSrcLoc x (Comb NoSrcLoc Sum :@ xs))
 
 -- step env (Comb Scanr :@ f :@ z :@ (Comb Cons :@ x :@ xs)) =
 --   let v = fresh env
@@ -390,11 +459,11 @@ step env (Comb Sum :@ (Comb Cons :@ x :@ xs)) = Just (Add x (Comb Sum :@ xs))
 --   Comb Cons :@ 
 
   -- Non-strict evaluation order
-step env (Apply f arg) = stepApplyPair env Apply f arg
+step env (Apply _ f arg) = stepApplyPair env (Apply NoSrcLoc) f arg
 
 step env (Lam {}) = Nothing
 
-step env (Let _ rhs body) = Just $ instantiate1 rhs body
+step env (Let _ _ rhs body) = Just $ instantiate1 rhs body
 
 step env (Ann {}) = Nothing
 step env (Comb {}) = Nothing
@@ -433,34 +502,34 @@ instance Ppr a => Ppr (Var () a) where
   pprP _ (F v) = ppr v
 
 instance (Ppr uv, Ppr a) => Ppr (ExprU uv a) where
-  pprP parens (UVar uv) = ppr uv
-  pprP parens (Var v) = ppr v
-  pprP parens (IntLit i) = show i
-  pprP parens (BoolLit b) = show b
+  pprP parens (UVar _ uv) = ppr uv
+  pprP parens (Var _ v) = ppr v
+  pprP parens (IntLit _ i) = show i
+  pprP parens (BoolLit _ b) = show b
 
-  pprP parens (Add x y) = pprBinOp parens "+" x y
-  pprP parens (Sub x y) = pprBinOp parens "-" x y
-  pprP parens (Mul x y) = pprBinOp parens "*" x y
+  pprP parens (Add _ x y) = pprBinOp parens "+" x y
+  pprP parens (Sub _ x y) = pprBinOp parens "-" x y
+  pprP parens (Mul _ x y) = pprBinOp parens "*" x y
 
-  pprP parens (Lam v body) =
+  pprP parens (Lam _ v body) =
     withParens parens $
       "\\ " ++ v ++ " -> " ++ ppr (unscope body)
 
-  pprP parens (Let v bnd body) =
+  pprP parens (Let _ v bnd body) =
     withParens parens $
       "let " ++ v ++ " := " ++ ppr bnd
       ++ " in " ++ ppr (unscope body)
 
-  pprP parens (Comb And :@ x :@ y) = pprBinOp parens "&&" x y
-  pprP parens (Comb Or :@ x :@ y) = pprBinOp parens "||" x y
-  pprP parens e@(Comb Cons :@ x :@ xs) =
+  pprP parens (Comb _ And :@ x :@ y) = pprBinOp parens "&&" x y
+  pprP parens (Comb _ Or :@ x :@ y) = pprBinOp parens "||" x y
+  pprP parens e@(Comb _ Cons :@ x :@ xs) =
     case getListExpr e of
       Nothing -> pprBinOp parens "::" x xs
       Just list -> pprList list
 
-  pprP parens (Comb c) = pprP parens c
+  pprP parens (Comb _ c) = pprP parens c
 
-  pprP parens (Ann e ty) =
+  pprP parens (Ann _ e ty) =
     withParens parens $
       ppr e ++ " : " ++ ppr ty
 
@@ -478,23 +547,25 @@ instance Ppr String where pprP _ = id
 instance Ppr Void where
   pprP _ = absurd
 
+instance Ppr SrcLoc where pprP _ = show -- TODO: Make this better
+
 instance Ppr a => Ppr (Type a) where
   pprP parens (x :-> y) =
     withParens parens $
       pprP WithParens x ++ " -> " ++ ppr y
 
-  pprP parens (TyVar x) = ppr x
-  pprP _parens BoolType = "Bool"
-  pprP _parens IntType = "Int"
-  pprP parens (ListType a) =
+  pprP parens (TyVar _ x) = ppr x
+  pprP _parens (BoolType _) = "Bool"
+  pprP _parens (IntType _) = "Int"
+  pprP parens (ListType _ a) =
     withParens parens $
       "List " ++ pprP WithParens a
-  pprP _parens UnitType = "unit"
-  pprP parens (PairType a b) =
+  pprP _parens (UnitType _) = "unit"
+  pprP parens (PairType _ a b) =
     withParens parens $
       "Pair " ++ pprP WithParens a ++ " " ++ pprP WithParens b
 
-  pprP _parens (Refinement name ty eqs) =
+  pprP _parens (Refinement _ name ty eqs) =
     "{" ++ ppr name ++ " : " ++ ppr ty ++ " | " ++
       intercalate " & " (map ppr eqs) ++ "}"
 
@@ -507,7 +578,7 @@ instance Ppr Def where
   pprP _ (Def ty (name, params, body)) =
     unlines
       [ name ++ " : " ++ ppr ty ++ ";"
-      , name ++ " " ++ intercalate " " params ++ " := " ++ ppr body ++ ";"
+      , name ++ " " ++ intercalate " " (map snd params) ++ " := " ++ ppr body ++ ";"
       ]
 
 onHead :: (a -> a) -> [a] -> [a]
@@ -515,8 +586,8 @@ onHead _ [] = []
 onHead f (x:xs) = f x : xs
 
 getListExpr :: ExprU uv a -> Maybe [ExprU uv a]
-getListExpr (Comb Nil) = Just []
-getListExpr (Comb Cons :@ x :@ xs) = fmap (x:) (getListExpr xs)
+getListExpr (Comb _ Nil) = Just []
+getListExpr (Comb _ Cons :@ x :@ xs) = fmap (x:) (getListExpr xs)
 getListExpr _ = Nothing
 
 pprList :: Ppr a => [a] -> String

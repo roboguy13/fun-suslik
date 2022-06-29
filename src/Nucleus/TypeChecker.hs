@@ -20,7 +20,7 @@ typeCheckDef (Def ty (name, params, body)) =
 type TcEnv a = [(a, Type String)]
 
 knownType :: Type String -> Type String -> Maybe ()
-knownType ty ty' = guard (ty == ty')
+knownType ty ty' = guard (removeSrcLoc ty == removeSrcLoc ty')
 
 endoArgs :: TcEnv String -> Type String -> [Expr String] -> Maybe (Type String)
 endoArgs env ty tys = do
@@ -35,26 +35,26 @@ checkEndoArgs env ty ty' tys = do
 checkType :: TcEnv String -> Expr String -> Type String -> Maybe (Type String)
 checkType env e (Refinement {}) =
   error "checkType: Refinement types not yet implemented"
-checkType env (Var v) ty =
+checkType env (Var srcLoc v) ty =
   case lookup v env of
     Nothing -> error $ "checkType: Cannot find " ++ show v ++ " in environment"
     Just ty' -> knownType ty ty' *> pure ty
 
-checkType env (IntLit {}) ty = knownType IntType ty *> pure ty
-checkType env (BoolLit {}) ty = knownType BoolType ty *> pure ty
+checkType env (IntLit {}) ty = knownType (IntType NoSrcLoc) ty *> pure ty
+checkType env (BoolLit {}) ty = knownType (BoolType NoSrcLoc) ty *> pure ty
 
-checkType env (Add x y) ty = checkEndoArgs env IntType ty [x, y]
-checkType env (Sub x y) ty = checkEndoArgs env IntType ty [x, y]
-checkType env (Mul x y) ty = checkEndoArgs env IntType ty [x, y]
+checkType env (Add _ x y) ty = checkEndoArgs env (IntType NoSrcLoc) ty [x, y]
+checkType env (Sub _ x y) ty = checkEndoArgs env (IntType NoSrcLoc) ty [x, y]
+checkType env (Mul _ x y) ty = checkEndoArgs env (IntType NoSrcLoc) ty [x, y]
 
 checkType env (f :@ x) ty = do
   xTy <- inferType env x
-  checkType env f (xTy :-> ty)
+  checkType env f (Arr NoSrcLoc xTy ty) --(xTy :-> ty)
 
-checkType env (Lam v body) ty =
+checkType env (Lam srcLoc v body) ty =
   case ty of
     a :-> b -> do
-      checkType ((v, a):env) (instantiate1 (Var v) body) b
+      checkType ((v, a):env) (instantiate1 (Var srcLoc v) body) b
     _ -> Nothing
 
 checkType env (Ann ty e) ty' = do
