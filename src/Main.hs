@@ -8,6 +8,8 @@ import           EGraph.Rewrite
 import           Nucleus.Expr
 import           Nucleus.Parser
 
+import           Nucleus.TypeChecker
+
 import           Representation.Parts
 import           Backend.DOT
 
@@ -35,6 +37,11 @@ main = do
   let env = map defToExprAssoc defs
   mapM_ putStrLn $ map ppr defs
   print env
+
+  forM_ defs $ \def ->
+    if not $ typeCheckDef def
+      then error ("Failed to type check the definition " ++ ppr def)
+      else pure ()
 
   repl env
 

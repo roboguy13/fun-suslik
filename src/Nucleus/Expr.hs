@@ -64,6 +64,8 @@ data ExprEq uv a = WrappedExpr uv a :=: WrappedExpr uv a
 deriving instance Ord a => Eq (Type a)
 deriving instance Ord a => Ord (Type a)
 
+-- deriving instance Functor Type
+
 -- | Hack to get around limitations caused by the TH stage restriction
 data WrappedExpr uv a =
   WrappedExpr
@@ -71,6 +73,7 @@ data WrappedExpr uv a =
     (forall uvX x. (Eq uvX, Eq x) => ExprU uvX x -> ExprU uvX x -> Bool)
     (forall uvX x. (Ord uvX, Ord x) => ExprU uvX x -> ExprU uvX x -> Ordering)
     (forall uvX x. (Show uvX, Show x) => ExprU uvX x -> String)
+
 
 instance (Eq uv, Eq a) => Eq (WrappedExpr uv a) where
   WrappedExpr x eq _ _ == WrappedExpr y _ _ _ = eq x y
@@ -151,6 +154,10 @@ deriving instance Foldable (ExprU uv)
 deriving instance Traversable (ExprU uv)
 
 deriving instance (Show uv, Show a) => Show (ExprU uv a)
+
+deriving instance Functor (WrappedExpr uv)
+deriving instance Functor (ExprEq uv)
+deriving instance Functor Type
 
 deriving instance Show a => Show (Type a)
 
