@@ -69,7 +69,7 @@ repl env = do
   when (input /= ":q") $ do
     case parse (parseExpr <* eof) "<stdin>" input of
       Left err -> putStrLn $ "Parse error: " ++ show err
-      Right r -> putStrLn (ppr r) >> putStrLn (ppr (eval env r))
+      Right r -> putStrLn (ppr r) >> putStrLn ("= " ++ ppr (eval env r))
     repl env
 
   -- putStrLn $ runRenderM $ renderEGraphState $ snd $ runEGraphM (test1 :: Expr ()) (pure ())
