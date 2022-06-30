@@ -9,8 +9,9 @@ import           Nucleus.Parser (offsetsToSourcePosList, SourcePosLine (..))
 import           Nucleus.Expr
 
 import           Data.List
-import           Data.Foldable
 import           Data.Void
+import           Data.Either
+import           Data.Foldable
 
 import           Control.Monad
 
@@ -20,6 +21,14 @@ data ErrorMessage = ErrMsg String SrcLoc
   deriving (Show)
 data TcError = TcError [ErrorMessage]
   deriving (Show)
+
+newtype TcErrorList = TcErrorList [TcError]
+
+collectErrors :: [Either TcErrorList a] -> Either TcErrorList ()
+collectErrors xs =
+  let errs = lefts xs
+  in
+  sequenceA xs *> pure ()
 
 err = Left . TcError
 errNode node = ErrMsg (ppr node) (getSrcLoc node)

@@ -45,5 +45,6 @@ executable fun-suslik
                       deriving-compat,
                       bifunctors,
                       bound,
+                      megaparsec,
     hs-source-dirs:   src
     default-language: Haskell2010

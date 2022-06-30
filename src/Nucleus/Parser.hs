@@ -109,8 +109,9 @@ parseEnclosedType =
 parseListType :: Parser (Type String)
 parseListType = do
   startLoc <- token "List"
+  ty <- parseEnclosedType
   endLoc <- getOffset
-  ListType (SrcSpan startLoc endLoc) <$> parseEnclosedType
+  pure $ ListType (SrcSpan startLoc endLoc) ty
 
 parsePairType :: Parser (Type String)
 parsePairType = do
