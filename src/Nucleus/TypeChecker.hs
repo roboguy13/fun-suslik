@@ -14,6 +14,7 @@ import           Data.Either
 import           Data.Foldable
 
 import           Control.Monad
+import           Control.Monad.Writer hiding (Sum)
 
 import           Bound.Scope
 
@@ -23,14 +24,12 @@ data ErrorMsgPart = ErrorMsgPart String SrcLoc
 data TcError = TcError String [ErrorMsgPart]
   deriving (Show)
 
+newtype TypeCheck a = TypeCheck { runTypeCheck :: WriterT [TcError] Maybe a }
+
 getBasicMsg :: TcError -> String
 getBasicMsg (TcError msg _) = msg
 
 newtype TcErrorList = TcErrorList [TcError]
-
--- err = Left . TcError
--- errNode node = ErrMsg (ppr node) (getSrcLoc node)
--- tcMsg str = ErrMsg str NoSrcLoc
 
 getFirstErrorLine :: TraversableStream s => PosState s -> TcError -> Maybe SourcePosLine
 getFirstErrorLine _posState (TcError _ []) = Nothing
@@ -39,13 +38,6 @@ getFirstErrorLine posState (TcError _ (ErrorMsgPart _ (SrcLoc _ sp):_)) =
   case offsetsToSourcePosList posState [spanStart sp] of
     (r:_) -> Just r
     [] -> Nothing
--- getFirstErrorLine _posState (TcError []) = Nothing
--- getFirstErrorLine posState (TcError (ErrMsg _ NoSrcLoc : xs)) =
---   getFirstErrorLine posState (TcError xs)
--- getFirstErrorLine posState (TcError (ErrMsg _ (SrcLoc _ sp) : _)) =
---   case offsetsToSourcePosList posState [spanStart sp] of
---     (r:_) -> Just r
---     [] -> Nothing
 
 typeCheckDef :: Def -> Either TcError (Type String)
 typeCheckDef (Def ty (name, params, body)) =
@@ -62,11 +54,6 @@ knownType ty ty' =
       TcError ("Cannot match expected type " ++ show (ppr ty) ++ " with actual type " ++ show (ppr ty'))
         [ ErrorMsgPart ("Expected " ++ show (ppr ty)) (getSrcLoc ty')
         ]
-        -- [ tcMsg "Cannot match "
-        -- , ErrMsg ("expected type " ++ ppr ty) (getSrcLoc ty')
-        -- , tcMsg "with"
-        -- , ErrMsg ("actual type " ++ ppr ty') (getSrcLoc ty)
-        -- ]
 
 endoArgs :: TcEnv String -> SrcLoc -> Type String -> [Expr String] -> Either TcError (Type String)
 endoArgs env parentTyLoc ty tys = do
@@ -86,11 +73,6 @@ lookup' origin srcLoc x env =
       TcError (origin ++ ": Cannot " ++ show (ppr x) ++ " in environment")
         [ ErrorMsgPart "Cannot find this" srcLoc
         ]
-      -- err
-      --   [ tcMsg $ origin ++ ": Cannot find "
-      --   , ErrMsg (ppr x) srcLoc
-      --   , tcMsg " in environment"
-      --   ]
     Just r -> pure r
 
 expectedType :: TcEnv String -> String -> SrcLoc -> Expr String -> Either TcError a
@@ -98,10 +80,6 @@ expectedType env expected tyLoc e =
   Left $ TcError ("Expected " ++ expected ++ found)
     [ ErrorMsgPart ("Expected " ++ expected) (getSrcLoc e) --tyLoc
     ]
-  -- err $
-  --   -- [ ErrMsg ("Expected " ++ expected ++ found) (getSrcLoc e)
-  --   [ErrMsg ("Expected " ++ expected) tyLoc]
-  --     ++ found
   where
     found =
       case inferType env tyLoc e of
@@ -284,7 +262,7 @@ inferType env srcLoc e@(f :@ x) =
       pure b
     _ -> expectedType env "_ -> _" srcLoc e
 
-inferType env _ e@(Lam {}) = --err [ ErrMsg "Cannot infer type of a lambda" (getSrcLoc e) ]
+inferType env _ e@(Lam {}) =
   Left $
   TcError "Cannot infer type of a lambda"
     [ ErrorMsgPart "Cannot infer type" (getSrcLoc e) ]

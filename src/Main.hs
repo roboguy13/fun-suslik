@@ -36,13 +36,14 @@ main = do
       let state = initialState fileName contents
 
       case runParser' (parseTopLevel <* eof) state of
-        (pState, Left err) -> error $ show err
+        (pState, Left err) -> error $ "Parse error:\n" ++ errorBundlePretty err
         (pState, Right r) -> pure (pState, mapMaybe getDef r)
     [] -> pure (initialState "<empty>" "", [])
     _ -> error "Wrong number of arguments. Expected one or zero."
 
   let env = map defToExprAssoc defs
   mapM_ putStrLn $ map ppr defs
+  putStrLn "*** Parsed:"
   print (zip (map defType defs) env)
 
   forM_ defs $ \def ->
@@ -70,7 +71,7 @@ repl env = do
   input <- getLine
   when (input /= ":q") $ do
     case parse (parseExpr <* eof) "<stdin>" input of
-      Left err -> putStrLn $ "Parse error: " ++ show err
+      Left err -> putStrLn $ "Parse error:\n" ++ errorBundlePretty err
       Right r -> putStrLn (ppr r) >> putStrLn ("= " ++ ppr (eval env r))
     repl env
 

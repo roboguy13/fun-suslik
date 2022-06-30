@@ -32,7 +32,7 @@ offsetsToSourcePosList posState0 =
         (line_maybe, posState) = reachOffset offset posState1
         srcPos = pstateSourcePos posState
 
-type Parser = Parsec String String
+type Parser = Parsec Void String
 
 lexeme :: Parser a -> Parser a
 lexeme = Lexer.lexeme (Lexer.space space1 mzero mzero)
