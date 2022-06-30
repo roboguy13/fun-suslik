@@ -175,10 +175,10 @@ data ExprU uv a where
   Mul :: SrcLoc -> ExprU uv a -> ExprU uv a -> ExprU uv a
 
   Apply :: SrcLoc -> ExprU uv a -> ExprU uv a -> ExprU uv a
-  Lam :: SrcLoc -> String -> Scope () (ExprU uv) a -> ExprU uv a
+  Lam :: SrcLoc -> a -> Scope () (ExprU uv) a -> ExprU uv a
 
     -- Non-recursive
-  Let :: SrcLoc -> String -> ExprU uv a -> Scope () (ExprU uv) a -> ExprU uv a
+  Let :: SrcLoc -> a -> ExprU uv a -> Scope () (ExprU uv) a -> ExprU uv a
 
   Ann :: SrcLoc -> Type Void -> ExprU uv a -> ExprU uv a
 
@@ -296,9 +296,12 @@ instance Monad (ExprU uv) where
   Mul x a b >>= f = Mul x (a >>= f) (b >>= f)
 
   Apply x a b >>= f = Apply x (a >>= f) (b >>= f)
-  Lam x v e >>= f = Lam x v (e >>>= f)
-  Let x v rhs body >>= f =
-    Let x v (rhs >>= f) (body >>>= f)
+  Lam x v e >>= f = do
+    v' <- f v
+    Lam x v' (e >>>= f)
+  Let x v rhs body >>= f = do
+    v' <- f v
+    Let x v' (rhs >>= f) (body >>>= f)
 
   Ann x ty e >>= f = Ann x ty (e >>= f)
   Comb x c >>= _ = Comb x c
@@ -567,12 +570,12 @@ instance (Ppr uv, Ppr a) => Ppr (ExprU uv a) where
 
   pprP parens (Lam _ v body) =
     withParens parens $
-      "\\ " ++ v ++ " -> " ++ ppr (unscope body)
+      "\\ " ++ ppr v ++ " -> " ++ ppr (instantiate1 (Var NoSrcLoc v) body)
 
   pprP parens (Let _ v bnd body) =
     withParens parens $
-      "let " ++ v ++ " := " ++ ppr bnd
-      ++ " in " ++ ppr (unscope body)
+      "let " ++ ppr v ++ " := " ++ ppr bnd
+      ++ " in " ++ ppr (instantiate1 (Var NoSrcLoc v) body)
 
   pprP parens (Comb _ And :@ x :@ y) = pprBinOp parens "&&" x y
   pprP parens (Comb _ Or :@ x :@ y) = pprBinOp parens "||" x y
