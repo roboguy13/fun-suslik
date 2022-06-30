@@ -23,6 +23,9 @@ reserveds = ["let", "in", "True", "False"]
 
 data SourcePosLine = SourcePosLine (Maybe String) SourcePos
 
+lineGetSourcePos :: SourcePosLine -> SourcePos
+lineGetSourcePos (SourcePosLine _ x) = x
+
 getOffset' :: Parser SrcOffset
 getOffset' = getOffset
 
@@ -36,6 +39,18 @@ offsetsToSourcePosList posState0 =
       where
         (line_maybe, posState) = reachOffset offset posState1
         srcPos = pstateSourcePos posState
+
+spansToSourcePosPairs :: forall s. TraversableStream s => PosState s -> [SrcSpan] -> [(SourcePos, SourcePos)]
+spansToSourcePosPairs posState spans =
+  let offsets = map pred $ concatMap (\(SrcSpan' x y) -> [x, y]) spans
+      sourcePos's = map lineGetSourcePos $ offsetsToSourcePosList posState offsets
+  in
+  selfInterleave sourcePos's
+
+-- Precondition: List must have an even length
+selfInterleave :: [a] -> [(a, a)]
+selfInterleave [] = []
+selfInterleave (x:y:rest) = (x, y) : selfInterleave rest
 
 type Parser = Parsec Void String
 

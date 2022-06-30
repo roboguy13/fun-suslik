@@ -9,15 +9,24 @@ import           Data.Char
 
 import           Nucleus.Expr (SrcLoc (..), SrcSpan (..), spanLength)
 import           Nucleus.TypeChecker
+import           Nucleus.Parser
+
+import           Text.Megaparsec
 
 getSpanned :: ErrorMsgPart -> Maybe (SrcSpan, String)
 getSpanned (ErrorMsgPart _ NoSrcLoc) = Nothing
 getSpanned (ErrorMsgPart str (SrcLoc _ sp)) = Just (sp, str)
 
-annotateTcError :: String -> TcError -> Annotated
-annotateTcError sourceLine (TcError _basicMsg msgs) =
-  annotate sourceLine $
-    mapMaybe (fmap (fmap defMsg) . getSpanned) msgs
+annotateTcError :: TraversableStream s => PosState s -> String -> TcError -> Annotated
+annotateTcError posState sourceLineStr (TcError _basicMsg msgs) =
+  let msgs' = mapMaybe getSpanned msgs
+      msgSpans = map fst msgs'
+      msgStrs = map snd msgs'
+      msgPosPairs = spansToSourcePosPairs posState msgSpans
+  in
+  annotate sourceLineStr $ zip msgPosPairs (map defaultMsg msgStrs)
+  -- annotate sourceLineStr $
+  --   mapMaybe (fmap (fmap defMsg) . getSpanned f) msgs
 
 data Color = DefaultColor | Red | Green | Blue | Yellow
   deriving (Show, Eq)
@@ -29,8 +38,8 @@ data Message =
   }
   deriving (Show, Eq)
 
-defMsg :: String -> Message
-defMsg = Message DefaultColor
+defaultMsg :: String -> Message
+defaultMsg = Message DefaultColor
 
 data Segment =
   Segment
@@ -46,8 +55,17 @@ newtype Annotated = Annotated { getSegments :: [Segment] }
 segSource :: String -> Segment
 segSource str = Segment str Nothing
 
+sourcePosStart :: (SourcePos, SourcePos) -> Int
+sourcePosStart = unPos . sourceColumn . fst
+
+sourcePosEnd :: (SourcePos, SourcePos) -> Int
+sourcePosEnd = unPos . sourceColumn . snd
+
+sourcePosSpanLength :: (SourcePos, SourcePos) -> Int
+sourcePosSpanLength sp = sourcePosEnd sp - sourcePosStart sp
+
 -- | NOTE: Duplicate indices will be ignored
-annotate :: String -> [(SrcSpan, Message)] -> Annotated
+annotate :: String -> [((SourcePos, SourcePos), Message)] -> Annotated
 annotate str0 msgs = Annotated $ go 0 "" str0
   where
     toSeg :: String -> [Segment]
@@ -63,10 +81,10 @@ annotate str0 msgs = Annotated $ go 0 "" str0
       toSeg soFar
 
     go ix soFar string@(c:cs) =
-      case find ((== ix) . spanStart . fst) msgs of
+      case find ((== ix) . sourcePosStart . fst) msgs of
         Nothing -> go (ix+1) (c:soFar) cs
         Just (span, msg) ->
-          let (here, rest) = splitAt (spanLength span) string
+          let (here, rest) = splitAt (sourcePosSpanLength span) string
           in
             toSeg soFar ++ Segment here (Just msg) : go (ix + length here) "" rest
 

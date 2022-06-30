@@ -1,0 +1,7 @@
+water : [Int] -> Int
+water h :=
+  sum (zipWith sub
+               (zipWith min
+                        (scanl1 max h)
+                        (scanr1 min h)));
+

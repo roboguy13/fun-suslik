@@ -9,6 +9,8 @@ import           Error.Error
 import           Nucleus.Expr
 import           Nucleus.TypeChecker
 
+import           Text.Megaparsec
+
 -- source text goes here
 -- ^~~~~~ ^~~~
 -- |      |____ Message for "text"
@@ -16,8 +18,8 @@ import           Nucleus.TypeChecker
 --
 --
 
-renderTcError :: String -> TcError -> String
-renderTcError sourceLine = renderAnnotated . annotateTcError sourceLine
+renderTcError :: TraversableStream s => PosState s -> String -> TcError -> String
+renderTcError posState sourceLine = renderAnnotated . annotateTcError posState sourceLine
 
 -- | Precondition: Argument is sorted on span start index
 spansToSpaceCount :: [(SrcSpan, Message)] -> [(Int, Message)]

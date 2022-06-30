@@ -56,7 +56,7 @@ main = do
         putStrLn ""
         case getFirstErrorLine (statePosState pState) err of
           Just (SourcePosLine (Just offendingLine) _) -> do
-            putStrLn $ unlines $ map ("    "<>) $ lines (renderTcError offendingLine err)
+            putStrLn $ unlines $ map ("    "<>) $ lines (renderTcError (statePosState pState) offendingLine err)
           _ ->
             pure ()
         exitFailure

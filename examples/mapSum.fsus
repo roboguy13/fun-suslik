@@ -1,3 +1,3 @@
-mapSum : List (List Int) -> List Int;
+mapSum : List (Pair Int Int) -> List Int;
 mapSum xss := map sum xss;
 
