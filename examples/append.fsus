@@ -1,0 +1,5 @@
+append : { app : (List Int -> List Int -> List Int)
+         | foldr f e (app xs ys) = foldr f (foldr f e ys) xs
+         };
+append xs ys := foldr cons ys xs;
+

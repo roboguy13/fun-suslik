@@ -1,0 +1,3 @@
+reverse : { rev : List Int -> List Int | rev (append xs ys) = append (rev ys) (rev xs) & rev (rev xs) = xs };
+reverse inList := foldr ( \ x k xs -> append (k xs) [x]) id inList [];
+

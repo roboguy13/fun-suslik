@@ -1,0 +1,18 @@
+min : Int -> Int -> Int;
+min x y := ifThenElse (le x y) x y;
+
+minimum : { inList : List Int | not (null inList) = True } -> Int;
+minimum xs :=
+  foldr min (head xs) (tail xs);
+
+sort : { srt : List Int -> List Int
+       | (srt . srt) = srt
+       & srt = flatten . mkTree };
+sort :=
+  uncons
+    []
+    (\x xs ->
+      let p := pick xs
+      in
+      cons x (sort ys));
+

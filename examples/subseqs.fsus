@@ -1,0 +1,27 @@
+elem : Int -> List Int -> Bool;
+elem e list :=
+  uncons list
+    False
+    (\x xs -> ifThenElse (intEq e x) True (elem e xs));
+
+before : Int -> Int -> List Int -> Bool;
+before x y list :=
+  uncons list
+    False
+    (\z zs -> ifThenElse (intEq x z) (elem y zs) (before x y zs));
+
+ifElemThenBefore : Int -> Int -> List Int -> Bool;
+ifElemThenBefore x y zs :=
+  ifThenElse (and (elem x zs) (elem y zs))
+    (before x y zs)
+    True;
+
+subseqs : { fn : List Int -> List (List Int)
+          | implies (ifElemThenBefore x y zs)
+                    (all (ifElemThenBefore x y) (subseqs zs))
+              =
+            True
+          };
+
+subseqs := foldr (\x xss -> append (map (cons x) xss) xss) [[]];
+
