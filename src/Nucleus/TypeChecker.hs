@@ -237,6 +237,13 @@ checkType env _ e@(Comb srcLoc IntEq) ty =
     IntType _ :-> IntType _ :-> BoolType _ -> pure ty
     _ -> expectedType env "Int -> Int -> Int" (getSrcLoc ty) e
 
+checkType env _ e@(Comb srcLoc IdF) ty =
+  case ty of
+    x :-> x' -> do
+      knownType x x'
+      pure ty
+    _ -> expectedType env "_ -> _" (getSrcLoc ty) e
+
 checkType env _ e@(Comb srcLoc c) ty = do
   ty' <- inferType env (getSrcLoc ty) (Comb srcLoc c)
   knownType ty ty'

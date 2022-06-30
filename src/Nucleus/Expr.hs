@@ -193,8 +193,8 @@ type Expr = ExprU Void
 
 
 data Combinator
-  =
-    ConstF
+  = IdF
+  | ConstF
   | ComposeF
   -- * Lists
   --   - Constructors
@@ -487,6 +487,7 @@ step env (Mul _ x y) = stepApplyPair env (Mul NoSrcLoc) x y
 step env (Apply _ (Lam _ _ scoped) x) =
   Just $ instantiate1 x scoped
 
+step env (Comb _ IdF :@ x) = Just x
 step env (Comb _ ConstF :@ x :@ y) = Just y
 step env (Comb _ ComposeF :@ f :@ g :@ x) = Just (f :@ (g :@ x))
 step env (Comb _ Nil) = Nothing
@@ -635,7 +636,7 @@ instance Ppr Def where
   pprP _ (Def ty (name, params, body)) =
     unlines
       [ name ++ " : " ++ ppr ty ++ ";"
-      , name ++ " " ++ intercalate " " (map snd params) ++ " := " ++ ppr body ++ ";"
+      , name ++ concatMap (" "++) (map snd params) ++ " := " ++ ppr body ++ ";"
       ]
 
 onHead :: (a -> a) -> [a] -> [a]
