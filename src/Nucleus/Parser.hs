@@ -281,6 +281,15 @@ parseIdent = do
   endLoc <- getOffset
   pure (SrcSpan startLoc endLoc, ident)
 
+-- | Space separated identifiers
+parseIdents :: Parser [(SrcLoc, String)]
+parseIdents = go
+  where
+    go :: Parser [(SrcLoc, String)]
+    go =
+      try ((:) <$> parseIdent <*> (some space1 *> go)) <|>
+      fmap (:[]) parseIdent
+
 delimiter :: Parser ()
 delimiter =
   eof <|>
@@ -299,13 +308,13 @@ keywordToken str = token str <* lookAhead delimiter
 parseLambda :: Parser (Expr String)
 parseLambda = do
   startLoc <- token "\\"
-  (_, x) <- parseIdent
+  params <- parseIdents
   many space1
   token "->"
   body <- parseExpr
   endLoc <- getOffset
 
-  pure $ lam (SrcSpan startLoc endLoc) x body
+  pure $ mkLams params body
 
 comb :: String -> a -> Parser a
 comb str c = keyword str *> pure c
