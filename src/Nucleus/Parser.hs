@@ -16,6 +16,11 @@ import           Data.List
 
 import           Nucleus.Expr
 
+import           Bound
+
+reserveds :: [String]
+reserveds = ["let", "in", "True", "False"]
+
 data SourcePosLine = SourcePosLine (Maybe String) SourcePos
 
 getOffset' :: Parser SrcOffset
@@ -175,6 +180,7 @@ parseExpr1 =
   try parseAnd <|>
   try parseOr <|>
   try parseApply <|>
+  try parseLet <|>
   parseEnclosedExpr
 
 parseEnclosedExpr :: Parser (Expr String)
@@ -279,7 +285,10 @@ parseIdent = do
   startLoc <- getOffset
   ident <- (:) <$> (letterChar <|> char '_') <*> many (alphaNumChar <|> char '_')
   endLoc <- getOffset
-  pure (SrcSpan startLoc endLoc, ident)
+
+  if ident `elem` reserveds
+    then mzero
+    else pure (SrcSpan startLoc endLoc, ident)
 
 -- | Space separated identifiers
 parseIdents :: Parser [(SrcLoc, String)]
@@ -315,6 +324,23 @@ parseLambda = do
   endLoc <- getOffset
 
   pure $ mkLams params body
+
+parseLet :: Parser (Expr String)
+parseLet = do
+  startLoc <- token "let"
+  (_, v) <- parseIdent
+  many space1
+
+  token ":="
+  rhs <- parseExpr
+  some space1
+
+  token "in"
+  body <- parseExpr
+
+  endLoc <- getOffset
+
+  pure $ Let (SrcSpan startLoc endLoc) v rhs (abstract1 v body)
 
 comb :: String -> a -> Parser a
 comb str c = keyword str *> pure c
