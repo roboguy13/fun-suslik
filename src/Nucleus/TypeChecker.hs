@@ -59,8 +59,8 @@ knownType ty ty' =
     then pure ()
     else
       Left $
-      TcError ("Cannot match expected type " ++ ppr ty ++ " with actual type " ++ ppr ty')
-        [ ErrorMsgPart ("Expected " ++ ppr ty) (getSrcLoc ty')
+      TcError ("Cannot match expected type " ++ show (ppr ty) ++ " with actual type " ++ show (ppr ty'))
+        [ ErrorMsgPart ("Expected " ++ show (ppr ty)) (getSrcLoc ty')
         ]
         -- [ tcMsg "Cannot match "
         -- , ErrMsg ("expected type " ++ ppr ty) (getSrcLoc ty')
@@ -83,7 +83,7 @@ lookup' origin srcLoc x env =
   case lookup x env of
     Nothing ->
       Left $
-      TcError (origin ++ ": Cannot " ++ ppr x ++ " in environment")
+      TcError (origin ++ ": Cannot " ++ show (ppr x) ++ " in environment")
         [ ErrorMsgPart "Cannot find this" srcLoc
         ]
       -- err
