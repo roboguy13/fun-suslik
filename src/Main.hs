@@ -49,11 +49,13 @@ main = do
     case typeCheckDef def of
       Left err -> do
         hFlush stdout
-        putStrLn ("\nFailed to type check the definition " ++ defName def)
-        putStrLn (show err ++ "\n")
+        putStrLn ("\nFailed to type check the definition " ++ defName def ++ "\n")
+        -- putStrLn (show err ++ "\n")
+        putStrLn $ "* " ++ getBasicMsg err
+        putStrLn ""
         case getFirstErrorLine (statePosState pState) err of
           Just (SourcePosLine (Just offendingLine) _) -> do
-            putStrLn (renderTcError offendingLine err)
+            putStrLn $ unlines $ map ("    "<>) $ lines (renderTcError offendingLine err)
           _ ->
             pure ()
         exitFailure

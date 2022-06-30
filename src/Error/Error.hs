@@ -10,12 +10,12 @@ import           Data.Char
 import           Nucleus.Expr (SrcLoc (..), SrcSpan (..), spanLength)
 import           Nucleus.TypeChecker
 
-getSpanned :: ErrorMessage -> Maybe (SrcSpan, String)
-getSpanned (ErrMsg _ NoSrcLoc) = Nothing
-getSpanned (ErrMsg str (SrcLoc _ sp)) = Just (sp, str)
+getSpanned :: ErrorMsgPart -> Maybe (SrcSpan, String)
+getSpanned (ErrorMsgPart _ NoSrcLoc) = Nothing
+getSpanned (ErrorMsgPart str (SrcLoc _ sp)) = Just (sp, str)
 
 annotateTcError :: String -> TcError -> Annotated
-annotateTcError sourceLine (TcError msgs) =
+annotateTcError sourceLine (TcError _basicMsg msgs) =
   annotate sourceLine $
     mapMaybe (fmap (fmap defMsg) . getSpanned) msgs
 
