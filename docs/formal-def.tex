@@ -28,7 +28,7 @@
 \newcommand{\pair}{\ttt{pair}}
 \newcommand{\fst}{\ttt{fst}}
 \newcommand{\snd}{\ttt{snd}}
-\newcommand{\ite}{\ttt{ifThenElse}}
+\newcommand{\ite}{\ttt{if}}
 
 \newcommand{\Int}{\ttt{Int}}
 \newcommand{\Bool}{\ttt{Bool}}
@@ -63,7 +63,7 @@
 
   <L> ::= $\lambda x \ra$ <t>
 
-  <C> ::= \ttt{head} | \ttt{tail} | \ttt{cons} | \ttt{nil} | \ttt{foldr} | \ttt{scanr} | \ttt{pair} | \ttt{fst} | \ttt{snd} | \ttt{ifThenElse} | \lesseq\; | \eq
+  <C> ::= \head\; | \tail\; | \cons\; | \nil\; | \foldr\; | \scanr\; | \pair\; | \fst\; | \snd\; | \ite\; | \lesseq\; | \eq
 
   <T> ::= \ttt{Int} | \ttt{Bool} | \ttt{Unit} | \ttt{List} <T> | \ttt{Pair} <T> <T> | ( <T> )
 
@@ -146,7 +146,7 @@ Now the small-step reduction relation $\reduces$
     \labinfer[App-1]{e_1\; e_2 \reduces e_1\; e_2'}{e_2 \reduces e_2'}
     ~~~
     \labinfer[App-2]{e_1\; e_2 \reduces e_1'\; e_2}{e_1 \reduces e_1' & e_2 \val}
-    \\\\
+    ~~~
     \labinfer[App-$\lambda$]{e_1\; e_2 \reduces e[x\mapsto e_2]}{e_1 \reduces \lambda x \ra e & e_2 \val}
     \\\\
     \labinfer[Cons-1]{\cons\; e_1\; e_2 \reduces \cons\; e_1'\; e_2}{e_1 \reduces e_2}
@@ -162,10 +162,12 @@ Now the small-step reduction relation $\reduces$
     \labinfer[Pair-2]{\pair\; e_1\; e_2 \reduces \pair\; e_1\; e_2'}{e_1 \val & e_2 \reduces e_2'}
     \\\\
     \labinfer[Foldr-1]{\foldr\; f\; z\; e \reduces \foldr\; f'\; z\; e}{f \reduces f'}
-    \\\\
+    ~~~
     \labinfer[Foldr-2]{\foldr\; f\; z\; e \reduces \foldr\; f\; z'\; e}{f \val & z \reduces z'}
     \\\\
-    \labinfer[Foldr-3]{\foldr\; f\; z\; (\cons\; x\; xs) \reduces f\; x\; (\foldr\; f\; z\; xs)}{f \val & z \val & \cons\; x\; xs \val}
+    \labinfer[Foldr-3]{\foldr\; f\; z\; e \reduces \foldr\; f\; z\; e'}{f \val & z \val & e \reduces e'}
+    \\\\
+    \labinfer[Foldr-Cons]{\foldr\; f\; z\; (\cons\; x\; xs) \reduces f\; x\; (\foldr\; f\; z\; xs)}{f \val & z \val & \cons\; x\; xs \val}
     % \\\\
     % % \infer{\ttt{scanr f z $e$} \reduces \ttt{cons e$'$ (f x
     \\\\
@@ -173,15 +175,25 @@ Now the small-step reduction relation $\reduces$
     ~~~
     \labinfer[Snd]{\snd\; (\pair\; e_1\; e_2) \reduces e_2}{\pair\; e_1\; e_2 \val}
     \\\\
-    \labinfer[IfThenElse-True]{\ite\; \True\; e_1\; e_2 \reduces e_1}{}
+    \labinfer[IfThenElse-1]{\ite\; b\; e_1\; e_2 \reduces \ite\; b'\; e_1\; e_2}{b \reduces b'}
     \\\\
+    \labinfer[IfThenElse-True]{\ite\; \True\; e_1\; e_2 \reduces e_1}{}
+    ~~~
     \labinfer[IfThenElse-False]{\ite\; \False\; e_1\; e_2 \reduces e_2}{}
+    \\\\
+    \labinfer[Le-1]{\lesseq\; e_1\; e_2 \reduces \lesseq\; e_1'\; e_2}{e_1 \reduces e_1'}
+    ~~~
+    \labinfer[Le-2]{\lesseq\; e_1\; e_2 \reduces \lesseq\; e_1\; e_2'}{e_1 \val & e_2 \reduces e_2'}
     \\\\
     \labinfer[Le-<]{\lesseq\; e_1\; e_2 \reduces \True}{e_1 \val & e_2 \val & e_1 < e_2}
     ~~~
     \labinfer[Le-=]{\lesseq\; e\; e \reduces \True}{e \val}
     \\\\
     \labinfer[Le-False]{\lesseq\; e_1\; e_2 \reduces \False}{e_1 \val & e_2 \val & e_1 > e_2}
+    \\\\
+    \labinfer[Eq-1]{\eq\; e_1\; e_2 \reduces \eq\; e_1'\; e_2}{e_1 \reduces e_1'}
+    ~~~
+    \labinfer[Eq-1]{\eq\; e_1\; e_2 \reduces \eq\; e_1\; e_2'}{e_1 \val & e_2 \reduces e_2'}
     \\\\
     \labinfer[Eq-True]{\eq\; e\; e \reduces \True}{e \val}
     ~~~
