@@ -56,15 +56,15 @@
 
   <B> ::= \ttt{True} | \ttt{False}
 
-  <D> ::= \ttt{x :} <T>; x <P> \ttt{:=} <t>;
+  <D> ::= \ttt{x :} <T>; x <P> \ttt{:=} <e>;
 
   <P> ::= $\varepsilon$ | x <P>
 
-  <t> ::= <t>$_0$ | <t> <t>$_0$
+  <e> ::= <e>$_0$ | <e> <e>$_0$
 
-  <t$_0$> ::= <I> | <B> | \ttt{unit} | <L> | <C> | \letbnd x \ttt{:=} <t> \inexpr <t> | ( <t> )
+  <e$_0$> ::= <I> | <B> | \ttt{unit} | <L> | <C> | \letbnd x \ttt{:=} <e> \inexpr <e> | ( <e> )
 
-  <L> ::= $\lambda x \ra$ <t>
+  <L> ::= $\lambda x \ra$ <e>
 
   <C> ::= \head\; | \tail\; | \cons\; | \nil\; | \foldr\; | \pair\; | \fst\; | \snd\; | \ite\; | \lesseq\; | \eq
 
