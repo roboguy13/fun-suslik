@@ -89,9 +89,9 @@
     \infer{\ttt{foldr f z $t$} \reduces \ttt{f x (foldr f z xs)}}{t \reduces \ttt{cons x xs}}
     \\\\
     % \infer{\ttt{scanr f z $t$} \reduces \ttt{cons t' (f x
-    \infer{\ttt{fst } t \reduces t'}{t \reduces \ttt{pair t' t''}}
+    \infer{\ttt{fst } t \reduces t'}{t \reduces \ttt{pair}\; t'\; t''}
     ~~~
-    \infer{\ttt{snd } t \reduces t''}{t \reduces \ttt{pair t' t''}}
+    \infer{\ttt{snd } t \reduces t''}{t \reduces \ttt{pair}\; t'\; t''}
     \\\\
     \infer{\ttt{ifThenElse } t\; t'\; t'' \ra t'}{t \reduces \ttt{True}}
     ~~~
