@@ -174,13 +174,13 @@ Now the small-step reduction relation $\reduces$
     ~~~~
     \labinfer[Pair-2]{\pair\; e_1\; e_2 \reduces \pair\; e_1\; e_2'}{e_1 \val & e_2 \reduces e_2'}
     \\\\
-    \labinfer[Foldr-1]{\foldr\; f\; z\; e \reduces \foldr\; f'\; z\; e}{f \reduces f'}
+    \labinfer[Foldr-1]{\foldr\; f\; e_0\; e \reduces \foldr\; f'\; e_0\; e}{f \reduces f'}
     ~~~
-    \labinfer[Foldr-2]{\foldr\; f\; z\; e \reduces \foldr\; f\; z'\; e}{f \val & z \reduces z'}
+    \labinfer[Foldr-2]{\foldr\; f\; e_0\; e \reduces \foldr\; f\; e_0'\; e}{f \val & e_0 \reduces e_0'}
     \\\\
-    \labinfer[Foldr-3]{\foldr\; f\; z\; e \reduces \foldr\; f\; z\; e'}{f \val & z \val & e \reduces e'}
+    \labinfer[Foldr-3]{\foldr\; f\; e_0\; e \reduces \foldr\; f\; e_0\; e'}{f \val & e_0 \val & e \reduces e'}
     \\\\
-    \labinfer[Foldr-Cons]{\foldr\; f\; z\; (\cons\; e_1\; e_2) \reduces f\; e_1\; (\foldr\; f\; z\; e_2)}{f \val & z \val & \cons\; e_1\; e_2 \val}
+    \labinfer[Foldr-Cons]{\foldr\; f\; e_0\; (\cons\; e_1\; e_2) \reduces f\; e_1\; (\foldr\; f\; e_0\; e_2)}{f \val & e_0 \val & \cons\; e_1\; e_2 \val}
     % \\\\
     % % \infer{\ttt{scanr f z $e$} \reduces \ttt{cons e$'$ (f x
     \\\\
