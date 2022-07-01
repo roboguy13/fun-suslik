@@ -62,7 +62,7 @@
 
   <t> ::= <t>$_0$ | <t> <t>$_0$
 
-  <t$_0$> ::= <I> | <B> | \ttt{unit} | <L> | <C> | \ttt{let} x \ttt{:=} <t> \ttt{in} <t> | ( <t> )
+  <t$_0$> ::= <I> | <B> | \ttt{unit} | <L> | <C> | \letbnd x \ttt{:=} <t> \inexpr <t> | ( <t> )
 
   <L> ::= $\lambda x \ra$ <t>
 
@@ -90,6 +90,8 @@
     \infer{\Gamma \vdash t_0\; t_1 : T'}{\Gamma \vdash t_0 : T \ra T' & \Gamma \vdash t_1 : T}
     \\\\
     \infer{\Gamma \vdash \lambda x \ra t : T \ra T'}{x : T, \Gamma \vdash t : T'}
+    \\\\
+    \infer{\Gamma \vdash \letbnd\; x\; \ttt{:=}\; e\; \inexpr\; e' : T'}{\Gamma \vdash e : T & x : T, \Gamma \vdash e' : T'}
     \\\\
     \infer{\vdash \ttt{nil} : \List\; T}{}
     ~~~
