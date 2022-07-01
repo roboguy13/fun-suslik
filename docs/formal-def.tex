@@ -156,9 +156,9 @@ Now the small-step reduction relation $\reduces$
     ~~~
     \labinfer[Cons-2]{\cons\; e_1\; e_2 \reduces \cons\; e_1\; e_2'}{e_1 \val & e_2 \reduces e_2'}
     \\\\
-    \labinfer[Head-1]{\head\; e \reduces \head e'}{e \reduces e'}
+    \labinfer[Head-1]{\head\; e \reduces \head\; e'}{e \reduces e'}
     ~~~
-    \labinfer[Tail-1]{\tail\; e \reduces \tail e'}{e \reduces e'}
+    \labinfer[Tail-1]{\tail\; e \reduces \tail\; e'}{e \reduces e'}
     \\\\
     \labinfer[Head-Cons]{\head\; (\cons\; e_1\; e_2) \reduces e_1}{\cons\; e_1\; e_2 \val}
     ~~~
