@@ -3,3 +3,7 @@
 *.hi
 dist
 dist-newstyle
+*.pdf
+*.aux
+*.log
+*.pdf

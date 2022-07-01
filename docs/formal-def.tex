@@ -1,0 +1,104 @@
+\documentclass[10pt]{article}
+\usepackage{amsmath, listings, amsthm, amssymb, proof, syntax}
+
+\renewcommand{\syntleft}{}
+\renewcommand{\syntright}{}
+
+\newcommand{\infers}{\ensuremath{\Rightarrow}}
+\newcommand{\checks}{\ensuremath{\Leftarrow}}
+
+\newcommand{\ttt}[1]{\texttt{#1}}
+\newcommand{\ra}{\ensuremath{\rightarrow\;\,}}
+
+\newcommand{\reduces}{\ensuremath{\longrightarrow\;\,}}
+
+\begin{document}
+
+\section{Syntax}
+
+\begin{grammar}
+  <I> ::= ... | -1 | 0 | 1 | ...
+
+  <B> ::= \ttt{True} | \ttt{False}
+
+  <D> ::= \ttt{x :} <T>; x <P> \ttt{:=} <t>;
+
+  <P> ::= $\varepsilon$ | x <P>
+
+  <t> ::= <t>$_0$ | <t> <t>$_0$
+
+  <t$_0$> ::= <I> | <B> | \ttt{unit} | <L> | <C> | \ttt{let} x \ttt{:=} <t> \ttt{in} <t> | ( <t> )
+
+  <L> ::= $\lambda x \ra$ <t>
+
+  <C> ::= \ttt{head} | \ttt{tail} | \ttt{cons} | \ttt{nil} | \ttt{foldr} | \ttt{scanr} | \ttt{pair} | \ttt{fst} | \ttt{snd} | \ttt{ifThenElse}
+
+  <T> ::= \ttt{Int} | \ttt{Bool} | \ttt{Unit} | \ttt{List} <T> | \ttt{Pair} <T> <T> | ( <T> )
+
+  <$\Gamma$> ::= $\cdot$ | x : <T>, $\Gamma$
+\end{grammar}
+
+\section{Typing Judgments}
+
+\[
+  \begin{array}{cc}
+    \infer{\Gamma \vdash x : T}{(x : T) \in \Gamma}
+    ~~~
+    \infer{\vdash i : \ttt{Int}}{i \in \mathbb{Z}}
+    \\\\
+    \infer{\vdash \ttt{unit} : \ttt{Unit}}{}
+    ~~~
+    \infer{\vdash \ttt{True} : \ttt{Bool}}{}
+    ~~~
+    \infer{\vdash \ttt{False} : \ttt{Bool}}{}
+    \\\\
+    \infer{\Gamma \vdash t_0\; t_1 : T'}{\Gamma \vdash t_0 : T \ra T' & \Gamma \vdash t_1 : T}
+    \\\\
+    \infer{\Gamma \vdash \lambda x \ra t : T \ra T'}{x : T, \Gamma \vdash t : T'}
+    \\\\
+    \infer{\vdash \ttt{nil} : \ttt{List T}}{}
+    ~~~
+    \infer{\vdash \ttt{cons} : \ttt{T \ra List T \ra List T}}{}
+    \\\\
+    \infer{\vdash \ttt{head} : \ttt{List T \ra T}}{}
+    ~~~
+    \infer{\vdash \ttt{tail} : \ttt{List T \ra List T}}{}
+    \\\\
+    \infer{\vdash \ttt{foldr} : \ttt{(T \ra T$'$ \ra T$'$) \ra T$'$ \ra List T \ra T$'$}}{}
+    \\\\
+    \infer{\vdash \ttt{scanr} : \ttt{(T \ra T$'$ \ra T$'$) \ra T$'$ \ra List T \ra List T$'$}}{}
+    \\\\
+    \infer{\vdash \ttt{pair} : \ttt{T \ra T$'$ \ra Pair T T$'$}}{}
+    ~~~
+    \infer{\vdash \ttt{fst} : \ttt{Pair T T$'$ \ra T}}{}
+    ~~~
+    \infer{\vdash \ttt{snd} : \ttt{Pair T T$'$ \ra T$'$}}{}
+    \\\\
+    \infer{\vdash \ttt{ifThenElse} : \ttt{Bool \ra T \ra T \ra T}}{}
+  \end{array}
+\]
+
+\section{Small-Step Operational Semantics}
+
+\[
+  \begin{array}{cc}
+    \infer{\ttt{head } t \reduces t'}{t \reduces \ttt{cons}\; t'\; t''}
+    ~~~
+    \infer{\ttt{tail } t \reduces t''}{t \reduces \ttt{cons}\; t'\; t''}
+    \\\\
+    \infer{\ttt{foldr f z $t$} \reduces \ttt{f x (foldr f z xs)}}{t \reduces \ttt{cons x xs}}
+    \\\\
+    % \infer{\ttt{scanr f z $t$} \reduces \ttt{cons t' (f x
+    \infer{\ttt{fst } t \reduces t'}{t \reduces \ttt{pair t' t''}}
+    ~~~
+    \infer{\ttt{snd } t \reduces t''}{t \reduces \ttt{pair t' t''}}
+    \\\\
+    \infer{\ttt{ifThenElse } t\; t'\; t'' \ra t'}{t \reduces \ttt{True}}
+    ~~~
+    \infer{\ttt{ifThenElse } t\; t'\; t'' \ra t''}{t \reduces \ttt{False}}
+    
+  \end{array}
+\]
+
+\end{document}
+

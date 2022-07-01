@@ -43,8 +43,8 @@ main = do
 
   let env = map defToExprAssoc defs
   mapM_ putStrLn $ map ppr defs
-  putStrLn "*** Parsed:"
-  print (zip (map defType defs) env)
+  -- putStrLn "*** Parsed:"
+  -- print (zip (map defType defs) env)
 
   forM_ defs $ \def ->
     case typeCheckDef def of
@@ -59,7 +59,7 @@ main = do
             putStrLn $ unlines $ map ("    "<>) $ lines (renderTcError (statePosState pState) offendingLine err)
           _ ->
             pure ()
-        exitFailure
+        -- exitFailure
       Right _ -> pure ()
 
   repl env

@@ -302,7 +302,7 @@ parseIdent = do
   endLoc <- getOffset
 
   if ident `elem` reserveds
-    then mzero
+    then fail "parseIdent"
     else pure (SrcSpan startLoc endLoc, ident)
 
 -- | Space separated identifiers

@@ -70,7 +70,7 @@ lookup' origin srcLoc x env =
   case lookup x env of
     Nothing ->
       Left $
-      TcError (origin ++ ": Cannot " ++ show (ppr x) ++ " in environment")
+      TcError (origin ++ ": Cannot " ++ show (ppr x) ++ " in environment ")
         [ ErrorMsgPart "Cannot find this" srcLoc
         ]
     Just r -> pure r

@@ -68,8 +68,8 @@ instance Semigroup SrcLoc where
   x <> NoSrcLoc = x
   x <> _ = x
 
-instance Monoid SrcLoc where
-  mempty = NoSrcLoc
+-- instance Monoid SrcLoc where
+--   mempty = NoSrcLoc
 
 setSrcLocKind :: SrcLocKind -> SrcLoc -> SrcLoc
 setSrcLocKind _ NoSrcLoc = NoSrcLoc
@@ -651,4 +651,20 @@ getListExpr _ = Nothing
 pprList :: Ppr a => [a] -> String
 pprList xs = 
     "[" ++ intercalate "," (map ppr xs) ++ "]"
+
+-- Based on 'abstract' and 'abstract1' from inside 'bound'
+exprAbstract :: SrcLoc -> (a -> Maybe b) -> ExprU uv a -> Scope b (ExprU uv) a
+exprAbstract srcLoc f e = Scope (liftM k e) where
+  k y = case f y of
+    Just z  -> B z
+    Nothing -> F (Var srcLoc y)
+{-# INLINE exprAbstract #-}
+
+-- | Abstract over a single variable
+--
+-- >>> abstract1 'x' "xyz"
+-- Scope [B (),F "y",F "z"]
+exprAbstract1 :: (Eq a) => SrcLoc -> a -> ExprU uv a -> Scope () (ExprU uv) a
+exprAbstract1 srcLoc a = exprAbstract srcLoc (\b -> if a == b then Just () else Nothing)
+{-# INLINE exprAbstract1 #-}
 

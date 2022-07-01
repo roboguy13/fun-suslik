@@ -1,4 +1,4 @@
-water : [Int] -> Int
+water : List Int -> Int;
 water h :=
   sum (zipWith sub
                (zipWith min
