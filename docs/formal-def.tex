@@ -68,7 +68,7 @@
 
   <C> ::= \head\; | \tail\; | \cons\; | \nil\; | \foldr\; | \pair\; | \fst\; | \snd\; | \ite\; | \lesseq\; | \eq
 
-  <T> ::= \ttt{Int} | \ttt{Bool} | \ttt{Unit} | T $\ra$ T | \ttt{List} <T> | \ttt{Pair} <T> <T> | ( <T> )
+  <T> ::= \ttt{Int} | \ttt{Bool} | \ttt{Unit} | <T> $\ra$ <T> | \ttt{List} <T> | \ttt{Pair} <T> <T> | ( <T> )
 
   <$\Gamma$> ::= $\cdot$ | x : <T>, $\Gamma$
 \end{grammar}
