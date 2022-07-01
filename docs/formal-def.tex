@@ -15,6 +15,7 @@
 \newcommand{\ra}{\ensuremath{\rightarrow}}
 
 \newcommand{\reduces}{\ensuremath{\longmapsto}}
+\newcommand{\reducestr}{\ensuremath{\longmapsto^{*}}}
 
 \newcommand{\val}{\textnormal{ val}}
 
@@ -213,12 +214,18 @@ Now the small-step reduction relation $\reduces$
   \end{array}
 \]
 
+Let $\reducestr$ be the transitive, reflexive closure of $\reduces$.
+
 \begin{theorem}[Progress]
   $\forall e.\; e \val \lor (\exists e'.\; e \reduces e')$
 \end{theorem}
 
 \begin{theorem}[Preservation]
-  If $e : T$ and $e \reduces e'$ then $e' : T$
+  \text{If} $e : T$ \text{and} $e \reduces e'$ \text{then} $e' : T$
+\end{theorem}
+
+\begin{theorem}[Uniqueness of Normal Forms]
+  \text{If} $e : T$, $v \val$, $v' \val$, $e \reducestr v$ \text{and} $e \reducestr v'$ \text{then} $v = v'$
 \end{theorem}
 
 
