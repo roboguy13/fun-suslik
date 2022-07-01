@@ -153,6 +153,11 @@ Now the small-step reduction relation $\reduces$
     ~~~
     \labinfer[App-$\lambda$]{(\lambda x \ra e)\; e_2 \reduces e[x\mapsto e_2]}{e_2 \val}
     \\\\
+    \labinfer[Let-Bnd]{\letbnd\; x\; \ttt{:=}\; e_1\; \inexpr\; e_2 \reduces \letbnd\; x\; \ttt{:=}\; e_1'\; \inexpr\; e_2}
+       {e_1 \reduces e_1'}
+    \\\\
+    \labinfer[Let-Subst]{\letbnd\; x\; \ttt{:=}\; e_1\; \inexpr\; e_2 \reduces e_2[x\mapsto e_1]}{e_1 \val}
+    \\\\
     \labinfer[Cons-1]{\cons\; e_1\; e_2 \reduces \cons\; e_1'\; e_2}{e_1 \reduces e_2}
     ~~~
     \labinfer[Cons-2]{\cons\; e_1\; e_2 \reduces \cons\; e_1\; e_2'}{e_1 \val & e_2 \reduces e_2'}
