@@ -27,7 +27,7 @@
 \newcommand{\nil}{\ttt{nil}}
 \newcommand{\unit}{\ttt{unit}}
 \newcommand{\foldr}{\ttt{foldr}}
-\newcommand{\scanr}{\ttt{scanr}}
+% \newcommand{\scanr}{\ttt{scanr}}
 \newcommand{\pair}{\ttt{pair}}
 \newcommand{\fst}{\ttt{fst}}
 \newcommand{\snd}{\ttt{snd}}
@@ -66,7 +66,7 @@
 
   <L> ::= $\lambda x \ra$ <t>
 
-  <C> ::= \head\; | \tail\; | \cons\; | \nil\; | \foldr\; | \scanr\; | \pair\; | \fst\; | \snd\; | \ite\; | \lesseq\; | \eq
+  <C> ::= \head\; | \tail\; | \cons\; | \nil\; | \foldr\; | \pair\; | \fst\; | \snd\; | \ite\; | \lesseq\; | \eq
 
   <T> ::= \ttt{Int} | \ttt{Bool} | \ttt{Unit} | \ttt{List} <T> | \ttt{Pair} <T> <T> | ( <T> )
 
@@ -100,8 +100,6 @@
     \infer{\vdash \ttt{tail} : \List\; T \ra \List\; T}{}
     \\\\
     \infer{\vdash \ttt{foldr} : (T \ra T' \ra T') \ra T' \ra \List\; T \ra T'}{}
-    \\\\
-    \infer{\vdash \ttt{scanr} : (T \ra T' \ra T') \ra T' \ra \List\; T \ra \List\; T'}{}
     \\\\
     \infer{\vdash \ttt{pair} : T \ra T' \ra \tyPair\; T\; T'}{}
     ~~~
