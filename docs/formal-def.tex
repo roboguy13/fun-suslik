@@ -183,9 +183,9 @@ Now the small-step reduction relation $\reduces$
     \\\\
     \labinfer[Le-False]{\lesseq\; e_1\; e_2 \reduces \False}{e_1 \val & e_2 \val & e_1 > e_2}
     \\\\
-    \labinfer[Eq-True]{\eq\; e\; e}{e \val}
+    \labinfer[Eq-True]{\eq\; e\; e \reduces \True}{e \val}
     ~~~
-    \labinfer[Eq-False]{\eq\; e_1\; e_2}{e_1 \val & e_2 \val & e_1 \neq e_2}
+    \labinfer[Eq-False]{\eq\; e_1\; e_2 \reduces \False}{e_1 \val & e_2 \val & e_1 \neq e_2}
     
   \end{array}
 \]
