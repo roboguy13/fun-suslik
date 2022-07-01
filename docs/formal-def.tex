@@ -1,7 +1,9 @@
 \documentclass[10pt]{article}
 \usepackage{amsmath, listings, amsthm, amssymb, proof, syntax}
-
 \usepackage[T1]{fontenc}
+\usepackage{scrlayer-scrpage}
+
+\newtheorem{theorem}{Theorem}
 
 \renewcommand{\syntleft}{}
 \renewcommand{\syntright}{}
@@ -14,7 +16,7 @@
 
 \newcommand{\reduces}{\ensuremath{\longmapsto}}
 
-\newcommand{\val}{\text{ val}}
+\newcommand{\val}{\textnormal{ val}}
 
 \newcommand{\True}{\ttt{True}}
 \newcommand{\False}{\ttt{False}}
@@ -141,6 +143,7 @@ First, the ``value'' judgment val (as in Harper's Practical Foundations for Prog
 \noindent
 Now the small-step reduction relation $\reduces$
 
+
 \[
   \begin{array}{cc}
     \labinfer[App-1]{e_1\; e_2 \reduces e_1\; e_2'}{e_2 \reduces e_2'}
@@ -153,9 +156,13 @@ Now the small-step reduction relation $\reduces$
     ~~~
     \labinfer[Cons-2]{\cons\; e_1\; e_2 \reduces \cons\; e_1\; e_2'}{e_1 \val & e_2 \reduces e_2'}
     \\\\
-    \labinfer[Head]{\head\; (\cons\; e_1\; e_2) \reduces e_1}{\cons\; e_1\; e_2 \val}
+    \labinfer[Head-1]{\head\; e \reduces \head e'}{e \reduces e'}
     ~~~
-    \labinfer[Tail]{\tail\; (\cons\; e_1\; e_2) \reduces e_2}{\cons\; e_1\; e_2 \val}
+    \labinfer[Tail-1]{\tail\; e \reduces \tail e'}{e \reduces e'}
+    \\\\
+    \labinfer[Head-Cons]{\head\; (\cons\; e_1\; e_2) \reduces e_1}{\cons\; e_1\; e_2 \val}
+    ~~~
+    \labinfer[Tail-Cons]{\tail\; (\cons\; e_1\; e_2) \reduces e_2}{\cons\; e_1\; e_2 \val}
     \\\\
     \labinfer[Pair-1]{\pair\; e_1\; e_2 \reduces \pair\; e_1'\; e_2}{e_1 \reduces e_1}
     ~~~~
@@ -171,9 +178,13 @@ Now the small-step reduction relation $\reduces$
     % \\\\
     % % \infer{\ttt{scanr f z $e$} \reduces \ttt{cons e$'$ (f x
     \\\\
-    \labinfer[Fst]{\fst\; (\pair\; e_1\; e_2) \reduces e_1}{\pair\; e_1\; e_2 \val}
+    \labinfer[Fst-1]{\fst\; e \reduces \fst\; e'}{e \reduces e'}
     ~~~
-    \labinfer[Snd]{\snd\; (\pair\; e_1\; e_2) \reduces e_2}{\pair\; e_1\; e_2 \val}
+    \labinfer[Snd-1]{\snd\; e \reduces \snd\; e'}{e \reduces e'}
+    \\\\
+    \labinfer[Fst-Pair]{\fst\; (\pair\; e_1\; e_2) \reduces e_1}{\pair\; e_1\; e_2 \val}
+    ~~~
+    \labinfer[Snd-Pair]{\snd\; (\pair\; e_1\; e_2) \reduces e_2}{\pair\; e_1\; e_2 \val}
     \\\\
     \labinfer[IfThenElse-1]{\ite\; b\; e_1\; e_2 \reduces \ite\; b'\; e_1\; e_2}{b \reduces b'}
     \\\\
@@ -201,6 +212,16 @@ Now the small-step reduction relation $\reduces$
     
   \end{array}
 \]
+
+\begin{theorem}[Progress]
+  $\forall e.\; e \val \lor (\exists e'.\; e \reduces e')$
+\end{theorem}
+
+\begin{theorem}[Preservation]
+  If $e : T$ and $e \reduces e'$ then $e' : T$
+\end{theorem}
+
+
 
 \end{document}
 
