@@ -150,7 +150,7 @@ Now the small-step reduction relation $\reduces$
     ~~~
     \labinfer[App-2]{e_1\; e_2 \reduces e_1'\; e_2}{e_1 \reduces e_1' & e_2 \val}
     ~~~
-    \labinfer[App-$\lambda$]{e_1\; e_2 \reduces e[x\mapsto e_2]}{e_1 \reduces \lambda x \ra e & e_2 \val}
+    \labinfer[App-$\lambda$]{(\lambda x \ra e)\; e_2 \reduces e[x\mapsto e_2]}{e_2 \val}
     \\\\
     \labinfer[Cons-1]{\cons\; e_1\; e_2 \reduces \cons\; e_1'\; e_2}{e_1 \reduces e_2}
     ~~~
