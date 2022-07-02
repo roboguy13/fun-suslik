@@ -324,7 +324,18 @@ Thus, we are more interested in the \textit{atoms} in the image of $\Gsem{\cdot}
 strictly greater than the least element (the least element is $\emptyset$ in our case). Continuing our example, the atoms of $\Gsem{\head\; (\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil)))}$ are $\{1\}$, $\{2\}$ and $\{3\}$. Furthermore, the unique atom of $\Gsem{\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil))}$ is $\{1,2,3\}$.
 
 We can see that we do not just want to look at the minimal elements, we want to look at the \textit{atoms}. For this, we use the
-following notation: Let $\Atoms X$ be the set of all atoms in $X$.
+following notation: Let $\Atoms X$ be the set of all atoms in $X$. Using this for our above example, we see that while the greatest lower bound
+gives us this
+
+\[
+  \bigcap\Gsem{\head\; (\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil)))} = \emptyset
+\]
+
+if we instead use $\Atoms$, we get
+
+\[
+  \Atoms\Gsem{\head\; (\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil)))} = \{\{1\},\{2\},\{3\}\}
+\]
 
 \noindent
 The general list of rules for $\Gsem{\cdot}$ are given here:
