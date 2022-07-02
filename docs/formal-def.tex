@@ -255,8 +255,11 @@ be $\beta$-reduced before applying the following translation.
 \textit{Preconditions for an expression to be translated into SuSLik}:
 \begin{itemize}
   \item No $\beta$-redexes
-  \item No nested structures (this requirement might be either lifted or relaxed later), since we only have \verb|intset| ghost variables,
-    and no ghost variables which can reflect these more complicated structures.
+  \item No nested structures, since we only have \verb|intset| ghost variables,
+    and no ghost variables which can reflect these more complicated structures. This requirement might be either lifted or relaxed later, depending on
+    if we can find a way to extend SuSLik's capabilities or a way to mitigate this limitation. One way could be to provide SuSLik with a program
+    sketch which directly implements the passing of results from one procedure to another (in order for this to work, a SuSLik bug regarding
+    its symbolic execution capabilities must be fixed).
 \end{itemize}
 
 The translation into SuSLik will be given by the semantic function $\sem{\cdot}$
