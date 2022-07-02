@@ -288,12 +288,12 @@ The general pipeline of the semantics translation looks like this:
 \noindent
 The semantic function which translate fun-SuSLik values is given by
 \[
-  \Gsem{\cdot} : Expr \ra \mathcal{P}(\mathbb{Z})
+  \Gsem{\cdot} : Expr \ra \mathcal{P}(\mathcal{P}(\mathbb{Z}))
 \]
 
 \noindent
-The codomain of $\Gsem{\cdot}$ is the
-set of all possible ghost values. For example, for a fun-SuSLik list \verb|cons 1 (cons 2 (cons 3 nil))|, the possible
+The image of a fun-SuSLik expression in $\Gsem{\cdot}$ is the
+set of all possible ghost values that can represent it. For example, for a fun-SuSLik list \verb|cons 1 (cons 2 (cons 3 nil))|, the possible
 ghost values would be all sets that contain \ttt{1}, \ttt{2} and \ttt{3}. Compare this with the fun-SuSLik expression
 \verb|head e|. After translating this to ghost values, all we know is that the result will be some value in the
 list \verb|e|. By translating into sets, we've forgotten exactly which one it will be.
