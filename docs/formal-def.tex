@@ -43,6 +43,16 @@
 \newcommand{\inexpr}{\ttt{in}}
 \newcommand{\defeq}{\ttt{:=}}
 
+\newcommand{\intS}{\ttt{int}}
+\newcommand{\intset}{\ttt{intset}}
+\newcommand{\bool}{\ttt{bool}}
+
+\newcommand{\true}{\ttt{true}}
+\newcommand{\false}{\ttt{false}}
+
+\newcommand{\upperS}{\ttt{upper}}
+\newcommand{\lowerS}{\ttt{lower}}
+
 \newcommand{\lesseq}{\ttt{le}}
 \newcommand{\eq}{\ttt{eq}}
 
@@ -56,7 +66,8 @@
 
 \begin{document}
 
-\section{Syntax}
+\section{fun-SuSLik Language Definition}
+\subsection{Syntax}
 
 \begin{grammar}
   <I> ::= ... | -1 | 0 | 1 | ...
@@ -80,7 +91,7 @@
   <$\Gamma$> ::= $\cdot$ | x : <T>, $\Gamma$
 \end{grammar}
 
-\section{Typing Judgment}
+\subsection{Typing Judgment}
 
 \[
   \begin{array}{cc}
@@ -124,7 +135,7 @@
   \end{array}
 \]
 
-\section{Small-Step Operational Semantics}
+\subsection{Small-Step Operational Semantics}
 
 First, the ``value'' judgment val (as in Harper's Practical Foundations for Programming Languages, Sec. 19.2):
 
@@ -285,10 +296,56 @@ The general pipeline of the semantics translation looks like this:
   {\scriptstyle \text{Operational Semantics of fun-SuSLik} \ra \text{Approximation by SuSLik ghost values} \ra \text{Semantics of SuSLik}}
 \]
 
+First, we will define a language of SuSLik ghost types and ghost values. This will correspond to the pure part of a SuSLik specification.
+
+\textbf{TODO: Should we give a syntax for sets here that differs from the typical mathematical syntax, to make the distinction more clear?}
+\\
+\begin{grammar}
+  <GT> ::= \intS | \bool | \intset
+
+  <GI> ::= ... | -1 | 0 | 1 | ...
+
+  <GB> ::= \false | \true | <GE> $\le$ <GE> | <GB> \ttt{\&\&} <GB> | <GB> \ttt{||} <GB> | \ttt{not}\; <GB>
+
+  <GS> ::= x | \{\} | <GS> \ttt{++} <GS> | <GS> \ttt{-{}-} <GS> | \{ <GL> \}
+
+  <GL> ::= <GE> | <GE> , <GL>
+
+  <GE> ::= x | <GB> | <GI> | <GE> == <GE> | <GE> + <GE> | <GE> - <GE> | <GE> * <GE> | ( <GE> ) | <GS> | \upperS\; <GS> | \lowerS\; <GS>
+\end{grammar}
+
+We will then define the translation from fun-SuSLik semantics to ghost semantics by the following 3 step process:
+
+\begin{enumerate}
+  \item Define a denotational semantics for the ghost language, $\Gsem{\cdot}$
+  \item Define a transformation $\alpha(\cdot)$ from the fun-SuSLik language of the previous section into this ghost language. We shall do this by defining a mapping of fun-SuSLik values to ghost values and a mapping from fun-SuSLik
+primitive operations into primitive ghost operations
+  \item Require that $\alpha(\cdot)$ be a homomorphism
+\end{enumerate}
+
+\subsection{Typing Judgment}
+\[
+  \begin{array}{cc}
+    \labinfer{i : \intS}{i \in \mathbb{Z}}
+    ~~~
+    \labinfer{\true : \bool}{}
+    ~~~
+    \labinfer{\false : \bool}{}
+    ~~~
+    \labinfer{\{\} : \intset}{}
+    \\\\
+    \labinfer{x\; \ttt{++}\; y : \intset}{x : \intset & y : \intset}
+
+  \end{array}
+\]
+
+~\\\\
+\textbf{TODO: Rewrite the following part to fit better with the preceding part}
+
 \noindent
 The semantic function which translate fun-SuSLik values is given by
 \[
-  \Gsem{\cdot} : Expr \ra \mathcal{P}(\mathcal{P}(\mathbb{Z}))
+  \Gsem{\cdot} : Expr \ra \mathcal{P}(\mathbb{Z} \uplus \mathcal{P}(\mathbb{Z}))
 \]
 
 \noindent
@@ -300,15 +357,15 @@ ghost values would be all \verb|intset|s that contain \ttt{1}, \ttt{2} and \ttt{
 \verb|head e|. After translating this to ghost values, all we know is that the result will be some value in the
 list \verb|e|. By translating into sets, we've forgotten exactly which one it will be.
 
-We are particularly interested in \textit{minimal (non-empty) elements} in the image of
+We are particularly interested in minimal \textit{non-empty} elements in the image of
 $\Gsem{\cdot}$. Again, consider the case of $\Gsem{\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil))}$.
-This will translate to the set of all supersets of $\{1,2,3\}$. However, there we notice that one
+This will translate to the set of all \verb|intset| values that are supersets of $\{1,2,3\}$. However, there we notice that one
 element of this set is most "important": the set $\{1,2,3\}$ itself. This set corresponds
 \textit{exactly} to the elements of the original list, without containing any
 "extra" elements.
 
 Also notice that, if you consider the $\subseteq$ partial order,
-this set is the \textit{minimal} set in $\Gsem{\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil))}$. To say this another way:
+this set is a \textit{minimal} set in $\Gsem{\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil))}$. To say this another way:
 the greatest lower bound of $\Gsem{\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil))}$ is $\{1,2,3\}$. In mathematical notation,
 we can write:
 
@@ -331,6 +388,7 @@ gives us this
   \bigcap\Gsem{\head\; (\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil)))} = \emptyset
 \]
 
+\noindent
 if we instead use $\Atoms$, we get
 
 \[
@@ -340,11 +398,18 @@ if we instead use $\Atoms$, we get
 \noindent
 The general list of rules for $\Gsem{\cdot}$ are given here:
 
+% Consider G[e] = {{1,2,3}, {1,2,3,4}, {1,2,3,4,5}, ...}
+% and we want to find G[head e] = {{1}, {2}, {3}, ...}
+
 \[
   \begin{array}{cc}
-    \Gsem{\nil} = \emptyset
+    \Gsem{\nil} = \{\emptyset\}
     ~~~~~
-    \Atoms\Gsem{\cons\; e_1\; e_2} = \{ \Atoms\Gsem{e_1} \cup a\; |\; a \in \Atoms\Gsem{e_2} \}
+    \Gsem{\cons\; e_1\; e_2} = \{ \Atoms\Gsem{e_1} \cup a\; |\; a \in \Atoms\Gsem{e_2} \}
+    \\
+    \Gsem{\head\; e} = \{ \Atoms s\; |\; s \in \Atoms\Gsem{e}\ \}
+    ~~~~~
+    \Gsem{\tail\; e} = \Gsem{e} \cap \Atoms\Gsem{e}
     % \Atoms\Gsem{\cons\; e_1\; e_2} = \{ \Atoms\Gsem{e_1} \} \cup \Atoms\Gsem{e_2}
   \end{array}
 \]
