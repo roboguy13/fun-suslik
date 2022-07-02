@@ -1,5 +1,5 @@
 \documentclass[10pt]{article}
-\usepackage{amsmath, listings, amsthm, amssymb, proof, syntax}
+\usepackage{amsmath, listings, amsthm, amssymb, proof, syntax, stmaryrd}
 \usepackage[T1]{fontenc}
 \usepackage{scrlayer-scrpage}
 
@@ -13,6 +13,7 @@
 
 \newcommand{\ttt}[1]{\texttt{#1}}
 \newcommand{\ra}{\ensuremath{\rightarrow}}
+\newcommand{\Ra}{\ensuremath{\Rightarrow}}
 
 \newcommand{\reduces}{\ensuremath{\longmapsto}}
 \newcommand{\reducestr}{\ensuremath{\longmapsto^{*}}}
@@ -47,6 +48,8 @@
 
 \newcommand{\labinfer} [3] [] {\infer[{\small\textsc{#1}}]{#2}{#3}}
 
+\newcommand{\sem} [1] {\llbracket#1\rrbracket}
+
 \begin{document}
 
 \section{Syntax}
@@ -73,7 +76,7 @@
   <$\Gamma$> ::= $\cdot$ | x : <T>, $\Gamma$
 \end{grammar}
 
-\section{Typing Judgments}
+\section{Typing Judgment}
 
 \[
   \begin{array}{cc}
@@ -234,6 +237,39 @@ Let $\reducestr$ be the transitive, reflexive closure of $\reduces$.
   \text{If} $e : T$, $v \val$, $v' \val$, $e \reducestr v$ \text{and} $e \reducestr v'$ \text{then} $v = v'$
 \end{theorem}
 
+\section{Translation Into SuSLik}
+
+Each subexpression will be assigned a SuSLik ghost variable. This is to specify
+that results are passed from one heaplet to another. This cannot be done directly
+through reusing memory locations across heaplets, since this is not allowed by
+separating conjunction.
+
+% The function $G : (\text{Ctx} \times \text{Expr}) \ra \text{Name}$ maps subexpressions into their corresponding ghost variable.
+
+There are three kinds of ghost variables: \verb|bool|, \verb|int| and \verb|set|. The latter
+represents sets of \verb|int|s. A lambda at the top-level of a program cannot be translated into
+SuSLik. However, lambdas are allowed at subexpressions as long as there are no redexes. Redexes will
+be $\beta$-reduced before applying the following translation.
+\\
+
+\textit{Preconditions for an expression to be translated into SuSLik}:
+\begin{itemize}
+  \item No $\beta$-redexes
+  \item No nested structures (this requirement might be lifted later), since we only have \verb|intset| ghost variables,
+    and no ghost variables which can reflect these more complicated structures.
+\end{itemize}
+
+The translation into SuSLik will be given by the semantic function $\sem{\cdot}$
+
+\[
+  \begin{array}{cc}
+    \sem{\letbnd\; x\; \ttt{:=}\; e\; \inexpr\; e_2} = x \mapsto v * \sem{e_2}(v) * \sem{e}(v)~~~\text{where $v \notin FV(\sem{e}) \cup FV(\sem{e_2})$}
+    \\
+    \sem{\lambda\; x\; \ra\; e} = \text{pred}(x) \Ra \sem{e}
+    % \\
+    % \sem{\cons\; e_1\; e_2} = \text{cons}(v
+  \end{array}
+\]
 
 
 \end{document}
