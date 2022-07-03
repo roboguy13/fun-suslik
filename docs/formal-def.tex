@@ -46,6 +46,7 @@
 \newcommand{\intS}{\ttt{int}}
 \newcommand{\intset}{\ttt{intset}}
 \newcommand{\bool}{\ttt{bool}}
+\newcommand{\pred}{\ttt{pred}}
 
 \newcommand{\true}{\ttt{true}}
 \newcommand{\false}{\ttt{false}}
@@ -63,6 +64,15 @@
 \newcommand{\Ssem} [1] {\mathcal{S}\sem{#1}}
 \newcommand{\Gapprox} {\approx}
 \newcommand{\Atoms} {\mathcal{A}}
+
+\newcommand{\partialfn} {\rightharpoonup}
+\newcommand{\PZ} {\mathcal{P}(\mathbb{Z})}
+\newcommand{\PPZ} {\mathcal{P}(\PZ)}
+
+\newcommand{\sqle} [1] {\sqsubseteq_{#1}}
+\newcommand{\boolLE} {\sqle{\bool}}
+\newcommand{\intLE} {\sqle{\intS}}
+\newcommand{\intsetLE} {\sqle{\intset}}
 
 \begin{document}
 
@@ -301,7 +311,7 @@ First, we will define a language of SuSLik ghost types and ghost values. This wi
 \textbf{TODO: Should we give a syntax for sets here that differs from the typical mathematical syntax, to make the distinction more clear?}
 \\
 \begin{grammar}
-  <GT> ::= \intS | \bool | \intset
+  <GT> ::= \bool | \pred | $\PZ$ | $\PPZ$
 
   <GI> ::= ... | -1 | 0 | 1 | ...
 
@@ -326,18 +336,98 @@ primitive operations into primitive ghost operations
 \subsection{Typing Judgment}
 \[
   \begin{array}{cc}
-    \labinfer{i : \intS}{i \in \mathbb{Z}}
+    \labinfer{i : \PZ}{i \in \mathbb{Z}}
     ~~~
     \labinfer{\true : \bool}{}
     ~~~
     \labinfer{\false : \bool}{}
     ~~~
-    \labinfer{\{\} : \intset}{}
+    \labinfer{\{\} : \PPZ}{}
     \\\\
-    \labinfer{x\; \ttt{++}\; y : \intset}{x : \intset & y : \intset}
+    \labinfer{x\; \ttt{++}\; y : \PPZ}{x : \PPZ & y : \PPZ}
+    ~~~
+    \labinfer{x\; \ttt{-{}-}\; y : \PPZ}{x : \PPZ & y : \PPZ}
 
   \end{array}
 \]
+
+\subsection{Translation on Types}
+
+The action of $\alpha(\cdot)$ on types is given by
+
+\[
+  \begin{array}{cc}
+    \alpha(\Int) = \PZ
+    ~~~
+    \alpha(\Bool) = \bool
+    ~~~
+    \alpha(\List\; \Int) = \PPZ
+    ~~~
+    \alpha(A \ra B) = \pred
+  \end{array}
+\]
+
+Note that $\List\; \Int$ is represented by sets of sets of integers and \textbf{nested lists are not currently supported}.
+
+\subsection{Partial Orders}
+
+We define three partial orders: one for each ghost type (other than $\pred$). For \verb|bool|, the relation
+will simply be the equality relation (the ``flat'' partial order). For \verb|int| and \verb|intset|, it will be
+the subset relation.
+
+\[
+  \begin{array}{cc}
+    \labinfer{x \boolLE x}{x : \bool}
+    ~~~
+    \labinfer{x \intLE y}{x : \intS & y : \intS & x \subseteq y}
+    % \sqsubseteq_{\intS}\; = \{ (x, x) | x : \intS \}
+    % \sqsubseteq_{\bool}\; = \{ (x, x) | x : \bool \}
+    ~~~
+    \labinfer{x \intsetLE y}{x : \intset & y : \intset & x \subseteq y}
+    % \sqsubseteq_{\intset}\; = \{ (x, y) | x : \intset, y : \intset, x \subseteq y \}
+  \end{array}
+\]
+
+\subsection{Interpreting fun-SuSLik in the Ghost Semantics}
+
+% First, we require our interpretation function, $\Gsem(\cdot)$, to respect the partial orders described in the previous
+% section. We express this as the law:
+%
+% \[
+%   \labinfer{\Gsem{e} 
+% \]
+%
+% Now, we actually define the function as follows:
+
+As not all fun-SuSLik constructs have a representation in the ghost language (the pure part),
+we use a partial function $\Gsem{\cdot} : Expr \partialfn \mathcal{G}$.
+
+\[\arraycolsep=1.4pt\def\arraystretch{1.4}
+  \begin{array}{c}
+    \Gsem{i} \ni i~~~\text{where $i \in \mathbb{Z}$}
+    \\
+    \Gsem{\True} \boolLE \true
+    \\
+    \Gsem{\False} \boolLE \false
+    \\
+    \Gsem{\nil} \intsetLE \emptyset
+    \\
+    \Gsem{\cons\; e_1\; e_2} \intsetLE \{ \Gsem{e_1} \} \cup \Gsem{e_2}
+    \\
+    \Gsem{\head\; e} \intLE \bigcup\Gsem{e}
+    \\
+    \Gsem{\tail\; e} \intsetLE \{ s \setminus x\; |\; s \in \Gsem{e}, x \in \Gsem{\head\; e}\}
+    \\
+    \Gsem{\lambda x \ra e} = \pred(x)\; \ttt{=>}\; \Gsem{e}
+    \\
+    \Gsem{(\lambda x \ra e)\; e_2} \sqle{\alpha(B)} \Gsem{e[x\mapsto e_2]}~~~\text{where $\lambda\; x \ra e : A \ra B$}
+    \\
+    \Gsem{e_1\; e_2} = \Gsem{e_1}(\Gsem{e_2})~~~\text{where $e_1$ is not a lambda}
+    % \Gsem{\foldr\; (\lambda x \ra e)\; e_0\; e_1} \in { 
+  \end{array}
+\]
+
+
 
 ~\\\\
 \textbf{TODO: Rewrite the following part to fit better with the preceding part}
@@ -365,7 +455,7 @@ element of this set is most "important": the set $\{1,2,3\}$ itself. This set co
 "extra" elements.
 
 Also notice that, if you consider the $\subseteq$ partial order,
-this set is a \textit{minimal} set in $\Gsem{\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil))}$. To say this another way:
+this set is a \textit{minimal} set in $\Gsem{\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil))}$. In particular,
 the greatest lower bound of $\Gsem{\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil))}$ is $\{1,2,3\}$. In mathematical notation,
 we can write:
 
