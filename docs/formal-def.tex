@@ -1,5 +1,5 @@
 \documentclass[10pt]{article}
-\usepackage{amsmath, listings, amsthm, amssymb, proof, syntax, stmaryrd}
+\usepackage{amsmath, listings, amsthm, amssymb, proof, syntax, stmaryrd, tikz-cd}
 \usepackage[T1]{fontenc}
 \usepackage{scrlayer-scrpage}
 
@@ -17,6 +17,8 @@
 
 \newcommand{\reduces}{\ensuremath{\longmapsto}}
 \newcommand{\reducestr}{\ensuremath{\longmapsto^{*}}}
+
+\newcommand{\BigStep}{\ensuremath{\Downarrow}}
 
 \newcommand{\val}{\textnormal{ val}}
 
@@ -75,6 +77,33 @@
 \newcommand{\intsetLE} {\sqle{\intset}}
 
 \begin{document}
+
+\section{Introduction}
+
+In this document, we describe the semantics of fun-SuSLik and translate them
+into SuSLik's semantics. Then, we translate both fun-SuSLik and SuSLik into an
+abstract store (which is a location to value mapping). An overview of this is
+given in the diagram below.
+\\
+
+\begin{tikzcd}
+  \text{fun-SuSLik} \arrow[d, "\Gsem{\cdot}"] \arrow[r, swap, "\sigma_{\mathcal{FS}}"]
+  &
+  \text{Abstract stores} \arrow[dddl, "id"]
+  \\
+  \text{Ghost approximation} \arrow[d, "\Ssem{\cdot}"]
+  \\
+  \text{SuSLik} \arrow[d, "\sigma_{\mathcal{S}}"]
+  \\
+  \text{Abstract stores}
+  % \\
+  % \text{Abstract stores}
+\end{tikzcd}
+
+~\\
+\noindent
+We show that the translation of fun-SuSLik into SuSLik is semantics preserving by proving that this diagram commutes.
+
 
 \section{fun-SuSLik Language Definition}
 \subsection{Syntax}
@@ -308,6 +337,9 @@ The general pipeline of the semantics translation looks like this:
 
 First, we will define a language of SuSLik ghost types and ghost values. This will correspond to the pure part of a SuSLik specification.
 
+\textit{A note on notation}: $\mathcal{P}(X)$ is taken to mean the set of all \textit{finite} subsets of $X$. For brevity, we simply write $\mathcal{P}$ instead of 
+$\mathcal{P}_{\textnormal{fin}}$.
+
 \textbf{TODO: Should we give a syntax for sets here that differs from the typical mathematical syntax, to make the distinction more clear?}
 \\
 \begin{grammar}
@@ -336,7 +368,7 @@ primitive operations into primitive ghost operations
 \subsection{Typing Judgment}
 \[
   \begin{array}{cc}
-    \labinfer{i : \PZ}{i \in \mathbb{Z}}
+    \labinfer{\{i\} : \PZ}{i \in \mathbb{Z}}
     ~~~
     \labinfer{\true : \bool}{}
     ~~~
@@ -350,6 +382,16 @@ primitive operations into primitive ghost operations
 
   \end{array}
 \]
+
+\subsection{Big-Step Operational Semantics}
+
+\textbf{TODO: Write}
+
+% \[
+%   \begin{array}{c}
+%     \labinfer{\{i\} \Downarrow \{i\}}{i \in \mathbb{Z}}
+%   \end{array}
+% \]
 
 \subsection{Translation on Types}
 
@@ -429,100 +471,100 @@ we use a partial function $\Gsem{\cdot} : Expr \partialfn \mathcal{G}$.
 
 
 
-~\\\\
-\textbf{TODO: Rewrite the following part to fit better with the preceding part}
-
-\noindent
-The semantic function which translate fun-SuSLik values is given by
-\[
-  \Gsem{\cdot} : Expr \ra \mathcal{P}(\mathbb{Z} \uplus \mathcal{P}(\mathbb{Z}))
-\]
-
-\noindent
-Note that $\mathcal{P}(\mathbb{Z})$ is the set of all possible values of type \verb|intset|.\\
-
-The image of a fun-SuSLik expression in $\Gsem{\cdot}$ is the
-set of all possible ghost values that can represent it. For example, for a fun-SuSLik list \verb|cons 1 (cons 2 (cons 3 nil))|, the possible
-ghost values would be all \verb|intset|s that contain \ttt{1}, \ttt{2} and \ttt{3}. Compare this with the fun-SuSLik expression
-\verb|head e|. After translating this to ghost values, all we know is that the result will be some value in the
-list \verb|e|. By translating into sets, we've forgotten exactly which one it will be.
-
-We are particularly interested in minimal \textit{non-empty} elements in the image of
-$\Gsem{\cdot}$. Again, consider the case of $\Gsem{\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil))}$.
-This will translate to the set of all \verb|intset| values that are supersets of $\{1,2,3\}$. However, there we notice that one
-element of this set is most "important": the set $\{1,2,3\}$ itself. This set corresponds
-\textit{exactly} to the elements of the original list, without containing any
-"extra" elements.
-
-Also notice that, if you consider the $\subseteq$ partial order,
-this set is a \textit{minimal} set in $\Gsem{\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil))}$. In particular,
-the greatest lower bound of $\Gsem{\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil))}$ is $\{1,2,3\}$. In mathematical notation,
-we can write:
-
-\[
-  \bigcap\Gsem{\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil))} = \{1, 2, 3\}
-\]
-
-Further, note that there are cases where the greatest lower bound is just $\emptyset$. This is the case for \verb|head e|, as mentioned
-above. To see this, observe that $\{\{1\},\{2\},\{3\}\} \subseteq \Gsem{\head\; (\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil)))}$. Therefore,
-we see that $\bigcap{\Gsem{\head\; (\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil)))}} = \emptyset$.
-
-Thus, we are more interested in the \textit{atoms} in the image of $\Gsem{\cdot}$. An atom is any minimal element that is
-strictly greater than the least element (the least element is $\emptyset$ in our case). Continuing our example, the atoms of $\Gsem{\head\; (\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil)))}$ are $\{1\}$, $\{2\}$ and $\{3\}$. Furthermore, the unique atom of $\Gsem{\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil))}$ is $\{1,2,3\}$.
-
-We can see that we do not just want to look at the minimal elements, we want to look at the \textit{atoms}. For this, we use the
-following notation: Let $\Atoms X$ be the set of all atoms in $X$. Using this for our above example, we see that while the greatest lower bound
-gives us this
-
-\[
-  \bigcap\Gsem{\head\; (\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil)))} = \emptyset
-\]
-
-\noindent
-if we instead use $\Atoms$, we get
-
-\[
-  \Atoms\Gsem{\head\; (\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil)))} = \{\{1\},\{2\},\{3\}\}
-\]
-
-\noindent
-The general list of rules for $\Gsem{\cdot}$ are given here:
-
-% Consider G[e] = {{1,2,3}, {1,2,3,4}, {1,2,3,4,5}, ...}
-% and we want to find G[head e] = {{1}, {2}, {3}, ...}
-
-\[
-  \begin{array}{cc}
-    \Gsem{\nil} = \{\emptyset\}
-    ~~~~~
-    \Gsem{\cons\; e_1\; e_2} = \{ \Atoms\Gsem{e_1} \cup a\; |\; a \in \Atoms\Gsem{e_2} \}
-    \\
-    \Gsem{\head\; e} = \{ \Atoms s\; |\; s \in \Atoms\Gsem{e}\ \}
-    ~~~~~
-    \Gsem{\tail\; e} = \Gsem{e} \cap \Atoms\Gsem{e}
-    % \Atoms\Gsem{\cons\; e_1\; e_2} = \{ \Atoms\Gsem{e_1} \} \cup \Atoms\Gsem{e_2}
-  \end{array}
-\]
-
-
-\section{Translation Into SuSLik}
-
-
-\noindent
-The translation into SuSLik will be given by the semantic function $\Ssem{\cdot}$
-
-\noindent
-\textbf{TODO:} Rewrite this to use the ghost variable approximation
-
-\[
-  \begin{array}{cc}
-    \Ssem{\letbnd\; x\; \ttt{:=}\; e\; \inexpr\; e_2} = x \mapsto v * \Ssem{e_2}(v) * \Ssem{e}(v)~~~\text{where $v \notin FV(\Ssem{e}) \cup FV(\Ssem{e_2})$}
-    \\
-    \Ssem{\lambda\; x\; \ra\; e} = \text{pred}(x) \Ra \Ssem{e}
-    % \\
-    % \sem{\cons\; e_1\; e_2} = \text{cons}(v
-  \end{array}
-\]
+% ~\\\\
+% \textbf{TODO: Rewrite the following part to fit better with the preceding part}
+%
+% \noindent
+% The semantic function which translate fun-SuSLik values is given by
+% \[
+%   \Gsem{\cdot} : Expr \ra \mathcal{P}(\mathbb{Z} \uplus \mathcal{P}(\mathbb{Z}))
+% \]
+%
+% \noindent
+% Note that $\mathcal{P}(\mathbb{Z})$ is the set of all possible values of type \verb|intset|.\\
+%
+% The image of a fun-SuSLik expression in $\Gsem{\cdot}$ is the
+% set of all possible ghost values that can represent it. For example, for a fun-SuSLik list \verb|cons 1 (cons 2 (cons 3 nil))|, the possible
+% ghost values would be all \verb|intset|s that contain \ttt{1}, \ttt{2} and \ttt{3}. Compare this with the fun-SuSLik expression
+% \verb|head e|. After translating this to ghost values, all we know is that the result will be some value in the
+% list \verb|e|. By translating into sets, we've forgotten exactly which one it will be.
+%
+% We are particularly interested in minimal \textit{non-empty} elements in the image of
+% $\Gsem{\cdot}$. Again, consider the case of $\Gsem{\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil))}$.
+% This will translate to the set of all \verb|intset| values that are supersets of $\{1,2,3\}$. However, there we notice that one
+% element of this set is most "important": the set $\{1,2,3\}$ itself. This set corresponds
+% \textit{exactly} to the elements of the original list, without containing any
+% "extra" elements.
+%
+% Also notice that, if you consider the $\subseteq$ partial order,
+% this set is a \textit{minimal} set in $\Gsem{\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil))}$. In particular,
+% the greatest lower bound of $\Gsem{\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil))}$ is $\{1,2,3\}$. In mathematical notation,
+% we can write:
+%
+% \[
+%   \bigcap\Gsem{\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil))} = \{1, 2, 3\}
+% \]
+%
+% Further, note that there are cases where the greatest lower bound is just $\emptyset$. This is the case for \verb|head e|, as mentioned
+% above. To see this, observe that $\{\{1\},\{2\},\{3\}\} \subseteq \Gsem{\head\; (\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil)))}$. Therefore,
+% we see that $\bigcap{\Gsem{\head\; (\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil)))}} = \emptyset$.
+%
+% Thus, we are more interested in the \textit{atoms} in the image of $\Gsem{\cdot}$. An atom is any minimal element that is
+% strictly greater than the least element (the least element is $\emptyset$ in our case). Continuing our example, the atoms of $\Gsem{\head\; (\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil)))}$ are $\{1\}$, $\{2\}$ and $\{3\}$. Furthermore, the unique atom of $\Gsem{\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil))}$ is $\{1,2,3\}$.
+%
+% We can see that we do not just want to look at the minimal elements, we want to look at the \textit{atoms}. For this, we use the
+% following notation: Let $\Atoms X$ be the set of all atoms in $X$. Using this for our above example, we see that while the greatest lower bound
+% gives us this
+%
+% \[
+%   \bigcap\Gsem{\head\; (\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil)))} = \emptyset
+% \]
+%
+% \noindent
+% if we instead use $\Atoms$, we get
+%
+% \[
+%   \Atoms\Gsem{\head\; (\cons\; 1\; (\cons\; 2\; (\cons\; 3\; \nil)))} = \{\{1\},\{2\},\{3\}\}
+% \]
+%
+% \noindent
+% The general list of rules for $\Gsem{\cdot}$ are given here:
+%
+% % Consider G[e] = {{1,2,3}, {1,2,3,4}, {1,2,3,4,5}, ...}
+% % and we want to find G[head e] = {{1}, {2}, {3}, ...}
+%
+% \[
+%   \begin{array}{cc}
+%     \Gsem{\nil} = \{\emptyset\}
+%     ~~~~~
+%     \Gsem{\cons\; e_1\; e_2} = \{ \Atoms\Gsem{e_1} \cup a\; |\; a \in \Atoms\Gsem{e_2} \}
+%     \\
+%     \Gsem{\head\; e} = \{ \Atoms s\; |\; s \in \Atoms\Gsem{e}\ \}
+%     ~~~~~
+%     \Gsem{\tail\; e} = \Gsem{e} \cap \Atoms\Gsem{e}
+%     % \Atoms\Gsem{\cons\; e_1\; e_2} = \{ \Atoms\Gsem{e_1} \} \cup \Atoms\Gsem{e_2}
+%   \end{array}
+% \]
+%
+%
+% \section{Translation Into SuSLik}
+%
+%
+% \noindent
+% The translation into SuSLik will be given by the semantic function $\Ssem{\cdot}$
+%
+% \noindent
+% \textbf{TODO:} Rewrite this to use the ghost variable approximation
+%
+% \[
+%   \begin{array}{cc}
+%     \Ssem{\letbnd\; x\; \ttt{:=}\; e\; \inexpr\; e_2} = x \mapsto v * \Ssem{e_2}(v) * \Ssem{e}(v)~~~\text{where $v \notin FV(\Ssem{e}) \cup FV(\Ssem{e_2})$}
+%     \\
+%     \Ssem{\lambda\; x\; \ra\; e} = \text{pred}(x) \Ra \Ssem{e}
+%     % \\
+%     % \sem{\cons\; e_1\; e_2} = \text{cons}(v
+%   \end{array}
+% \]
 
 
 \end{document}
