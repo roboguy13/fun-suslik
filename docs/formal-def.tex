@@ -83,7 +83,7 @@
 In this document, we describe the semantics of fun-SuSLik and translate them
 into SuSLik's semantics. Then, we translate both fun-SuSLik and SuSLik into a
 category of abstract stores and mappings between of abstract stores. An abstract store is a
-mapping from locations to values of a base type (here, the base types are \verb|int| and \verb|bool|).
+mapping from locations to values of a base type or a tuple of base types (here, the base types are \verb|int| and \verb|bool|).
 By "location," we mean an abstract location: it is not represented as a number and therefore
 you cannot perform pointer arithmetic on it. We do this to avoid these extra details, which
 are not relevant to proving semantics preservation.
