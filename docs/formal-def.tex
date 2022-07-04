@@ -76,6 +76,9 @@
 \newcommand{\intLE} {\sqle{\intS}}
 \newcommand{\intsetLE} {\sqle{\intset}}
 
+\newcommand\scalemath[2]{\scalebox{#1}{\mbox{\ensuremath{\displaystyle #2}}}}
+\renewcommand{\arraystretch}{0.5}
+
 \begin{document}
 
 \section{Introduction}
@@ -138,7 +141,7 @@ We show that the translation of fun-SuSLik into SuSLik is semantics preserving b
 \subsection{Typing Judgment}
 
 \[
-  \begin{array}{cc}
+  \begin{array}{c}[t]
     \infer{\Gamma \vdash x : T}{(x : T) \in \Gamma}
     ~~~
     \infer{\vdash i : \ttt{Int}}{i \in \mathbb{Z}}
