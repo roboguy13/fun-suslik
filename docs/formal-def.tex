@@ -363,13 +363,13 @@ We define the syntax of the SuSLik assertion language and then an equivalence of
 
 \begin{definition}[SuSLik Specification Equivalence]
   Given SuSLik specifications $SP$ and $SP'$, $a \approx_A a'$ iff
-    $(\forall c\; c'. ((\vdash \forall SP | c) \land (\vdash \forall SP' | c')) \implies c \approx_SP c')$
+    $(\forall c\; c'. ((\vdash \forall SP | c) \land (\vdash \forall SP' | c')) \implies c \approx_{SP} c')$
 \end{definition}
 
 \section{Translation of fun-SuSLik into SuSLik}
 
 We give a denotational semantics for fun-SuSLik, where the denotations are SuSLik specifications, $\sem{\cdot} : \ttt{E} \ra \ttt{SP}$.
-We show that this translation preserves the operational semantics of fun-SuSLik in two steps:
+This translation is shown to preserve equivalence in two steps:
 
 \begin{itemize}
   \item Equivalent fun-SuSLik expressions are mapped to equivalent SuSLik specifications. This amounts to proving
@@ -379,14 +379,14 @@ We show that this translation preserves the operational semantics of fun-SuSLik 
 \end{itemize}
 
 \noindent
-More specifically, we have
+More specifically, we have:
 
 \begin{theorem}[Full Abstraction]
   If $e$ and $e'$ are fun-SuSLik expressions and $e \approx_F e'$, then $\sem{e} \approx_S \sem{e'}$
 \end{theorem}
 
 \begin{theorem}[Adequacy]
-  If $e$ and $e'$ are fun-SuSLik expressions and $e \not\approx_F e'$, then $\sem{e} \not\approx_SP \sem{e'}$
+  If $e$ and $e'$ are fun-SuSLik expressions and $e \not\approx_F e'$, then $\sem{e} \not\approx_{SP} \sem{e'}$
 \end{theorem}
 
 
