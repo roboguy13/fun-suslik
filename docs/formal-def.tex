@@ -89,7 +89,7 @@ operational semantics of the two languages (Sections~\ref{sec:FSDef} and~\ref{se
 Then, we give definitions of equivalence in terms of these
 operational semantics (Sections~\ref{sec:FSEquiv} and~\ref{sec:SuSLikEquiv}). The translation from fun-SuSLik is represented as a denotational semantics
 that denotes a fun-SuSLik expression as a SuSLik specification (Section~\ref{sec:Translation}). Finally, we prove that this denotational
-semantics preserves equivalence by proving adequacy and full abstraction (Section~\ref{sec:Translation}).
+semantics preserves equivalence by proving adequacy and full abstraction (Section~\ref{sec:TransSoundness}).
 
 
 % In this document, we describe the semantics of fun-SuSLik and translate them
@@ -386,7 +386,7 @@ We define the syntax of the SuSLik specification language and then an equivalenc
 
 We give a denotational semantics for fun-SuSLik, where the denotations are SuSLik specifications, with
 the function $\sem{\cdot} : \ttt{E} \ra \ttt{SP}$.
-This translation is shown to preserve equivalence in two steps:
+This translation is shown to preserve equivalence in two steps (Section~\ref{sec:TransSoundness}):
 
 \begin{itemize}
   \item Equivalent fun-SuSLik expressions are mapped to equivalent SuSLik specifications. This amounts to proving
@@ -395,8 +395,8 @@ This translation is shown to preserve equivalence in two steps:
     This is accomplished by proving $\sem{\cdot}$ is \textit{adequate}.
 \end{itemize}
 
-\noindent
-More specifically, we have:
+\subsection{Soundness}
+\label{sec:TransSoundness}
 
 \begin{theorem}[Full Abstraction]
   If $e$ and $e'$ are fun-SuSLik expressions and $e \approx_F e'$, then $\sem{e} \approx_{SP} \sem{e'}$
