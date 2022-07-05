@@ -368,6 +368,10 @@ We define the syntax of the SuSLik specification language and then an equivalenc
 \subsection{Equivalence Relation}
 \label{sec:SuSLikEquiv}
 
+\begin{definition}[Synthesizability]
+  We say a specification $S$ is \textit{synthesizable} if $\exists c. (\vdash S|c)$
+\end{definition}
+
 \begin{definition}[SuSLik Statement Equivalence]
   Given SuSLik statements $c$ and $c'$, $c \approx_S c'$ iff
     $\forall \mathcal{M}. \exists \mathcal{M'}.
@@ -377,7 +381,7 @@ We define the syntax of the SuSLik specification language and then an equivalenc
 \end{definition}
 
 \begin{definition}[SuSLik Specification Equivalence]
-  Given SuSLik specifications $S$ and $S'$, $S \approx_{SP} S'$ iff
+  Given synthesizable SuSLik specifications $S$ and $S'$, $S \approx_{SP} S'$ iff
     $(\forall c\; c'. ((\vdash S | c) \land (\vdash S' | c')) \implies c \approx_{S} c')$
 \end{definition}
 
