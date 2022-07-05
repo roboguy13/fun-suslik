@@ -85,10 +85,11 @@
 \section{Introduction}
 
 In this document, we give a translation from fun-SuSLik to SuSLik. First, we define the syntax and
-operational semantics of the two languages. Then, we give definitions of equivalence in terms of these
-operational semantics. The translation from fun-SuSLik is represented as a denotational semantics
-that denotes a fun-SuSLik expression as a SuSLik specification. Finally, we prove that this denotational
-semantics preserves equivalence by proving adequacy and full abstraction.
+operational semantics of the two languages (Sections~\ref{sec:FPDef} and~\ref{sec:SuSLikDef}).
+Then, we give definitions of equivalence in terms of these
+operational semantics (Sections~\ref{sec:FSEquiv} and~\ref{sec:SuSLikEquiv}). The translation from fun-SuSLik is represented as a denotational semantics
+that denotes a fun-SuSLik expression as a SuSLik specification (Section~\ref{sec:Translation}). Finally, we prove that this denotational
+semantics preserves equivalence by proving adequacy and full abstraction (Section~\ref{sec:Translation}).
 
 
 % In this document, we describe the semantics of fun-SuSLik and translate them
@@ -320,7 +321,8 @@ Let $\reducestr$ be the transitive, reflexive closure of $\reduces$.
   \text{If} $e : T$, $v \val$, $v' \val$, $e \reducestr v$ \text{and} $e \reducestr v'$ \text{then} $v = v'$
 \end{theorem}
 
-\noindent
+\subsection{Equivalence Relation}
+\label{sec:FSEquiv}
 We now define equivalence of fun-SuSLik programs.
 
 \begin{definition}[Termination]
@@ -335,6 +337,7 @@ We now define equivalence of fun-SuSLik programs.
 \end{definition}
 
 \section{SuSLik Specification Language}
+\label{sec:SuSLikDef}
 
 We define the syntax of the SuSLik specification language and then an equivalence of specifications.
 
@@ -362,7 +365,9 @@ We define the syntax of the SuSLik specification language and then an equivalenc
   <SP> ::= <A> $\leadsto$ <A>
 \end{grammar}
 
-\noindent
+\subsection{Equivalence Relation}
+\label{sec:SuSLikEquiv}
+
 \begin{definition}[SuSLik Statement Equivalence]
   Given SuSLik statements $c$ and $c'$, $c \approx_S c'$ iff
     $\forall \mathcal{M}. \exists \mathcal{M'}.
@@ -377,6 +382,7 @@ We define the syntax of the SuSLik specification language and then an equivalenc
 \end{definition}
 
 \section{Translation of fun-SuSLik into SuSLik}
+\label{sec:Translation}
 
 We give a denotational semantics for fun-SuSLik, where the denotations are SuSLik specifications, with
 the function $\sem{\cdot} : \ttt{E} \ra \ttt{SP}$.
