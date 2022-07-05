@@ -366,8 +366,8 @@ We define the syntax of the SuSLik assertion language and then an equivalence of
 \end{definition}
 
 \begin{definition}[SuSLik Specification Equivalence]
-  Given SuSLik specifications $S$ and $S'$, $a \approx_A a'$ iff
-    $(\forall c\; c'. ((\vdash S | c) \land (\vdash S' | c')) \implies c \approx_{SP} c')$
+  Given SuSLik specifications $S$ and $S'$, $a \approx_{SP} a'$ iff
+    $(\forall c\; c'. ((\vdash S | c) \land (\vdash S' | c')) \implies c \approx_{S} c')$
 \end{definition}
 
 \section{Translation of fun-SuSLik into SuSLik}
