@@ -337,13 +337,17 @@ We define the syntax of the SuSLik assertion language and then an equivalence of
 
   <i> ::= ... | -1 | 0 | 1 | ...
 
+  <B> ::= \true | \false
+
   <IS> ::= \{\} | \{ <IL> \} | <IS> -{}- <IS> | <IS> ++ <IS>
 
   <IL> ::= <i> | <i> , <IL>
 
   <H> ::= emp | x :-> <t> | [x, <n>]
 
-  <t> ::= x | <i> | <IS> | ( <t> ) | <t> == <t> | <t> $\le$ <t> | not <t> | <t> \&\& <t> | <t> + <t> | <t> - <t> | <t> * <t>
+  <t> ::= x | <i> | <IS> | ( <t> ) | <P> | <t> + <t> | <t> - <t> | <t> * <t>
+
+  <P> ::= <B> | <t> == <t> | <t> $\le$ <t> | not <P> | <P> \&\& <P> | <P> $||$ <P> | <P> ? <t> : <t>
 
   <S> ::= <H> | <H> * <S>
 
@@ -368,7 +372,8 @@ We define the syntax of the SuSLik assertion language and then an equivalence of
 
 \section{Translation of fun-SuSLik into SuSLik}
 
-We give a denotational semantics for fun-SuSLik, where the denotations are SuSLik specifications, $\sem{\cdot} : \ttt{E} \ra \ttt{SP}$.
+We give a denotational semantics for fun-SuSLik, where the denotations are SuSLik specifications, with
+the function $\sem{\cdot} : \ttt{E} \ra \ttt{SP}$.
 This translation is shown to preserve equivalence in two steps:
 
 \begin{itemize}
