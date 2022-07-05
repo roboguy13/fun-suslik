@@ -362,19 +362,19 @@ We define the syntax of the SuSLik assertion language and then an equivalence of
 \end{definition}
 
 \begin{definition}[SuSLik Specification Equivalence]
-  Given SuSLik assertions $A$ and $A'$, $a \approx_A a'$ iff
-    $(\forall c\; c'. ((\vdash \forall A | c) \land (\vdash \forall A' | c')) \implies c \approx_S c')$
+  Given SuSLik specifications $SP$ and $SP'$, $a \approx_A a'$ iff
+    $(\forall c\; c'. ((\vdash \forall SP | c) \land (\vdash \forall SP' | c')) \implies c \approx_SP c')$
 \end{definition}
 
 \section{Translation of fun-SuSLik into SuSLik}
 
-We give a denotational semantics for fun-SuSLik, where the denotations are SuSLik assertions, $\sem{\cdot} : \ttt{Expr} \ra \ttt{Assertion}$.
+We give a denotational semantics for fun-SuSLik, where the denotations are SuSLik specifications, $\sem{\cdot} : \ttt{E} \ra \ttt{SP}$.
 We show that this translation preserves the operational semantics of fun-SuSLik in two steps:
 
 \begin{itemize}
-  \item Equivalent fun-SuSLik expressions are mapped to equivalent SuSLik assertions. This amounts to proving
+  \item Equivalent fun-SuSLik expressions are mapped to equivalent SuSLik specifications. This amounts to proving
     \textit{full abstraction} for $\sem{\cdot}$.
-  \item Non-equivalent fun-SuSLik expressions are mapped to non-equivalent SuSLik assertions.
+  \item Non-equivalent fun-SuSLik expressions are mapped to non-equivalent SuSLik specifications.
     This is accomplished by proving $\sem{\cdot}$ is \textit{adequate}.
 \end{itemize}
 
@@ -386,7 +386,7 @@ More specifically, we have
 \end{theorem}
 
 \begin{theorem}[Adequacy]
-  If $e$ and $e'$ are fun-SuSLik expressions and $e \not\approx_F e'$, then $\sem{e} \not\approx_A \sem{e'}$
+  If $e$ and $e'$ are fun-SuSLik expressions and $e \not\approx_F e'$, then $\sem{e} \not\approx_SP \sem{e'}$
 \end{theorem}
 
 
