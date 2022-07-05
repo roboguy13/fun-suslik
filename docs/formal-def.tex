@@ -1,5 +1,5 @@
 \documentclass[10pt]{article}
-\usepackage{amsmath, listings, amsthm, amssymb, proof, syntax, stmaryrd, tikz-cd}
+\usepackage{amsmath, listings, amsthm, amssymb, latexsym, proof, syntax, stmaryrd, tikz-cd}
 \usepackage[T1]{fontenc}
 \usepackage{scrlayer-scrpage}
 
@@ -348,7 +348,23 @@ We define the syntax of the SuSLik assertion language and then an equivalence of
   <S> ::= <H> | <H> * <S>
 
   <A> ::= \{ <P> ; <S> \}
+
+  <SP> ::= <A> $\leadsto$ <A>
 \end{grammar}
+
+\noindent
+\begin{definition}[SuSLik Statement Equivalence]
+  Given SuSLik statements $c$ and $c'$, $c \approx_S c'$ iff
+    $\forall h. \forall s. \exists h'. \exists s'.
+      ((c, \langle h, s \rangle) \BigStep \langle h' , s' \rangle
+      \land
+      ((c', \langle h, s \rangle) \BigStep \langle h' , s' \rangle$
+\end{definition}
+
+\begin{definition}[SuSLik Specification Equivalence]
+  Given SuSLik assertions $A$ and $A'$, $a \approx_A a'$ iff
+    $(\forall c\; c'. ((\vdash \forall A | c) \land (\vdash \forall A' | c')) \implies c \approx_S c')$
+\end{definition}
 
 \section{Translation of fun-SuSLik into SuSLik}
 
@@ -370,7 +386,7 @@ More specifically, we have
 \end{theorem}
 
 \begin{theorem}[Adequacy]
-  If $e$ and $e'$ are fun-SuSLik expressions and $e \not\approx_F e'$, then $\sem{e} \not\approx_S \sem{e'}$
+  If $e$ and $e'$ are fun-SuSLik expressions and $e \not\approx_F e'$, then $\sem{e} \not\approx_A \sem{e'}$
 \end{theorem}
 
 
