@@ -465,12 +465,12 @@ are turned into arguments to the inductive predicate.
 \subsection{Soundness}
 \label{sec:TransSoundness}
 
-\begin{definition}[$\alpha$-Equivalence of Contexts]
-  If $\Sigma$ and $\Sigma'$ are equal up to renaming, then we write $\Sigma \approx_{\alpha} \Sigma'$
-\end{definition}
+% \begin{definition}[$\alpha$-Equivalence of Contexts]
+%   If $\Sigma$ and $\Sigma'$ are equal up to renaming, then we write $\Sigma \approx_{\alpha} \Sigma'$
+% \end{definition}
 
 \begin{theorem}[Context Preservation]
-  $e \approx_F e' \implies \first(\sem{e}) \approx_{\alpha} \first(\sem{e'})$
+  $e \approx_F e' \implies \first(\sem{e}) = \first(\sem{e'})$
 \end{theorem}
 
 \begin{theorem}[Full Abstraction]
