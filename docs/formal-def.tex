@@ -36,6 +36,8 @@
 \newcommand{\fst}{\ttt{fst}}
 \newcommand{\snd}{\ttt{snd}}
 \newcommand{\ite}{\ttt{if}}
+\newcommand{\add}{\ttt{add}}
+\newcommand{\sub}{\ttt{sub}}
 
 \newcommand{\Int}{\ttt{Int}}
 \newcommand{\Bool}{\ttt{Bool}}
@@ -47,7 +49,7 @@
 \newcommand{\defeq}{\ttt{:=}}
 
 \newcommand{\intS}{\ttt{int}}
-\newcommand{\intset}{\ttt{intset}}
+\newcommand{\intset}{\ttt{set}}
 \newcommand{\bool}{\ttt{bool}}
 \newcommand{\pred}{\ttt{pred}}
 
@@ -63,6 +65,7 @@
 \newcommand{\labinfer} [3] [] {\infer[{\small\textsc{#1}}]{#2}{#3}}
 
 \newcommand{\sem} [1] {\llbracket#1\rrbracket}
+\newcommand{\Isem} [1] {\mathcal{I}\sem{#1}}
 \newcommand{\Gsem} [1] {\mathcal{G}\sem{#1}}
 \newcommand{\Ssem} [1] {\mathcal{S}\sem{#1}}
 \newcommand{\Esem} [1] {\mathcal{E}\sem{#1}}
@@ -85,6 +88,9 @@
 \newcommand{\Name}{\ttt{Name}}
 
 \newcommand{\bind}{>\!\!\!>\!\!=}
+
+\newcommand{\first}{proj_1}
+\newcommand{\second}{proj_2}
 
 \begin{document}
 
@@ -159,7 +165,7 @@ semantics preserves semantic equivalence by proving adequacy and full abstractio
 
   <L> ::= $\lambda x \ra$ <e>
 
-  <C> ::= \head\; | \tail\; | \cons\; | \nil\; | \foldr\; | \pair\; | \fst\; | \snd\; | \ite\; | \lesseq\; | \eq
+  <C> ::= \head\; | \tail\; | \cons\; | \nil\; | \foldr\; | \pair\; | \fst\; | \snd\; | \ite\; | \lesseq\; | \eq\; | \add\; | \sub
 
   <T> ::= \ttt{Int} | \ttt{Bool} | \ttt{Unit} | <T> $\ra$ <T> | \ttt{List} <T> | \ttt{Pair} <T> <T> | ( <T> )
 
@@ -207,6 +213,10 @@ semantics preserves semantic equivalence by proving adequacy and full abstractio
     \infer{\vdash \ttt{le} : \Int \ra \Int \ra \Bool}{}
     ~~~
     \infer{\vdash \ttt{eq} : \Int \ra \Int \ra \Bool}{}
+    \\\\
+    \infer{\vdash \ttt{add} : \Int \ra \Int \ra \Int}{}
+    ~~~
+    \infer{\vdash \ttt{sub} : \Int \ra \Int \ra \Int}{}
   \end{array}
 \]
 
@@ -308,6 +318,12 @@ Now the small-step reduction relation $\reduces$
     \labinfer[Eq-True]{\eq\; e\; e \reduces \True}{e \val}
     ~~~
     \labinfer[Eq-False]{\eq\; e_1\; e_2 \reduces \False}{e_1 \val & e_2 \val & e_1 \neq e_2}
+    \\\\
+    \labinfer[Add-1]{\add\; e_1\; e_2 \reduces \add\; e_1'\; e_2}{e_1 \reduces e_1'}
+    ~~~
+    \labinfer[Add-2]{\add\; e_1\; e_2 \reduces \add\; e_1\; e_2'}{e_1 \val & e_2 \reduces e_2'}
+    ~~~
+    \labinfer[Add-Apply]{\add\; e_1\; e_2 \reduces v}{e_1 \val & e_2 \val & v = e_1 + e_2}
 
   \end{array}
 \]
@@ -369,6 +385,16 @@ We define the syntax of the SuSLik specification language and then an equivalenc
   <A> ::= \{ <P> ; <S> \}
 
   <SP> ::= <A> $\leadsto$ <A>
+
+  <I> ::= predicate x ( <I-args> ) \{ <branches> \}
+
+  <S-type> ::= $\intS$ | $\intset$ | $\bool$
+
+  <I-args> ::= <S-type> x | <S-type> x , <I-args>
+  
+  <branches> ::= <branch> | <branch> <branches>
+
+  <branch> ::= $\backslash|$ <P> \Ra\; \{ <SP> \}
 \end{grammar}
 
 \subsection{Equivalence Relation}
@@ -379,7 +405,7 @@ We define the syntax of the SuSLik specification language and then an equivalenc
 \end{definition}
 
 \begin{definition}[SuSLik Statement Equivalence]
-  Given SuSLik statements $c$ and $c'$, $c \approx_S c'$ iff
+  Given a context of inductive predicates $\Sigma$ and SuSLik statements $c$ and $c'$, $\Sigma \vdash c \approx_S c'$ iff
     $\forall \mathcal{M}. \exists \mathcal{M'}.
       ((c, \mathcal{M}) \BigStep \mathcal{M'})
       \land
@@ -387,15 +413,15 @@ We define the syntax of the SuSLik specification language and then an equivalenc
 \end{definition}
 
 \begin{definition}[SuSLik Specification Equivalence]
-  Given synthesizable SuSLik specifications $S$ and $S'$, $S \approx_{SP} S'$ iff
-    $(\forall c\; c'. ((\vdash S | c) \land (\vdash S' | c')) \implies c \approx_{S} c')$
+  Given a context of inductive predicates $\Sigma$ and synthesizable SuSLik specifications $S$ and $S'$, $\Sigma \vdash S \approx_{SP} S'$ iff
+    $(\forall c\; c'. ((\Sigma \vdash S | c) \land (\Sigma \vdash S' | c')) \implies (\Sigma \vdash c \approx_{S} c')$
 \end{definition}
 
 \section{Translation of fun-SuSLik into SuSLik}
 \label{sec:Translation}
 
 We give a denotational semantics for fun-SuSLik, where the denotations are SuSLik specifications, with
-the function $\sem{\cdot} : \ttt{e} \ra \ttt{SP}$.
+the denotation function $\sem{\cdot} : \ttt{e} \ra (\Sigma \times \ttt{SP})$.
 This translation is shown to preserve equivalence in two steps (Section~\ref{sec:TransSoundness}):
 
 \begin{itemize}
@@ -404,6 +430,14 @@ This translation is shown to preserve equivalence in two steps (Section~\ref{sec
   \item Non-equivalent fun-SuSLik expressions are mapped to non-equivalent SuSLik specifications.
     This is accomplished by proving $\sem{\cdot}$ is \textit{adequate}.
 \end{itemize}
+
+\subsection{Denotation by Inductive Predicates}
+
+Some fun-SuSLik constructs will translate to inductive predicates. This is translation is
+given by $\Isem{\cdot} : \ttt{e} \ra (\ttt{I} \times \ttt{Name})$. This function produces both
+the inductive predicate and its name. Its name is determined by the expression. This
+name is unique as the inductive predicate is lambda lifted; that is, all captured variables
+are turned into arguments to the inductive predicate.
 
 % \subsection{Denotation With Environments}
 %
@@ -431,13 +465,32 @@ This translation is shown to preserve equivalence in two steps (Section~\ref{sec
 \subsection{Soundness}
 \label{sec:TransSoundness}
 
+\begin{theorem}[Context Preservation]
+  $e \approx_F e' \implies \first(\sem{e}) = \first(\sem{e'})$
+\end{theorem}
+
 \begin{theorem}[Full Abstraction]
-  If $e$ and $e'$ are fun-SuSLik expressions and $e \approx_F e'$, then $\sem{e} \approx_{SP} \sem{e'}$
+  If $e$ and $e'$ are fun-SuSLik expressions and $e \approx_F e'$ and $\Sigma = \first(\sem{e}) = \first(\sem{e'})$,
+  then $\Sigma \vdash \second(\sem{e}) \approx_{SP} \second(\sem{e'})$
 \end{theorem}
 
 \begin{theorem}[Adequacy]
-  If $e$ and $e'$ are fun-SuSLik expressions and $e \not\approx_F e'$, then $\sem{e} \not\approx_{SP} \sem{e'}$
+  If $e$ and $e'$ are fun-SuSLik expressions and $e \not\approx_F e'$ and $e \approx_F e'$ and $\Sigma = \first(\sem{e}) = \first(\sem{e'})$,
+  then $\Sigma \vdash \sem{e} \not\approx_{SP} \sem{e'}$
 \end{theorem}
 
+\subsection{Example: \ttt{foldr add 0 xs}}
+
+% Two cases, \nil\; and \cons:
+%
+% \begin{itemize}
+%   \item \nil
+%     \\
+%     \[
+%       \sem{\ttt{foldr add 0 nil}} = 
+%     \]
+% \end{itemize}
+
 \end{document}
+
 
