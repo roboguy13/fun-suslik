@@ -1,0 +1,93 @@
+\newtheorem{theorem}{Theorem}
+\newtheorem{definition}{Definition}
+
+% \renewcommand{\syntleft}{}
+% \renewcommand{\syntright}{}
+
+\newcommand{\infers}{\ensuremath{\Rightarrow}}
+\newcommand{\checks}{\ensuremath{\Leftarrow}}
+
+\newcommand{\ttt}[1]{\texttt{#1}}
+\newcommand{\ra}{\ensuremath{\rightarrow}}
+\newcommand{\Ra}{\ensuremath{\Rightarrow}}
+
+\newcommand{\reduces}{\ensuremath{\longmapsto}}
+\newcommand{\reducestr}{\ensuremath{\longmapsto^{*}}}
+
+\newcommand{\BigStep}{\ensuremath{\Downarrow}}
+
+\newcommand{\val}{\textnormal{ val}}
+
+\newcommand{\True}{\ttt{True}}
+\newcommand{\False}{\ttt{False}}
+\newcommand{\head}{\ttt{head}}
+\newcommand{\tail}{\ttt{tail}}
+\newcommand{\cons}{\ttt{cons}}
+\newcommand{\nil}{\ttt{nil}}
+\newcommand{\unit}{\ttt{unit}}
+\newcommand{\foldr}{\ttt{foldr}}
+% \newcommand{\scanr}{\ttt{scanr}}
+\newcommand{\pair}{\ttt{pair}}
+\newcommand{\fst}{\ttt{fst}}
+\newcommand{\snd}{\ttt{snd}}
+\newcommand{\ite}{\ttt{if}}
+\newcommand{\add}{\ttt{add}}
+\newcommand{\sub}{\ttt{sub}}
+
+\newcommand{\Int}{\ttt{Int}}
+\newcommand{\Bool}{\ttt{Bool}}
+\newcommand{\tyUnit}{\ttt{Unit}}
+\newcommand{\tyPair}{\ttt{Pair}}
+\newcommand{\List}{\ttt{List}}
+\newcommand{\letbnd}{\ttt{let}}
+\newcommand{\inexpr}{\ttt{in}}
+\newcommand{\defeq}{\ttt{:=}}
+
+\newcommand{\intS}{\ttt{int}}
+\newcommand{\intset}{\ttt{set}}
+\newcommand{\bool}{\ttt{bool}}
+\newcommand{\pred}{\ttt{pred}}
+
+\newcommand{\true}{\ttt{true}}
+\newcommand{\false}{\ttt{false}}
+
+\newcommand{\upperS}{\ttt{upper}}
+\newcommand{\lowerS}{\ttt{lower}}
+
+\newcommand{\lesseq}{\ttt{le}}
+\newcommand{\eq}{\ttt{eq}}
+
+\newcommand{\labinfer} [3] [] {\infer[{\small\textsc{#1}}]{#2}{#3}}
+
+\newcommand{\sem} [1] {\llbracket#1\rrbracket}
+\newcommand{\Isem} [1] {\mathcal{I}\sem{#1}}
+\newcommand{\Gsem} [1] {\mathcal{G}\sem{#1}}
+\newcommand{\Ssem} [1] {\mathcal{S}\sem{#1}}
+\newcommand{\Esem} [1] {\mathcal{E}\sem{#1}}
+\newcommand{\Gapprox} {\approx}
+\newcommand{\Atoms} {\mathcal{A}}
+
+\newcommand{\partialfn} {\rightharpoonup}
+\newcommand{\PZ} {\mathcal{P}(\mathbb{Z})}
+\newcommand{\PPZ} {\mathcal{P}(\PZ)}
+
+\newcommand{\sqle} [1] {\sqsubseteq_{#1}}
+\newcommand{\boolLE} {\sqle{\bool}}
+\newcommand{\intLE} {\sqle{\intS}}
+\newcommand{\intsetLE} {\sqle{\intset}}
+
+\newcommand\scalemath[2]{\scalebox{#1}{\mbox{\ensuremath{\displaystyle #2}}}}
+\renewcommand{\arraystretch}{0.5}
+
+\newcommand{\fresh}{\ttt{fresh}}
+\newcommand{\Name}{\ttt{Name}}
+
+\newcommand{\bind}{>\!\!\!>\!\!=}
+
+\newcommand{\first}{proj_1}
+\newcommand{\second}{proj_2}
+
+\newcommand{\blank}{\cdot}
+
+\endinput
+

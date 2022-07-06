@@ -1,5 +1,5 @@
 all: formal-def.pdf
- formal-def.pdf: *.tex # *.bib
+ formal-def.pdf: formal-def.tex # *.bib
 	pdflatex $<
 	# bibtex $(patsubst %.tex,%.aux, $<)
 	# pdflatex $<
