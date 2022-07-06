@@ -65,6 +65,7 @@
 \newcommand{\sem} [1] {\llbracket#1\rrbracket}
 \newcommand{\Gsem} [1] {\mathcal{G}\sem{#1}}
 \newcommand{\Ssem} [1] {\mathcal{S}\sem{#1}}
+\newcommand{\Esem} [1] {\mathcal{E}\sem{#1}}
 \newcommand{\Gapprox} {\approx}
 \newcommand{\Atoms} {\mathcal{A}}
 
@@ -80,16 +81,21 @@
 \newcommand\scalemath[2]{\scalebox{#1}{\mbox{\ensuremath{\displaystyle #2}}}}
 \renewcommand{\arraystretch}{0.5}
 
+\newcommand{\fresh}{\ttt{fresh}}
+\newcommand{\Name}{\ttt{Name}}
+
+\newcommand{\bind}{>\!\!\!>\!\!=}
+
 \begin{document}
 
 \section{Introduction}
 
 In this document, we give a translation from fun-SuSLik to SuSLik. First, we define the syntax and
 operational semantics of the two languages (Sections~\ref{sec:FSDef} and~\ref{sec:SuSLikDef}).
-Then, we give definitions of equivalence in terms of these
+Then, we give definitions of semantic equivalence in terms of these
 operational semantics (Sections~\ref{sec:FSEquiv} and~\ref{sec:SuSLikEquiv}). The translation from fun-SuSLik is represented as a denotational semantics
 that denotes a fun-SuSLik expression as a SuSLik specification (Section~\ref{sec:Translation}). Finally, we show that this denotational
-semantics preserves equivalence by proving adequacy and full abstraction (Section~\ref{sec:TransSoundness}).
+semantics preserves semantic equivalence by proving adequacy and full abstraction (Section~\ref{sec:TransSoundness}).
 
 
 % In this document, we describe the semantics of fun-SuSLik and translate them
@@ -398,6 +404,29 @@ This translation is shown to preserve equivalence in two steps (Section~\ref{sec
   \item Non-equivalent fun-SuSLik expressions are mapped to non-equivalent SuSLik specifications.
     This is accomplished by proving $\sem{\cdot}$ is \textit{adequate}.
 \end{itemize}
+
+% \subsection{Denotation With Environments}
+%
+% A denotation function $\Esem{\cdot} : \ttt{e} \ra \mathbb{N} \ra \ttt{SP} \times \mathbb{N}$ is defined using
+% elements of $\mathbb{N}$ as a source of fresh variable names. We take $\fresh : \mathbb{N} \ra \Name \times \mathbb{N}$ as a function
+% which will generate a fresh variable name together with an updated environment.
+%
+% We use the convention that the result value of $\Esem{e}(n)$ will be stored in $n$.
+%
+% % For convenience, we define the following operator for applying a function in an environment to a value in an environment:
+% %
+% % \begin{definition}[Environment Bind]
+% %   $\ttt{envApply} : (\ttt{e} \ra $
+% % \end{definition}
+%
+% \begin{definition}[Denotation Function for fun-SuSLik]
+%   $\sem{e} = proj_1(\Esem{e}(0))$
+% \end{definition}
+%
+% \noindent
+% We define $\Esem{\cdot}$ as follows.
+%
+
 
 \subsection{Soundness}
 \label{sec:TransSoundness}
