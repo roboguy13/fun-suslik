@@ -295,7 +295,7 @@ The following syntax definition is adapted from \textit{Cyclic Program Synthesis
     \text{Pure logic term} &\phi, \psi, \chi ::= \kappa \alt \phi = \phi \alt \phi \land \phi \alt \neg \phi\\
     \text{Symbolic heap} &P, Q, R ::= \ttt{emp} \alt \mbox{$\langle e, \iota \rangle \mapsto e \alt [e, \iota]$} \alt p^{\alpha}(\overline{\phi_i})
       \alt \mbox{$P * Q$}\\
-    \text{Heap predicate} &\mathcal{D} ::= p^{\alpha}(\overline{x_i}) : \overline{e_j \Ra \exists \overline{y}.\{\chi_j\;R_j\}}\\
+    \text{Heap predicate} &\mathcal{D} ::= p^{\alpha}(\overline{x_i}) : \overline{e_j \Ra \exists \overline{y}.\{\chi_j;\;R_j\}}\\
     \text{Assertion} &\mathcal{P},\mathcal{Q} ::= \{\phi; P\}\\
     \text{Environment} &\Gamma ::= \forall\overline{x_i}.\exists\overline{y_j}.\\
     \text{Context} &\Sigma ::= \overline{\mathcal{D}}\\
