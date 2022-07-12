@@ -13,7 +13,7 @@ In this document, we give a translation from fun-SuSLik to SuSLik. First, we def
 operational semantics of the two languages (Sections~\ref{sec:FSDef} and~\ref{sec:SuSLikDef}).
 Then, we give definitions of semantic equivalence in terms of these
 operational semantics (Sections~\ref{sec:FSEquiv} and~\ref{sec:SuSLikEquiv}). The translation from fun-SuSLik is represented as a denotational semantics
-that denotes a fun-SuSLik expression as a SuSLik specification (Section~\ref{sec:Translation}). Finally, we show that this denotational
+that denotes a fun-SuSLik expression as a SuSLik goal (Section~\ref{sec:Translation}). Finally, we show that this denotational
 semantics preserves semantic equivalence by proving adequacy and full abstraction (Section~\ref{sec:TransSoundness}).
 \\
 
@@ -275,7 +275,7 @@ We now define equivalence of fun-SuSLik programs.
 \section{SuSLik Specification Language}
 \label{sec:SuSLikDef}
 
-We define the syntax of the SuSLik specification language and then an equivalence of specifications.
+We define the syntax of the SuSLik specification language and then an equivalence of SuSLik synthesis goals.
 The following syntax definition is adapted from \textit{Cyclic Program Synthesis, 2021}:
 \\
 \[ \small
@@ -301,7 +301,8 @@ The following syntax definition is adapted from \textit{Cyclic Program Synthesis
     \text{Context} &\Sigma ::= \overline{\mathcal{D}}\\
     \text{Model} &\mathcal{M} ::= \langle h, s \rangle\\
     \text{Stack} &s : \text{PV} \rightharpoonup \text{Val}\\
-    \text{Heap} &h : \text{Loc} \rightharpoonup \text{Val}
+    \text{Heap} &h : \text{Loc} \rightharpoonup \text{Val}\\
+    \text{Synthesis goal} &\mathcal{G} ::= P \leadsto Q
   \end{array}
 \]
 
@@ -309,33 +310,33 @@ The following syntax definition is adapted from \textit{Cyclic Program Synthesis
 \label{sec:SuSLikEquiv}
 
 \begin{definition}[Synthesizability]
-  We say an assertion $\mathcal{P}\leadsto\mathcal{Q}$ is \textnormal{synthesizable} iff $\exists c. (\vdash \mathcal{P}\leadsto\mathcal{Q}\synth c)$
+  We say a goal $\mathcal{G}$ is \textnormal{synthesizable} iff $\exists c. (\vdash \mathcal{G}\synth c)$
 \end{definition}
 
-\begin{definition}[SuSLik Statement Equivalence]
-  Given a context of inductive predicates $\Sigma$ and SuSLik statements $c$ and $c'$, $\Sigma \vdash c \approx_S c'$ iff
+\begin{definition}[SuSLik Command Equivalence]
+  Given a context of inductive predicates $\Sigma$ and SuSLik commands $c$ and $c'$, $\Sigma \vdash c \approx_\mathcal{C} c'$ iff
     $\forall \mathcal{M}. \exists \mathcal{M'}.
       ((c, \mathcal{M}) \BigStep \mathcal{M'})
       \land
       ((c', \mathcal{M}) \BigStep \mathcal{M'})$
 \end{definition}
 
-\begin{definition}[SuSLik Specification Equivalence]
-  Given a context of inductive predicates $\Sigma$ and synthesizable SuSLik specifications $S$ and $S'$, $\Sigma \vdash S \approx_{SP} S'$ iff
-    $(\forall c\; c'. ((\Sigma \vdash S | c) \land (\Sigma \vdash S' | c')) \implies (\Sigma \vdash c \approx_{S} c')$
+\begin{definition}[SuSLik Goal Equivalence]
+  Given a context of inductive predicates $\Sigma$ and synthesizable SuSLik goals $\mathcal{G}$ and $\mathcal{G}'$, $\Sigma \vdash \mathcal{G} \approx_{\mathcal{S}} \mathcal{G}'$ iff
+    $(\forall c\; c'. ((\Sigma \vdash \mathcal{G} | c) \land (\Sigma \vdash \mathcal{G}' | c')) \implies (\Sigma \vdash c \approx_{\mathcal{C}} c')$
 \end{definition}
 
 \section{Translation of fun-SuSLik into SuSLik}
 \label{sec:Translation}
 
-We give a denotational semantics for fun-SuSLik, where the denotations are SuSLik specifications, with
-the denotation function $\sem{\blank} : \ttt{e} \ra (\Sigma \times \ttt{SP})$.
+We give a denotational semantics for fun-SuSLik, where the denotations are SuSLik goals, with
+the denotation function $\sem{\blank} : \ttt{e} \ra (\Sigma \times \mathcal{S})$.
 This translation is shown to preserve equivalence in two steps (Section~\ref{sec:TransSoundness}):
 
 \begin{itemize}
-  \item Equivalent fun-SuSLik expressions are mapped to equivalent SuSLik specifications. This amounts to proving
+  \item Equivalent fun-SuSLik expressions are mapped to equivalent SuSLik goals. This amounts to proving
     \textit{full abstraction} for $\sem{\blank}$.
-  \item Non-equivalent fun-SuSLik expressions are mapped to non-equivalent SuSLik specifications.
+  \item Non-equivalent fun-SuSLik expressions are mapped to non-equivalent SuSLik goals.
     This is accomplished by proving $\sem{\blank}$ is \textit{adequate}.
 \end{itemize}
 
@@ -383,12 +384,12 @@ are turned into arguments to the inductive predicate.
 
 \begin{theorem}[Full Abstraction]
   If $e$ and $e'$ are fun-SuSLik expressions and $e \approx_F e'$ and $\Sigma = \first(\sem{e}) = \first(\sem{e'})$,
-  then $\Sigma \vdash \second(\sem{e}) \approx_{SP} \second(\sem{e'})$
+  then $\Sigma \vdash \second(\sem{e}) \approx_{\mathcal{S}} \second(\sem{e'})$
 \end{theorem}
 
 \begin{theorem}[Adequacy]
   If $e$ and $e'$ are fun-SuSLik expressions and $e \not\approx_F e'$ and $e \approx_F e'$ and $\Sigma = \first(\sem{e}) = \first(\sem{e'})$,
-  then $\Sigma \vdash \sem{e} \not\approx_{SP} \sem{e'}$
+  then $\Sigma \vdash \sem{e} \not\approx_{\mathcal{S}} \sem{e'}$
 \end{theorem}
 
 \subsection{Example: \ttt{foldr add 0 xs}}
