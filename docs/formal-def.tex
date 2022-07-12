@@ -276,7 +276,7 @@ We now define equivalence of fun-SuSLik programs.
 \label{sec:SuSLikDef}
 
 We define the syntax of the SuSLik specification language and then an equivalence of specifications.
-The following syntax definition is taken from \textit{Cyclic Program Synthesis, 2021}:
+The following syntax definition is adapted from \textit{Cyclic Program Synthesis, 2021}:
 \\
 \[ \small
   \begin{array}[t]{ l l }
@@ -298,7 +298,10 @@ The following syntax definition is taken from \textit{Cyclic Program Synthesis, 
     \text{Heap predicate} &\mathcal{D} ::= p^{\alpha}(\overline{x_i}) : \overline{e_j \Ra \exists \overline{y}.\{\chi_j\;R_j\}}\\
     \text{Assertion} &\mathcal{P},\mathcal{Q} ::= \{\phi; P\}\\
     \text{Environment} &\Gamma ::= \forall\overline{x_i}.\exists\overline{y_j}.\\
-    \text{Context} &\Sigma ::= \overline{\mathcal{D}}
+    \text{Context} &\Sigma ::= \overline{\mathcal{D}}\\
+    \text{Model} &\mathcal{M} ::= \langle h, s \rangle\\
+    \text{Stack} &s : \text{PV} \rightharpoonup \text{Val}\\
+    \text{Heap} &h : \text{Loc} \rightharpoonup \text{Val}
   \end{array}
 \]
 
@@ -306,7 +309,7 @@ The following syntax definition is taken from \textit{Cyclic Program Synthesis, 
 \label{sec:SuSLikEquiv}
 
 \begin{definition}[Synthesizability]
-  We say a specification $S$ is \textnormal{synthesizable} iff $\exists c. (\vdash S|c)$
+  We say an assertion $\mathcal{P}\leadsto\mathcal{Q}$ is \textnormal{synthesizable} iff $\exists c. (\vdash \mathcal{P}\leadsto\mathcal{Q}\synth c)$
 \end{definition}
 
 \begin{definition}[SuSLik Statement Equivalence]
