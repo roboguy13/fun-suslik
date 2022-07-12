@@ -323,7 +323,7 @@ The following syntax definition is adapted from \textit{Cyclic Program Synthesis
 
 \begin{definition}[SuSLik Goal Equivalence]
   Given a context of inductive predicates $\Sigma$ and synthesizable SuSLik goals $\mathcal{G}$ and $\mathcal{G}'$, $\Sigma \vdash \mathcal{G} \approx_{\mathcal{S}} \mathcal{G}'$ iff
-    $(\forall c\; c'. ((\Sigma \vdash \mathcal{G} | c) \land (\Sigma \vdash \mathcal{G}' | c')) \implies (\Sigma \vdash c \approx_{\mathcal{C}} c')$
+    $(\forall c\; c'. ((\Sigma \vdash \mathcal{G} \synth c) \land (\Sigma \vdash \mathcal{G}' \synth c')) \implies (\Sigma \vdash c \approx_{\mathcal{C}} c')$
 \end{definition}
 
 \section{Translation of fun-SuSLik into SuSLik}
