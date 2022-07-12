@@ -284,7 +284,7 @@ The following syntax definition is adapted from \textit{Cyclic Program Synthesis
     \text{Size, offset} &n, \iota\;\; \text{Non-negative integers}\\
     \text{Expression} &e ::= 0\; \alt \true \alt x \alt e = e \alt e \land e \alt \neg e \alt d\\
     \text{$\mathcal{T}$-expr.} &d ::= n \alt x \alt d + d \alt n \cdot d \alt \{\} \alt {d} \alt \cdots\\
-    \text{Command} &c ::= \letbnd\; \ttt{x = *(x + }\iota\ttt{)} \alt \ttt{*(x + }\iota\ttt{) = e} \alt\newline
+    \text{Command} &c ::= \letbnd\; \ttt{x = *(x + }\iota\ttt{)} \alt \ttt{*(x + }\iota\ttt{) = e} \alt
       \letbnd\; \ttt{x = malloc(n)} \alt \ttt{free(x)} \alt \ttt{error}\newline
       \alt \ttt{f(}\overline{e_i}\ttt{)}\\
     \text{Program} &\Pi ::= \overline{f(\overline{x_i})\; \{\; c\; \}\; ;}\; c\\
