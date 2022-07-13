@@ -392,7 +392,26 @@ are turned into arguments to the inductive predicate.
   then $\Sigma \vdash \sem{e} \not\approx_{\mathcal{S}} \sem{e'}$
 \end{theorem}
 
-\subsection{Example: \ttt{foldr add 0 xs}}
+\subsection{Translation}
+
+\begin{math}
+  \sem{\ttt{data T := }\overline{\ttt{alts}_i}\ttt{;}} = p^{\alpha}(x, \Nsem{0}{\,\overline{\ttt{alts}_i}\,}) : \overline{\Asem{i}{\ttt{alts}_i}}
+  \\
+  \\
+  \Nsem{k}{\ttt{C } \overline{\ttt{fields}_i}\; |\; \overline{\ttt{alts}_j}} = v_{k+1}, v_{k+2}, \dots, v_{k+i}, \Nsem{k+i}{\overline{\ttt{alts}_j}}
+  \\
+  \Nsem{k}{\cdot} = \cdot
+  \\
+  \\
+  \Asem{i}{\ttt{C }\overline{\ttt{fields}_j}\,} = \ttt{(which == i)} \Ra \ttt{[x, j]} * \overline{\Fsem{i,j}{\ttt{fields}_j}}
+  \\
+  \\
+  \Fsem{i,j}{\Int} = (x+i) \mapsto v_{i+j}
+  \\
+  \Fsem{i,j}{\Bool} = (x+i) \mapsto v_{i+j}
+  \\
+  \Fsem{i,j}{\ttt{T } \overline{\ttt{args}_k}} = (x+i) \mapsto v_{i+j} * \ttt{T}^{\alpha}(v_{i+j}, \overline{\ttt{args}_k})
+\end{math}
 
 % Two cases, \nil\; and \cons:
 %
