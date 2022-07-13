@@ -395,7 +395,7 @@ are turned into arguments to the inductive predicate.
 \subsection{Translation}
 
 \begin{math}
-  \sem{\ttt{data T := }\overline{\ttt{alts}_i}\ttt{;}} = p^{\alpha}(x, \Nsem{0}{\,\overline{\ttt{alts}_i}\,}) : \overline{\Asem{i}{\ttt{alts}_i}}
+  \Csem{\ttt{data T := }\overline{\ttt{alts}_i}\ttt{;}} = p^{\alpha}(x, \Nsem{0}{\,\overline{\ttt{alts}_i}\,}) : \overline{\Asem{i}{\ttt{alts}_i}}
   \\
   \\
   \Nsem{k}{\ttt{C } \overline{\ttt{fields}_i}\; |\; \overline{\ttt{alts}_j}} = v_{k+1}, v_{k+2}, \dots, v_{k+i}, \Nsem{k+i}{\overline{\ttt{alts}_j}}
