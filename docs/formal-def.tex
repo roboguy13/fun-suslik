@@ -403,7 +403,7 @@ are turned into arguments to the inductive predicate.
   \Nsem{k}{\cdot} = \cdot
   \\
   \\
-  \Asem{i}{\ttt{C }\overline{\ttt{fields}_j}\,} = \ttt{(which == i)} \Ra \ttt{[x, j]} * \overline{\Fsem{i,j}{\ttt{fields}_j}}
+  \Asem{i}{\ttt{C }\overline{\ttt{fields}_j}\,} = \ttt{(which == i)} \Ra \ttt{[x, j+1]} * x \mapsto \ttt{which} * \overline{\Fsem{i+1,j}{\ttt{fields}_j}}
   \\
   \\
   \Fsem{i,j}{\Int} = (x+i) \mapsto v_{i+j}
@@ -412,6 +412,8 @@ are turned into arguments to the inductive predicate.
   \\
   \Fsem{i,j}{\ttt{T } \overline{\ttt{args}_k}} = (x+i) \mapsto v_{i+j} * \ttt{T}^{\alpha}(v_{i+j}, \overline{\ttt{args}_k})
 \end{math}
+\\
+\textbf{TODO: Deal with nested type applications in the last equation above}
 
 % Two cases, \nil\; and \cons:
 %
