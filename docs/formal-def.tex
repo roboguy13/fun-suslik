@@ -221,6 +221,7 @@ Now the small-step reduction relation $\reduces$\\
 
 We define a reduction semantics $\mathcal{E}$ where $v$ is an expression such that the judgment $v \val$ holds.
 
+{\footnotesize
 \begin{align*}
   \mathcal{E} ::=\\
     &[\,]\\
@@ -243,6 +244,7 @@ We define a reduction semantics $\mathcal{E}$ where $v$ is an expression such th
     &\ttt{sub } \mathcal{E}\; \angled{e}\\
     &\ttt{sub } v\; \mathcal{E}\\
 \end{align*}
+}
 
 The reduction relation $\reduces$ is given by:
 
@@ -425,7 +427,7 @@ This translation is shown to preserve equivalence in two steps (Section~\ref{sec
 \end{theorem}
 
 \begin{theorem}[Adequacy]
-  If $e$ and $e'$ are fun-SuSLik expressions and $e \not\approx_F e'$ and $e \approx_F e'$,
+  If $e$ and $e'$ are fun-SuSLik expressions and $e \not\approx_F e'$,
   then $\Sigma \vdash \sem{e} \not\approx_{S} \sem{e'}$
 \end{theorem}
 
