@@ -422,13 +422,13 @@ This translation is shown to preserve equivalence in two steps (Section~\ref{sec
 \end{theorem}
 
 \begin{theorem}[Full Abstraction]
-  If $e$ and $e'$ are fun-SuSLik expressions and $e \approx_F e'$,
-  then $\Sigma \vdash \sem{e} \approx_{S} \sem{e'}$
+  If $e$ and $e'$ are fun-SuSLik expressions and $\Sigma \vdash e \approx_F e'$,
+  then $\sem{\Sigma} \vdash \sem{e} \approx_{S} \sem{e'}$
 \end{theorem}
 
 \begin{theorem}[Adequacy]
-  If $e$ and $e'$ are fun-SuSLik expressions and $e \not\approx_F e'$,
-  then $\Sigma \vdash \sem{e} \not\approx_{S} \sem{e'}$
+  If $e$ and $e'$ are fun-SuSLik expressions and $\Sigma \vdash e \not\approx_F e'$,
+  then $\sem{\Sigma} \vdash \sem{e} \not\approx_{S} \sem{e'}$
 \end{theorem}
 
 \subsection{Translation}
