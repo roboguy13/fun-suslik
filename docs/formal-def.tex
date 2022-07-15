@@ -230,10 +230,11 @@ We define a reduction semantics $\mathcal{E}$ where $v, v_1, v_2, \dots$ are exp
     &[\,]\\
     &\mathcal{E}\; \angled{e}\\
     &v\; \mathcal{E}\\
-    &\letbnd\; x = \mathcal{E}\; \inexpr \angled{e}\\
+    &\letbnd\; x = \mathcal{E}\; \inexpr\; \angled{e}\\
     &\letbnd\; x = v\; \inexpr\; \mathcal{E}\\
-    &\ttt{fold } \mathcal{E}\; \angled{e}\\
-    &\ttt{fold } v\; \mathcal{E}\\
+    &\ttt{fold } \mathcal{E}\; \angled{e}\; \angled{e}\\
+    &\ttt{fold } v\; \mathcal{E}\; \angled{e}\\
+    &\ttt{fold } v\; v\; \mathcal{E}\\
     &\ttt{if } \mathcal{E}\; \angled{e}\; \angled{e}\\
     &\ttt{if True } \mathcal{E}\; \angled{e}\\
     &\ttt{if False } \angled{e}\; \mathcal{E}\\
