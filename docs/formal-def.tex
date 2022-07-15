@@ -65,7 +65,7 @@ semantics preserves semantic equivalence by proving adequacy and full abstractio
 \subsection{Syntax}
 
 \begin{grammar}
-  <$\mathcal{D}$> ::= data X := $\Alts$
+  <$\mathcal{D}$> ::= data X := $\Alts$;
 
   <A> ::= X : <T>
 
@@ -145,8 +145,6 @@ In short, if you can derive $\mathcal{D}\ok$ for a type definition $\mathcal{D}$
     ~~~
     \infer{\vdash i : \ttt{Int}}{i \in \mathbb{Z}}
     \\\\
-    \infer{\vdash \ttt{unit} : \ttt{Unit}}{}
-    ~~~
     \infer{\vdash \ttt{True} : \ttt{Bool}}{}
     ~~~
     \infer{\vdash \ttt{False} : \ttt{Bool}}{}
@@ -169,7 +167,7 @@ In short, if you can derive $\mathcal{D}\ok$ for a type definition $\mathcal{D}$
     \\\\
     \infer{\Sigma ; \Gamma \vdash \ttt{convert}_{\tau(\mathcal{D}),\tau({\mathcal{D}'})} : \tau(\mathcal{D}) \ra \tau(\mathcal{D}')}{\mathcal{D} \in \Sigma & \mathcal{D}' \in \Sigma}
     \\\\
-    \infer{\Sigma ; \Gamma \vdash \ttt{fold}_{\tau(\mathcal{D})} \ttt{ f} : \tau(\mathcal{D}) \ra S}{(R,\tau(\mathcal{D}),\sigma(\mathcal{D}))\; \mathcal{F}\; S & \Sigma ; \Gamma \vdash f : R & \mathcal{D} \in \Sigma}
+    \infer{\Sigma ; \Gamma \vdash \ttt{fold}_{\tau(\mathcal{D})} \ttt{ f z} : \tau(\mathcal{D}) \ra S}{(R,\tau(\mathcal{D}),\sigma(\mathcal{D}))\; \mathcal{F}\; S & \Sigma ; \Gamma \vdash f : R & \Sigma ; \Gamma \vdash z : S & \mathcal{D} \in \Sigma}
   \end{array}
 \]
 
@@ -202,8 +200,6 @@ First, the ``value'' judgment val (as in Harper's Practical Foundations for Prog
   \begin{array}{cc}
     \infer{i \val}{i \in \mathbb{Z}}
     ~~~
-    \infer{\unit \val}{}
-    ~~~
     \infer{\True \val}{}
     ~~~
     \infer{\False \val}{}
@@ -223,7 +219,7 @@ Now the small-step reduction relation $\reduces$\\
 
 \textbf{$\bullet$ TODO: What would make sense as a rule for reducing \ttt{convert}$_{S,T}$ applications?}
 
-We define a reduction semantics $\mathcal{E}$ where $v, v_1, v_2, \dots$ are expressions such that the judgment $v val$ (etc) holds.
+We define a reduction semantics $\mathcal{E}$ where $v$ is an expression such that the judgment $v \val$ holds.
 
 \begin{align*}
   \mathcal{E} ::=\\
