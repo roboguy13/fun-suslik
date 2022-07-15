@@ -17,6 +17,7 @@
 \newcommand{\BigStep}{\ensuremath{\Downarrow}}
 
 \newcommand{\val}{\textnormal{ val}}
+\newcommand{\ok}{\textnormal{ ok}}
 
 \newcommand{\True}{\ttt{True}}
 \newcommand{\False}{\ttt{False}}
@@ -26,6 +27,7 @@
 \newcommand{\nil}{\ttt{nil}}
 \newcommand{\unit}{\ttt{unit}}
 \newcommand{\foldr}{\ttt{foldr}}
+\newcommand{\fold} [1] {\ttt{fold}$_{#1}$}
 % \newcommand{\scanr}{\ttt{scanr}}
 \newcommand{\pair}{\ttt{pair}}
 \newcommand{\fst}{\ttt{fst}}
@@ -69,6 +71,7 @@
 \newcommand{\Fsem} [2] {\mathcal{F}_{#1}\sem{#2}}
 \newcommand{\Nsem} [2] {\mathcal{N}_{#1}\sem{#2}}
 \newcommand{\Rsem} [2] {\mathcal{R}_{#1}\sem{#2}}
+\newcommand{\Tsem} [2] {\mathcal{T}_{#1}\sem{#2}}
 \newcommand{\Gapprox} {\approx}
 \newcommand{\Atoms} {\mathcal{A}}
 
@@ -93,9 +96,15 @@
 \newcommand{\second}{proj_2}
 
 \newcommand{\blank}{\cdot}
-\newcommand{\alt}{\;|\;}
+\newcommand{\alt}{\,|\,}
 
 \newcommand{\synth}{\;|\;}
+
+\newcommand{\angled} [1] {\langle #1 \rangle}
+
+\newcommand{\Alts}{\overline{\angled{A}}}
+
+\newcommand{\reducesA}{\reduces_{\boldsymbol{a}}}
 
 \endinput
 

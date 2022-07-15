@@ -65,32 +65,83 @@ semantics preserves semantic equivalence by proving adequacy and full abstractio
 \subsection{Syntax}
 
 \begin{grammar}
-  <I> ::= ... | -1 | 0 | 1 | ...
+  <$\mathcal{D}$> ::= data X := $\Alts$
+
+  <A> ::= X : <T>
+
+  <I> ::= $\cdots$ | -1 | 0 | 1 | $\cdots$
 
   <B> ::= \ttt{True} | \ttt{False}
 
-  <D> ::= \ttt{x :} <T>; x <P> \ttt{:=} <e>;
+  <D> ::= \ttt{f :} <T>; f <P> \ttt{:=} <e>;
 
-  <P> ::= $\varepsilon$ | x <P>
+  <P> ::= $\cdot$ | x <P>
 
   <e> ::= <e>$_0$ | <e> <e>$_0$
 
-  <e$_0$> ::= <I> | <B> | \ttt{unit} | <L> | <C> | \letbnd\; x \ttt{:=} <e> \inexpr\; <e> | ( <e> )
+  <e$_0$> ::= <I> | <B> | <L> | <C> | \letbnd\; x \ttt{:=} <e> \inexpr\; <e> | ( <e> )
 
   <L> ::= $\lambda x \ra$ <e>
 
-  <C> ::= \head\; | \tail\; | \cons\; | \nil\; | \foldr\; | \pair\; | \fst\; | \snd\; | \ite\; | \lesseq\; | \eq\; | \add\; | \sub
+  <C> ::= \ttt{convert}$_{\angled{T},\angled{T}}$ | \fold{\langle T\rangle} | \ite\; | \lesseq\; | \eq\; | \add\; | \sub\; | \ttt{and}\; | \ttt{or}\; | \ttt{not}
 
-  <T> ::= \ttt{Int} | \ttt{Bool} | \ttt{Unit} | <T> $\ra$ <T> | \ttt{List} <T> | \ttt{Pair} <T> <T> | ( <T> )
+  <T> ::= \ttt{Int} | \ttt{Bool} | <T> $\ra$ <T> | ( <T> )
 
   <$\Gamma$> ::= $\cdot$ | x : <T>, $\Gamma$
+
+  <$\Sigma$> ::= $\overline{\angled{\mathcal{D}}}$
 \end{grammar}
+
+\noindent
+For convenience, we define the function for getting the type name of a type definition:
+
+\[
+  \tau(\ttt{data T = }\Alts) = \ttt{T}
+\]
+
+and the function for getting a list of constructor type signatures:
+
+\begin{align*}
+  &\sigma(\ttt{data T = ;}) = []
+  \\
+  &\sigma(\ttt{data T = C : S | }\Alts) = (C : S) :: \sigma({\ttt{data T = }}\Alts)
+\end{align*}
+
+Further, we define a set of base types
+
+\[
+  \textnormal{base} = \{\Int, \Bool\}
+\]
+
+\subsection{Well-Formedness For Type Definitions}
+
+In a type definition for some new type \ttt{T}, each constructor type signature must have \ttt{T} as its result type. This is
+formalized below as the$\ok$ judgment for type definitions. This judgment, in turn, uses the $\ok_A$ judgment for constructor
+type signatures. We define$\ok$ on lists of constructor types, then we extend this to type definitions using $\sigma(\cdot)$.
+
+\[
+  \begin{array}{c}
+    \infer{\mathcal{D} \ok}{\sigma(\mathcal{D}) \ok(\tau(\mathcal{D}))}
+    \\\\
+
+    \infer{[] \ok(T)}{}
+    ~~~
+    \infer{(C : S) :: \overline{a} \ok(T)}{S \ok_A(T) & \overline{a} \ok(T) }
+    \\\\
+    \infer{\ttt{T }\ok_A(\ttt{T})}{}
+    ~~~
+    \infer{\ttt{S} \ra \ttt{R} \ok_A(\ttt{T})}{\ttt{R} \ok_A(\ttt{T})}
+  \end{array}
+\]
+
+\noindent
+In short, if you can derive $\mathcal{D}\ok$ for a type definition $\mathcal{D}$ using the rules above, then $\mathcal{D}$ is well-formed.
 
 \subsection{Typing Judgment}
 
 \[
-  \begin{array}{c}[t]
-    \infer{\Gamma \vdash x : T}{(x : T) \in \Gamma}
+  \begin{array}{c}
+    \infer{\Sigma ; \Gamma \vdash x : T}{(x : T) \in \Gamma}
     ~~~
     \infer{\vdash i : \ttt{Int}}{i \in \mathbb{Z}}
     \\\\
@@ -100,39 +151,48 @@ semantics preserves semantic equivalence by proving adequacy and full abstractio
     ~~~
     \infer{\vdash \ttt{False} : \ttt{Bool}}{}
     \\\\
-    \infer{\Gamma \vdash t_0\; t_1 : T'}{\Gamma \vdash t_0 : T \ra T' & \Gamma \vdash t_1 : T}
+    \infer{\Sigma ; \Gamma \vdash t_0\; t_1 : T'}{\Sigma ; \Gamma \vdash t_0 : T \ra T' & \Sigma ; \Gamma \vdash t_1 : T}
     \\\\
-    \infer{\Gamma \vdash \lambda x \ra t : T \ra T'}{x : T, \Gamma \vdash t : T'}
+    \infer{\Sigma ; \Gamma \vdash \lambda x \ra t : T \ra T'}{x : T, \Sigma ; \Gamma \vdash t : T'}
     \\\\
-    \infer{\Gamma \vdash \letbnd\; x\; \ttt{:=}\; e\; \inexpr\; e' : T'}{\Gamma \vdash e : T & x : T, \Gamma \vdash e' : T'}
+    \infer{\Sigma ; \Gamma \vdash \letbnd\; x\; \ttt{:=}\; e\; \inexpr\; e' : T'}{\Sigma ; \Gamma \vdash e : T & x : T, \Sigma ; \Gamma \vdash e' : T'}
     \\\\
-    \infer{\vdash \ttt{nil} : \List\; T}{}
+    \infer{\Sigma ; \Gamma \vdash \ttt{ifThenElse c t f} : T}{\Sigma ; \Gamma \vdash \ttt{c} : \Bool & \Sigma ; \Gamma \vdash \ttt{t} : T & \Sigma ; \Gamma \vdash \ttt{f} : T}
+    \\\\
+    \infer{\Sigma ; \Gamma \vdash \ttt{le x y} : \Bool}{\Sigma ; \Gamma \vdash \ttt{x} : \Int & \Sigma ; \Gamma \vdash \ttt{y} : \Int}
     ~~~
-    \infer{\vdash \ttt{cons} : T \ra \List\; T \ra \List\; T}{}
+    \infer{\Sigma ; \Gamma \vdash \ttt{eq x y} : \Bool}{\Sigma ; \Gamma \vdash \ttt{x} : \Int & \Sigma ; \Gamma \vdash \ttt{y} : \Int}
     \\\\
-    \infer{\vdash \ttt{head} : \List\; T \ra T}{}
+    \infer{\Sigma ; \Gamma \vdash \ttt{add x y} : \Int}{\Sigma ; \Gamma \vdash \ttt{x} : \Int & \Sigma ; \Gamma \vdash \ttt{y} : \Int}
     ~~~
-    \infer{\vdash \ttt{tail} : \List\; T \ra \List\; T}{}
+    \infer{\Sigma ; \Gamma \vdash \ttt{sub x y} : \Int}{\Sigma ; \Gamma \vdash \ttt{x} : \Int & \Sigma ; \Gamma \vdash \ttt{y} : \Int}
     \\\\
-    \infer{\vdash \ttt{foldr} : (T \ra T' \ra T') \ra T' \ra \List\; T \ra T'}{}
+    \infer{\Sigma ; \Gamma \vdash \ttt{convert}_{\tau(\mathcal{D}),\tau({\mathcal{D}'})} : \tau(\mathcal{D}) \ra \tau(\mathcal{D}')}{\mathcal{D} \in \Sigma & \mathcal{D}' \in \Sigma}
     \\\\
-    \infer{\vdash \ttt{pair} : T \ra T' \ra \tyPair\; T\; T'}{}
-    ~~~
-    \infer{\vdash \ttt{fst} : \tyPair\; T\; T' \ra T}{}
-    ~~~
-    \infer{\vdash \ttt{snd} : \tyPair\; T\; T' \ra T'}{}
-    \\\\
-    \infer{\vdash \ttt{ifThenElse} : \Bool \ra T \ra T \ra T}{}
-    \\\\
-    \infer{\vdash \ttt{le} : \Int \ra \Int \ra \Bool}{}
-    ~~~
-    \infer{\vdash \ttt{eq} : \Int \ra \Int \ra \Bool}{}
-    \\\\
-    \infer{\vdash \ttt{add} : \Int \ra \Int \ra \Int}{}
-    ~~~
-    \infer{\vdash \ttt{sub} : \Int \ra \Int \ra \Int}{}
+    \infer{\Sigma ; \Gamma \vdash \ttt{fold}_{\tau(\mathcal{D})} \ttt{ f} : \tau(\mathcal{D}) \ra S}{(R,\tau(\mathcal{D}),\sigma(\mathcal{D}))\; \mathcal{F}\; S & \Sigma ; \Gamma \vdash f : R & \mathcal{D} \in \Sigma}
   \end{array}
 \]
+
+\textbf{TODO: Get this to work}
+\noindent
+The following relation gives the ``type specification'' of a fold, which includes a unification variable $\alpha$. As there is no
+polymorphism in fun-SuSLik, this unification variable is only used internally and is not user-visible. It must eventually
+unify with a concrete type.
+
+
+
+% Where the 4-ary relation defined by the following rules give the type for a fold, of the form $(A, B, C)\; \mathcal{F}\; D$, of a data definition:
+% \\
+% \textbf{TODO: Use color/bolding to indicate that $T$ always the original type name below?}
+%
+% \[
+%   \begin{array}{c}
+%     \infer{(T, T, T)\; \mathcal{F\; } T}{}
+%     ~~~
+%     \infer{(X \ra Y_1, T, (X \ra Y_2) \ra R)\; \mathcal{F}\; R'}{}
+%     % &\mathcal{F}((X \ra Y \ra Z), (X \ra Y \ra Z) \ra R) = (X \ra Y \ra Z) \ra Z
+%   \end{array}
+% \]
 
 \subsection{Small-Step Operational Semantics}
 
@@ -160,84 +220,64 @@ First, the ``value'' judgment val (as in Harper's Practical Foundations for Prog
 
 \noindent
 Now the small-step reduction relation $\reduces$\\
-\textbf{TODO: See if this can be simplified by using evaluation contexts}
+
+\textbf{$\bullet$ TODO: What would make sense as a rule for reducing \ttt{convert}$_{S,T}$ applications?}
+
+We define a reduction semantics $\mathcal{E}$ where $v, v_1, v_2, \dots$ are expressions such that the judgment $v val$ (etc) holds.
+
+\begin{align*}
+  \mathcal{E} ::=\\
+    &[\,]\\
+    &\mathcal{E}\; \angled{e}\\
+    &v\; \mathcal{E}\\
+    &\letbnd\; x = \mathcal{E}\; \inexpr \angled{e}\\
+    &\letbnd\; x = v\; \inexpr\; \mathcal{E}\\
+    &\ttt{fold } \mathcal{E}\; \angled{e}\\
+    &\ttt{fold } v\; \mathcal{E}\\
+    &\ttt{if } \mathcal{E}\; \angled{e}\; \angled{e}\\
+    &\ttt{if True } \mathcal{E}\; \angled{e}\\
+    &\ttt{if False } \angled{e}\; \mathcal{E}\\
+    &\ttt{le } \mathcal{E}\; \angled{e}\\
+    &\ttt{le } v\; \mathcal{E}\\
+    &\ttt{eq } \mathcal{E}\; \angled{e}\\
+    &\ttt{eq } v\; \mathcal{E}\\
+    &\ttt{add } \mathcal{E}\; \angled{e}\\
+    &\ttt{add } v\; \mathcal{E}\\
+    &\ttt{sub } \mathcal{E}\; \angled{e}\\
+    &\ttt{sub } v\; \mathcal{E}\\
+\end{align*}
+
+The reduction relation $\reduces$ is given by:
+
+\[
+  \begin{array}{c}
+    \labinfer{\mathcal{E}[e] \reduces \mathcal{E}[e']}{e \reducesA e'}
+  \end{array}
+\]
+
+with $\reducesA$ given by:
 
 \[
   \begin{array}{cc}
-    \labinfer[App-1]{e_1\; e_2 \reduces e_1\; e_2'}{e_2 \reduces e_2'}
+    \labinfer[App-$\lambda$]{(\lambda x \ra e)\; e_2 \reducesA e[x\mapsto e_2]}{e_2 \val}
+    \\\\
+    \labinfer[Let-Subst]{\letbnd\; x\; \ttt{:=}\; e_1\; \inexpr\; e_2 \reducesA e_2[x\mapsto e_1]}{e_1 \val}
+    \\\\
+    \labinfer[IfThenElse-True]{\ite\; \True\; e_1\; e_2 \reducesA e_1}{}
     ~~~
-    \labinfer[App-2]{e_1\; e_2 \reduces e_1'\; e_2}{e_1 \reduces e_1' & e_2 \val}
+    \labinfer[IfThenElse-False]{\ite\; \False\; e_1\; e_2 \reducesA e_2}{}
+    \\\\
+    \labinfer[Le-<]{\lesseq\; e_1\; e_2 \reducesA \True}{e_1 \val & e_2 \val & e_1 < e_2}
     ~~~
-    \labinfer[App-$\lambda$]{(\lambda x \ra e)\; e_2 \reduces e[x\mapsto e_2]}{e_2 \val}
+    \labinfer[Le-=]{\lesseq\; e\; e \reducesA \True}{e \val}
     \\\\
-    \labinfer[Let-Bnd]{\letbnd\; x\; \ttt{:=}\; e_1\; \inexpr\; e_2 \reduces \letbnd\; x\; \ttt{:=}\; e_1'\; \inexpr\; e_2}
-       {e_1 \reduces e_1'}
+    \labinfer[Le-False]{\lesseq\; e_1\; e_2 \reducesA \False}{e_1 \val & e_2 \val & e_1 > e_2}
     \\\\
-    \labinfer[Let-Subst]{\letbnd\; x\; \ttt{:=}\; e_1\; \inexpr\; e_2 \reduces e_2[x\mapsto e_1]}{e_1 \val}
-    \\\\
-    \labinfer[Cons-1]{\cons\; e_1\; e_2 \reduces \cons\; e_1'\; e_2}{e_1 \reduces e_2}
+    \labinfer[Eq-True]{\eq\; e\; e \reducesA \True}{e \val}
     ~~~
-    \labinfer[Cons-2]{\cons\; e_1\; e_2 \reduces \cons\; e_1\; e_2'}{e_1 \val & e_2 \reduces e_2'}
+    \labinfer[Eq-False]{\eq\; e_1\; e_2 \reducesA \False}{e_1 \val & e_2 \val & e_1 \neq e_2}
     \\\\
-    \labinfer[Head-1]{\head\; e \reduces \head\; e'}{e \reduces e'}
-    ~~~
-    \labinfer[Tail-1]{\tail\; e \reduces \tail\; e'}{e \reduces e'}
-    \\\\
-    \labinfer[Head-Cons]{\head\; (\cons\; e_1\; e_2) \reduces e_1}{\cons\; e_1\; e_2 \val}
-    ~~~
-    \labinfer[Tail-Cons]{\tail\; (\cons\; e_1\; e_2) \reduces e_2}{\cons\; e_1\; e_2 \val}
-    \\\\
-    \labinfer[Pair-1]{\pair\; e_1\; e_2 \reduces \pair\; e_1'\; e_2}{e_1 \reduces e_1}
-    ~~~~
-    \labinfer[Pair-2]{\pair\; e_1\; e_2 \reduces \pair\; e_1\; e_2'}{e_1 \val & e_2 \reduces e_2'}
-    \\\\
-    \labinfer[Foldr-1]{\foldr\; f\; e_0\; e \reduces \foldr\; f'\; e_0\; e}{f \reduces f'}
-    ~~~
-    \labinfer[Foldr-2]{\foldr\; f\; e_0\; e \reduces \foldr\; f\; e_0'\; e}{f \val & e_0 \reduces e_0'}
-    \\\\
-    \labinfer[Foldr-3]{\foldr\; f\; e_0\; e \reduces \foldr\; f\; e_0\; e'}{f \val & e_0 \val & e \reduces e'}
-    \\\\
-    \labinfer[Foldr-Cons]{\foldr\; f\; e_0\; (\cons\; e_1\; e_2) \reduces f\; e_1\; (\foldr\; f\; e_0\; e_2)}{f \val & e_0 \val & \cons\; e_1\; e_2 \val}
-    % \\\\
-    % % \infer{\ttt{scanr f z $e$} \reduces \ttt{cons e$'$ (f x
-    \\\\
-    \labinfer[Fst-1]{\fst\; e \reduces \fst\; e'}{e \reduces e'}
-    ~~~
-    \labinfer[Snd-1]{\snd\; e \reduces \snd\; e'}{e \reduces e'}
-    \\\\
-    \labinfer[Fst-Pair]{\fst\; (\pair\; e_1\; e_2) \reduces e_1}{\pair\; e_1\; e_2 \val}
-    ~~~
-    \labinfer[Snd-Pair]{\snd\; (\pair\; e_1\; e_2) \reduces e_2}{\pair\; e_1\; e_2 \val}
-    \\\\
-    \labinfer[IfThenElse-1]{\ite\; b\; e_1\; e_2 \reduces \ite\; b'\; e_1\; e_2}{b \reduces b'}
-    \\\\
-    \labinfer[IfThenElse-True]{\ite\; \True\; e_1\; e_2 \reduces e_1}{}
-    ~~~
-    \labinfer[IfThenElse-False]{\ite\; \False\; e_1\; e_2 \reduces e_2}{}
-    \\\\
-    \labinfer[Le-1]{\lesseq\; e_1\; e_2 \reduces \lesseq\; e_1'\; e_2}{e_1 \reduces e_1'}
-    ~~~
-    \labinfer[Le-2]{\lesseq\; e_1\; e_2 \reduces \lesseq\; e_1\; e_2'}{e_1 \val & e_2 \reduces e_2'}
-    \\\\
-    \labinfer[Le-<]{\lesseq\; e_1\; e_2 \reduces \True}{e_1 \val & e_2 \val & e_1 < e_2}
-    ~~~
-    \labinfer[Le-=]{\lesseq\; e\; e \reduces \True}{e \val}
-    \\\\
-    \labinfer[Le-False]{\lesseq\; e_1\; e_2 \reduces \False}{e_1 \val & e_2 \val & e_1 > e_2}
-    \\\\
-    \labinfer[Eq-1]{\eq\; e_1\; e_2 \reduces \eq\; e_1'\; e_2}{e_1 \reduces e_1'}
-    ~~~
-    \labinfer[Eq-1]{\eq\; e_1\; e_2 \reduces \eq\; e_1\; e_2'}{e_1 \val & e_2 \reduces e_2'}
-    \\\\
-    \labinfer[Eq-True]{\eq\; e\; e \reduces \True}{e \val}
-    ~~~
-    \labinfer[Eq-False]{\eq\; e_1\; e_2 \reduces \False}{e_1 \val & e_2 \val & e_1 \neq e_2}
-    \\\\
-    \labinfer[Add-1]{\add\; e_1\; e_2 \reduces \add\; e_1'\; e_2}{e_1 \reduces e_1'}
-    ~~~
-    \labinfer[Add-2]{\add\; e_1\; e_2 \reduces \add\; e_1\; e_2'}{e_1 \val & e_2 \reduces e_2'}
-    ~~~
-    \labinfer[Add-Apply]{\add\; e_1\; e_2 \reduces v}{e_1 \val & e_2 \val & v = e_1 + e_2}
+    \labinfer[Add-Apply]{\add\; e_1\; e_2 \reducesA v}{e_1 \val & e_2 \val & v = e_1 + e_2}
 
   \end{array}
 \]
@@ -322,7 +362,7 @@ The following syntax definition is adapted from \textit{Cyclic Program Synthesis
 \end{definition}
 
 \begin{definition}[SuSLik Goal Equivalence]
-  Given a context of inductive predicates $\Sigma$ and synthesizable SuSLik goals $\mathcal{G}$ and $\mathcal{G}'$, $\Sigma \vdash \mathcal{G} \approx_{\mathcal{S}} \mathcal{G}'$ iff
+  Given a context of inductive predicates $\Sigma$ and synthesizable SuSLik goals $\mathcal{G}$ and $\mathcal{G}'$, $\Sigma \vdash \mathcal{G} \approx_{S} \mathcal{G}'$ iff
     $(\forall c\; c'. ((\Sigma \vdash \mathcal{G} \synth c) \land (\Sigma \vdash \mathcal{G}' \synth c')) \implies (\Sigma \vdash c \approx_{\mathcal{C}} c')$
 \end{definition}
 
@@ -340,13 +380,13 @@ This translation is shown to preserve equivalence in two steps (Section~\ref{sec
     This is accomplished by proving $\sem{\blank}$ is \textit{adequate}.
 \end{itemize}
 
-\subsection{Denotation by Inductive Predicates}
-
-Some fun-SuSLik constructs will translate to inductive predicates. This is translation is
-given by $\Isem{\blank} : \ttt{e} \ra (\ttt{I} \times \ttt{Name})$. This function produces both
-the inductive predicate and its name. Its name is determined by the expression. This
-name is unique as the inductive predicate is lambda lifted; that is, all captured variables
-are turned into arguments to the inductive predicate.
+% \subsection{Denotation by Inductive Predicates}
+%
+% Some fun-SuSLik constructs will translate to inductive predicates. This is translation is
+% given by $\Isem{\blank} : \ttt{e} \ra (\ttt{I} \times \ttt{Name})$. This function produces both
+% the inductive predicate and its name. Its name is determined by the expression. This
+% name is unique as the inductive predicate is lambda lifted; that is, all captured variables
+% are turned into arguments to the inductive predicate.
 
 % \subsection{Denotation With Environments}
 %
@@ -379,17 +419,17 @@ are turned into arguments to the inductive predicate.
 % \end{definition}
 
 \begin{theorem}[Context Preservation]
-  $e \approx_F e' \implies \first(\sem{e}) = \first(\sem{e'})$
+  $e \approx_F e' \implies \sem{e} = \sem{e'}$
 \end{theorem}
 
 \begin{theorem}[Full Abstraction]
-  If $e$ and $e'$ are fun-SuSLik expressions and $e \approx_F e'$ and $\Sigma = \first(\sem{e}) = \first(\sem{e'})$,
-  then $\Sigma \vdash \second(\sem{e}) \approx_{\mathcal{S}} \second(\sem{e'})$
+  If $e$ and $e'$ are fun-SuSLik expressions and $e \approx_F e'$,
+  then $\Sigma \vdash \sem{e} \approx_{S} \sem{e'}$
 \end{theorem}
 
 \begin{theorem}[Adequacy]
-  If $e$ and $e'$ are fun-SuSLik expressions and $e \not\approx_F e'$ and $e \approx_F e'$ and $\Sigma = \first(\sem{e}) = \first(\sem{e'})$,
-  then $\Sigma \vdash \sem{e} \not\approx_{\mathcal{S}} \sem{e'}$
+  If $e$ and $e'$ are fun-SuSLik expressions and $e \not\approx_F e'$ and $e \approx_F e'$,
+  then $\Sigma \vdash \sem{e} \not\approx_{S} \sem{e'}$
 \end{theorem}
 
 \subsection{Translation}
@@ -410,7 +450,12 @@ are turned into arguments to the inductive predicate.
   \\
   \Fsem{i,j}{\Bool} = (x+j) \mapsto v_{i+j}
   \\
-  \Fsem{i,j}{\ttt{T } \overline{\ttt{args}_k}} = (x+i) \mapsto v_{i+j} * \ttt{T}^{\alpha}(v_{i+j}, \overline{\ttt{args}_k})
+  \Fsem{i,j}{\ttt{T } \overline{\ttt{args}_k}} = (x+i) \mapsto v_{i+j} * \ttt{T}^{\alpha}(v_{i+j}, \Tsem{r}{\overline{\ttt{args}_k}})\qquad \text{with $r$ fresh}
+  \\
+  \\
+  \Tsem{r}{f\; \overline{z}} = f, \Tsem{r}{\,\overline{z}\,}\qquad \text{where $f$ is a variable name}
+  \\
+  \Tsem{r}{\ttt{T } \overline{\ttt{args}_i}} =
 \end{math}
 \\
 \textbf{TODO: Deal with nested type applications in the last equation above}
