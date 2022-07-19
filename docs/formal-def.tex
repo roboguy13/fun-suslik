@@ -65,29 +65,33 @@ semantics preserves semantic equivalence by proving adequacy and full abstractio
 \subsection{Syntax}
 
 \begin{grammar}
-  <$\mathcal{D}$> ::= data X := $\Alts$;
+  <$\mathcal{D}$> ::= "data" X ":=" $\Alts$;
 
-  <A> ::= X : <T>
+  <$\mathcal{L}$> ::= "L" : D $\ra$ "layout"[x]; $\overline{LM}$
+
+  <LM> ::= "L" ("L" $\overline{y}$) ":=" <H>
+
+  <A> ::= "X" : <T>
 
   <I> ::= $\cdots$ | -1 | 0 | 1 | $\cdots$
 
-  <B> ::= \ttt{True} | \ttt{False}
+  <B> ::= "True" | "False"
 
-  <D> ::= \ttt{f :} <T>; f <P> \ttt{:=} <e>;
+  <D> ::= "f" : <T>; "f" <P> ":=" <e>;
 
-  <P> ::= $\cdot$ | x <P>
+  <P> ::= $\cdot$ | "x" <P>
 
   <e> ::= <e>$_0$ | <e> <e>$_0$
 
-  <e$_0$> ::= <I> | <B> | <L> | <C> | \letbnd\; x \ttt{:=} <e> \inexpr\; <e> | ( <e> )
+  <e$_0$> ::= <I> | <B> | <L> | <C> | "let" x ":=" <e> "in" <e> | ( <e> )
 
   <L> ::= $\lambda x \ra$ <e>
 
-  <C> ::= \ttt{convert}$_{\angled{T},\angled{T}}$ | \fold{\langle T\rangle} | \ite\; | \lesseq\; | \eq\; | \add\; | \sub\; | \ttt{and}\; | \ttt{or}\; | \ttt{not}
+  <C> ::= "convert"$_{"L","L"}$ | "fold"$_{"L"}$ | \ite\; | \lesseq\; | \eq\; | \add\; | \sub\; | \ttt{and}\; | \ttt{or}\; | \ttt{not}
 
-  <T> ::= \ttt{Int} | \ttt{Bool} | <T> $\ra$ <T> | ( <T> )
+  <T> ::= "Int" | "Bool" | <T> $\ra$ <T> | ( <T> )
 
-  <$\Gamma$> ::= $\cdot$ | x : <T>, $\Gamma$
+  <$\Gamma$> ::= $\cdot$ | "x" : <T>, $\Gamma$
 
   <$\Sigma$> ::= $\overline{\angled{\mathcal{D}}}$
 \end{grammar}
