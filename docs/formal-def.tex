@@ -106,15 +106,15 @@ semantics preserves semantic equivalence by proving adequacy and full abstractio
 For convenience, we define the function for getting the type name of a type definition:
 
 \[
-  \tau(\ttt{data T = }\Alts) = \ttt{T}
+  \tau(\ttt{data T where }\Alts) = \ttt{T}
 \]
 
 and the function for getting a list of constructor type signatures:
 
 \begin{align*}
-  &\sigma(\ttt{data T = ;}) = []
+  &\sigma(\ttt{data T where ;}) = []
   \\
-  &\sigma(\ttt{data T = C : S | }\Alts) = (C : S) :: \sigma({\ttt{data T = }}\Alts)
+  &\sigma(\ttt{data T where C : S | }\Alts) = (C : S) :: \sigma({\ttt{data T where }}\Alts)
 \end{align*}
 
 Further, we define a set of base types
@@ -131,39 +131,39 @@ data List where
   Cons : Int -> List -> List
 
 SinglyLinked : List >-> layout[x]
-SinglyLinked Nil = emp
-SinglyLinked (Cons head tail) =
+SinglyLinked Nil := emp
+SinglyLinked (Cons head tail) :=
   x :-> head, (x+1) :-> nxt, SinglyLinked[nxt] tail
 
 DoublyLinked : List >-> layout[x, z]
-DoublyLinked Nil = emp
-DoublyLinked (Cons head tail) = 
+DoublyLinked Nil := emp
+DoublyLinked (Cons head tail) := 
   x :-> head, (x+1) :-> w, (x+2) :-> z, DoublyLinked[w, x] tail
 
 -- "Layout polymorphic" function
 sumList : List -> Int
-sumList = fold add 0
+sumList := fold add 0
 
 listExample : List
-listExample = Cons 1 (Cons 2 (Cons 3 Nil))
+listExample := Cons 1 (Cons 2 (Cons 3 Nil))
 
 singlyLinkedExample : SinglyLinked
-singlyLinkedExample = lower listExample
+singlyLinkedExample := lower listExample
 
 doublyLinkedExample : DoublyLinked
-doublyLinkedExample = lower listExample
+doublyLinkedExample := lower listExample
 
 sumSinglyLinkedExample : Int
-sumSinglyLinkedExample = (lower sumList) singlyLinkedExample
+sumSinglyLinkedExample := (lower sumList) singlyLinkedExample
 
 sumDoublyLinkedExample : Int
-sumDoublyLinkedExample = (lower sumList) doublyLinkedExample
+sumDoublyLinkedExample := (lower sumList) doublyLinkedExample
 
 singlyToDoubly : DoublyLinked
-singlyToDoubly = convert singlyLinkedExample
+singlyToDoubly := convert singlyLinkedExample
 
 abstractDoubly : List
-abstractDoubly = lift doublyLinkedExample
+abstractDoubly := lift doublyLinkedExample
 \end{lstlisting}
 
 \subsection{Well-Formedness For Type Definitions}
@@ -489,7 +489,7 @@ This translation is shown to preserve equivalence in two steps (Section~\ref{sec
 \subsection{Translation}
 
 \begin{math}
-  \Csem{\ttt{data T := }\overline{\ttt{alts}_i}\ttt{;}} = p^{\alpha}(x, \Nsem{0}{\,\overline{\ttt{alts}_i}\,}) : \overline{\Asem{i}{\ttt{alts}_i}}
+  \Csem{\ttt{data T where }\overline{\ttt{alts}_i}\ttt{;}} = p^{\alpha}(x, \Nsem{0}{\,\overline{\ttt{alts}_i}\,}) : \overline{\Asem{i}{\ttt{alts}_i}}
   \\
   \\
   \Nsem{k}{\ttt{C } \overline{\ttt{fields}_i}\; |\; \overline{\ttt{alts}_j}} = v_{k+1}, v_{k+2}, \dots, v_{k+i}, \Nsem{k+i}{\overline{\ttt{alts}_j}}
