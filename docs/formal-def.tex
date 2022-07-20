@@ -93,7 +93,7 @@ semantics preserves semantic equivalence by proving adequacy and full abstractio
 
   <$\ell$> ::= $\lambda "x" \ra$ <e>
 
-  <C> ::= "convert"$_{"L","L"}$ | "fold"$_{"L"}$ | \ite\; | \lesseq\; | \eq\; | \add\; | \sub\; | \ttt{and}\; | \ttt{or}\; | \ttt{not}
+  <C> ::= "convert"$_{"L","L"}$ | "fold" | $\uparrow$ | $\downarrow$ | \ite\; | \lesseq\; | \eq\; | \add\; | \sub\; | \ttt{and}\; | \ttt{or}\; | \ttt{not}
 
   <T> ::= "Int" | "Bool" | <T> $\ra$ <T> | "L" ( "D" ) | ( <T> )
 
@@ -148,16 +148,16 @@ listExample : List
 listExample = Cons 1 (Cons 2 (Cons 3 Nil))
 
 singlyLinkedExample : SinglyLinked
-singlyLinkedExample = SinglyLinked listExample
+singlyLinkedExample = lower listExample
 
 doublyLinkedExample : DoublyLinked
-doublyLinkedExample = DoublyLinked listExample
+doublyLinkedExample = lower listExample
 
 sumSinglyLinkedExample : Int
-sumSinglyLinkedExample = lift sumList singlyLinkedExample
+sumSinglyLinkedExample = (lower sumList) singlyLinkedExample
 
 sumDoublyLinkedExample : Int
-sumDoublyLinkedExample = lift sumList doublyLinkedExample
+sumDoublyLinkedExample = (lower sumList) doublyLinkedExample
 \end{lstlisting}
 
 \subsection{Well-Formedness For Type Definitions}
