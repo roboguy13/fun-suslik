@@ -1,6 +1,14 @@
 \newtheorem{theorem}{Theorem}
 \newtheorem{definition}{Definition}
 
+\lstset{
+  mathescape=true,
+  literate=
+    {>->}{$\hookrightarrow$}{1}
+    {:->}{$:\rightarrow$}{1}
+    {->}{$\rightarrow$}{1}
+}
+
 % \renewcommand{\syntleft}{}
 % \renewcommand{\syntright}{}
 
@@ -10,6 +18,7 @@
 \newcommand{\ttt}[1]{\texttt{#1}}
 \newcommand{\ra}{\ensuremath{\rightarrow}}
 \newcommand{\Ra}{\ensuremath{\Rightarrow}}
+\newcommand{\hra}{\ensuremath{\hookrightarrow}}
 
 \newcommand{\reduces}{\ensuremath{\longmapsto}}
 \newcommand{\reducestr}{\ensuremath{\longmapsto^{*}}}
@@ -102,7 +111,7 @@
 
 \newcommand{\angled} [1] {\langle #1 \rangle}
 
-\newcommand{\Alts}{\overline{\angled{A}}}
+\newcommand{\Alts}{\overline{\textnormal{A}}}
 
 \newcommand{\reducesA}{\reduces_{\boldsymbol{a}}}
 

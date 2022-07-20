@@ -65,13 +65,19 @@ semantics preserves semantic equivalence by proving adequacy and full abstractio
 \subsection{Syntax}
 
 \begin{grammar}
-  <$\mathcal{D}$> ::= "data" X ":=" $\Alts$;
+  <$\mathcal{D}$> ::= "data" D "where" $\Alts$;
 
-  <$\mathcal{L}$> ::= "L" : D $\ra$ "layout"[x]; $\overline{LM}$
+  <A> ::= "C" : <T>
 
-  <LM> ::= "L" ("L" $\overline{y}$) ":=" <H>
+  <$\mathcal{L}$> ::= "L" : D $\hra$ "layout"["x"]; $\overline{\textnormal{LM}}$
 
-  <A> ::= "X" : <T>
+  <LM> ::= "L" ("C" $\overline{"y"}$) ":=" $\overline{\textnormal{H}}$
+
+  <H> ::= "p" ":->" "y"
+
+  <p> ::= "x" | "(" "x" "+" <n> ")"
+
+  <n> ::= 0 | 1 | 2 $\cdots$
 
   <I> ::= $\cdots$ | -1 | 0 | 1 | $\cdots$
 
@@ -83,17 +89,17 @@ semantics preserves semantic equivalence by proving adequacy and full abstractio
 
   <e> ::= <e>$_0$ | <e> <e>$_0$
 
-  <e$_0$> ::= <I> | <B> | <L> | <C> | "let" x ":=" <e> "in" <e> | ( <e> )
+  <e$_0$> ::= <I> | <B> | $\ell$ | <C> | "let" x ":=" <e> "in" <e> | ( <e> )
 
-  <L> ::= $\lambda x \ra$ <e>
+  <$\ell$> ::= $\lambda "x" \ra$ <e>
 
   <C> ::= "convert"$_{"L","L"}$ | "fold"$_{"L"}$ | \ite\; | \lesseq\; | \eq\; | \add\; | \sub\; | \ttt{and}\; | \ttt{or}\; | \ttt{not}
 
-  <T> ::= "Int" | "Bool" | <T> $\ra$ <T> | ( <T> )
+  <T> ::= "Int" | "Bool" | <T> $\ra$ <T> | "L" ( "D" ) | ( <T> )
 
   <$\Gamma$> ::= $\cdot$ | "x" : <T>, $\Gamma$
 
-  <$\Sigma$> ::= $\overline{\angled{\mathcal{D}}}$
+  <$\Sigma$> ::= $\overline{\mathcal{D}}$
 \end{grammar}
 
 \noindent
@@ -116,6 +122,43 @@ Further, we define a set of base types
 \[
   \textnormal{base} = \{\Int, \Bool\}
 \]
+
+\subsection{fun-SuSLik Examples}
+
+\begin{lstlisting}
+data List where
+  Nil : List
+  Cons : Int -> List -> List
+
+SinglyLinked : List >-> layout[x]
+SinglyLinked Nil = emp
+SinglyLinked (Cons head tail) =
+  x :-> head, (x+1) :-> tail, SinglyLinked tail
+
+DoublyLinked : List >-> layout[x, z]
+DoublyLinked Nil = emp
+DoublyLinked (Cons head tail) = 
+  x :-> head, (x+1) :-> w, (x+2) :-> z, DoublyLinked[w, x] tail
+
+-- "Layout polymorphic" function
+sumList : List -> Int
+sumList = fold add 0
+
+listExample : List
+listExample = Cons 1 (Cons 2 (Cons 3 Nil))
+
+singlyLinkedExample : SinglyLinked
+singlyLinkedExample = SinglyLinked listExample
+
+doublyLinkedExample : DoublyLinked
+doublyLinkedExample = DoublyLinked listExample
+
+sumSinglyLinkedExample : Int
+sumSinglyLinkedExample = lift sumList singlyLinkedExample
+
+sumDoublyLinkedExample : Int
+sumDoublyLinkedExample = lift sumList doublyLinkedExample
+\end{lstlisting}
 
 \subsection{Well-Formedness For Type Definitions}
 
@@ -145,6 +188,8 @@ In short, if you can derive $\mathcal{D}\ok$ for a type definition $\mathcal{D}$
 
 \[
   \begin{array}{c}
+    \infer{\Sigma ; \Gamma \vdash e : \ttt{layout}[x]}{\Sigma ; \Gamma \vdash e : D & \Sigma ; \Gamma \vdash L : D \hra \ttt{layout}[x]}
+    \\\\
     \infer{\Sigma ; \Gamma \vdash x : T}{(x : T) \in \Gamma}
     ~~~
     \infer{\vdash i : \ttt{Int}}{i \in \mathbb{Z}}
