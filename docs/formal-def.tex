@@ -194,7 +194,7 @@ In short, if you can derive $\mathcal{D}\ok$ for a type definition $\mathcal{D}$
 
 \[
   \begin{array}{c}
-    \infer{\Sigma ; \Gamma \vdash e : \ttt{layout}[x]}{\Sigma ; \Gamma \vdash e : D & \Sigma ; \Gamma \vdash L : D \hra \ttt{layout}[x]}
+    \infer{\Sigma ; \Gamma \vdash e : \ttt{layout}[\Delta]}{\Sigma ; \Gamma \vdash e : D & \Sigma ; \Gamma \vdash L : D \hra \ttt{layout}[\Delta]}
     \\\\
     \infer{\Sigma ; \Gamma \vdash x : T}{(x : T) \in \Gamma}
     ~~~
@@ -223,6 +223,17 @@ In short, if you can derive $\mathcal{D}\ok$ for a type definition $\mathcal{D}$
     \infer{\Sigma ; \Gamma \vdash \ttt{convert}_{\tau(\mathcal{D}),\tau({\mathcal{D}'})} : \tau(\mathcal{D}) \ra \tau(\mathcal{D}')}{\mathcal{D} \in \Sigma & \mathcal{D}' \in \Sigma}
     \\\\
     \infer{\Sigma ; \Gamma \vdash \ttt{fold}_{\tau(\mathcal{D})} \ttt{ f z} : \tau(\mathcal{D}) \ra S}{(R,\tau(\mathcal{D}),\sigma(\mathcal{D}))\; \mathcal{F}\; S & \Sigma ; \Gamma \vdash f : R & \Sigma ; \Gamma \vdash z : S & \mathcal{D} \in \Sigma}
+    \\\\
+    \infer{\Sigma ; \Gamma \vdash \downarrow_L a : \ttt{layout}[\Delta]}{\Sigma ; \Gamma \vdash a : D & \Sigma ; \Gamma \vdash L : D \hra \ttt{layout}[\Delta]}
+    ~~~
+    \infer{\Sigma ; \Gamma \vdash \uparrow_L r : D}{\Sigma ; \Gamma \vdash r : \ttt{layout}[\Delta] & \Sigma ; \Gamma \vdash L : D \hra \ttt{layout}[\Delta]}
+    \\\\
+    \infer{\Sigma ; \Gamma \vdash \downarrow_L f : \ttt{layout}[\Delta] \ra B}{\Sigma ; \Gamma \vdash f : D \ra B & \Sigma ; \Gamma \vdash L : D \hra \ttt{layout}[\Delta]}
+    ~~~
+    \infer{\Sigma ; \Gamma \vdash \uparrow_L f : D \ra B}{\Sigma ; \Gamma \vdash f : \ttt{layout}[\Delta] \ra B & \Sigma ; \Gamma \vdash L : D \hra \ttt{layout}[\Delta]}
+    \\\\
+    \infer{\Sigma ; \Gamma \vdash \ttt{convert}_{L,L'} : \ttt{layout}[\Delta] \ra \ttt{layout}[\Delta']}
+          {\Sigma ; \Gamma \vdash L : D \hra \ttt{layout}[\Delta] & \Sigma ; \Gamma \vdash L : D \hra \ttt{layout}[\Delta']}
   \end{array}
 \]
 
