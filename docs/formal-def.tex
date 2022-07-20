@@ -133,7 +133,7 @@ data List where
 SinglyLinked : List >-> layout[x]
 SinglyLinked Nil = emp
 SinglyLinked (Cons head tail) =
-  x :-> head, (x+1) :-> tail, SinglyLinked tail
+  x :-> head, (x+1) :-> nxt, SinglyLinked[nxt] tail
 
 DoublyLinked : List >-> layout[x, z]
 DoublyLinked Nil = emp
