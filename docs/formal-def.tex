@@ -274,7 +274,7 @@ Therefore, the following law must always hold:
 
 \subsection{Conversion Using The Laws}
 
-\textbf{Example: }
+\subsubsection{Example: Pattern matching}
 Consider the following pattern match
 
 \begin{lstlisting}
@@ -321,6 +321,104 @@ gets eliminated and the \ttt{case} becomes a \ttt{layoutcase}.
 
 This also shows one aspect of how a function of type \lstinline{D -> B} can be converted to a function of type
 \lstinline{L -> B} where \lstinline{L : D >-> layout[$\Delta$]}.
+
+\subsubsection{Example: Producing a layout value}
+
+\begin{lstlisting}
+data D = C1 Int | C2 Int Int
+data List = Nil | Cons Int List
+
+DL : D >-> layout[x]
+DL (C1 a) = x :-> a
+DL (C2 a b) = x :-> a, (x+1) :-> b
+
+ListL : List >-> layout[x]
+ListL Nil = emp
+ListL (Cons head tail) = x :-> head, (x+1) :-> nxt, DL[nxt] tail
+
+toList : D -> List
+toList d =
+  case d of
+  | C1 a -> Cons a Nil
+  | C2 a b -> Cons a (Cons b Nil)
+
+toListL : DL -> ListL
+toListL ell = lower (toList (lift ell))
+\end{lstlisting}
+
+\noindent
+Inlining \ttt{toList}:
+
+\begin{lstlisting}
+toListL : DL -> ListL
+toListL ell =
+  lower (case lift ell of
+    | C1 a -> Cons a Nil
+    | C2 a b -> Cons a (Cons b Nil)
+    )
+\end{lstlisting}
+
+\noindent
+then performing the same \ttt{case}-\ttt{lift} elimination from before:
+
+\begin{lstlisting}
+toListL : DL -> ListL
+toListL ell =
+  lower (layoutcase ell of
+    | (tag :-> C1, x :-> a) -> Cons a Nil
+    | (tag :-> C2, x :-> a, (x+1) :-> b) -> Cons a (Cons b Nil)
+    )
+\end{lstlisting}
+
+\noindent
+Now, we can bring the \ttt{lower} into the case alternatives:
+
+\begin{lstlisting}
+toListL ell =
+  layoutcase ell of
+    | (tag :-> C1, x :-> a) -> lower (Cons a Nil)
+    | (tag :-> C2, x :-> a, (x+1) :-> b) -> lower (Cons a (Cons b Nil))
+\end{lstlisting}
+
+\noindent
+Using the definition of \ttt{ListL}, we can reduce these \ttt{lower} applications to get (renaming \ttt{x} to \ttt{y} for clarity)
+
+\begin{lstlisting}
+toListL ell =
+  layoutcase ell of
+    | (tag :-> C1, x :-> a) ->
+        y :-> a, (y+1) :-> nxt, ListL[y] Nil
+    | (tag :-> C2, x :-> a, (x+1) :-> b) ->
+        y :-> a, (y+1) :-> nxt, ListL[y] (Cons b Nil)
+\end{lstlisting}
+
+\noindent
+Unfolding \ttt{ListL} again:
+
+\begin{lstlisting}
+toListL ell =
+  layoutcase ell of
+    | (tag :-> C1, x :-> a) ->
+        y :-> a, (y+1) :-> 0
+    | (tag :-> C2, x :-> a, (x+1) :-> b) ->
+        y :-> a, (y+1) :-> b, (y+2) :-> nxt, ListL[y] Nil
+\end{lstlisting}
+
+\noindent
+then once more:
+
+\begin{lstlisting}
+toListL ell =
+  layoutcase ell of
+    | (tag :-> C1, x :-> a) ->
+        y :-> a, (y+1) :-> 0
+    | (tag :-> C2, x :-> a, (x+1) :-> b) ->
+        y :-> a, (y+1) :-> b, (y+2) :-> 0
+\end{lstlisting}
+
+\noindent
+\textit{At a high-level}: We started with a function on algebraic data types and we ended up with a function
+on layouts.
 
 \subsection{Small-Step Operational Semantics}
 
