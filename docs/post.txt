@@ -1,0 +1,87 @@
+All of the things you mention are legal, with appropriate definitions of `Iterator` and `Default`. It is not clear to me what you're intending with these. Maybe you can clarify this a bit.
+
+It's also not clear to me what issue you want to resolve when you talk about arities (maybe this would only be if those things you ask about would have been rejected rather than accepted).
+
+I'll give a brief description of Haskell kinds after I address a couple of specific points in your comment.  
+
+I think it will help to describe how kinds work in Haskell. I think this will also address some of your concerns about complexity due to how they help organize things, particularly because you can unify the concept of "kind" with the concept of "type" and treat them uniformly, but I won't get into that (to avoid going into too much extra detail).
+
+To briefly introduce them: Values have types. Similarly, types have kinds. To see why this might be useful: consider how a parametrized type is different from a non-parametrized type. A parametrized type necessarily has a different kind from a non-parametrized type, much like how a function with one argument necessarily has a different type than a function with two arguments.
+
+>After reading it again,  
+>  
+>`class ConstrainedFunctor f c where cmap :: (c a, c b) => (a -> b) -> f a -> f b`  
+>  
+>Am I correct by reading this as: "the type class ConstrainedFunctor is parameterized over type classes `f`, `c`, and instances of it implement `cmap` "?  
+>  
+>(Where cmap is just a function when we look at c and f as type classes)
+
+You're not quite correct, but you're close. Specifically, the `f` parameter is not a type class: it's a *type constructor*. An example of a type constructor is a parametrized list type. Other than this, you are correct.
+
+The difference between a type class and a type constructor is somewhat like the difference between an interface and a parametrized "class" (in the OO sense), with a type class being like an interface. This doesn't fully capture what a type class is, though, so this is only intended to give a general sense of it.
+
+Let me give a specific example of an instance of `ConstrainedFunctor`. There is a `Set` type constructor for a set data type, parametrized on element type. Many of its operations require an `Ord` constraint on its element type (since it needs to be able to internally compare elements with operations like `<`, etc). The `Ord` type class provides methods for comparing using `<`, `>`, `<=`, and so on.
+
+In particular, the `map` function for it requires an `Ord` instance. . I'll call tthis map function `setMap` and it has the type `(Ord b) => (a -> b) -> Set a -> Set b`.
+
+A direct result of this is that it cannot be made an instance of `Functor`. This is because `fmap` does not have any constraints in its type.
+
+This is where `ConstrainedFunctor` comes in. `Set` *can* be made an instance of `ConstrainedFunctor`:
+
+    instance ConstrainedFunctor Set Ord where
+      cmap f x = setMap f x
+
+^(This doesn't fully obey the functor laws, but this isn't relevant to our discussion.)
+
+If you substitute `Set` and `Ord` for the parameters of the `ConstrainedFunctor` type class, you see that this particular instance has a `cmap` with type:
+
+    cmap :: (Ord a, Ord b) => (a -> b) -> Set a -> Set b
+
+In this case, while we need `Ord b` we don't actually need `Ord a`. It certainly doesn't prevent us from writing the instance, though.
+
+# Kinds, in more detail
+
+As I said, a kind is to a type what a type is to a value. A kind is something like the "type" of a type (with the first usage of the word "type" being used informally).
+
+Firstly, "basic" types. Non-parametrized types, like `Int` and `Bool`, have kind `Type`.
+
+*Type constructors* are parametrized types. A type constructor that takes one (type) parameter, like a parametrized list type, has kind `Type -> Type`. We can write (^(using GADT syntax, but no actual GADT features))
+
+    data List t where
+      Nil :: List a
+      Cons :: a -> List a -> List a
+
+Here, `List` has kind `Type -> Type`. In fact, we could also write
+
+    data List :: Type -> Type where
+      Nil :: List a
+      Cons :: a -> List a -> List a
+
+A *constraint* is something that goes to the left of a `=>` arrow in Haskell. These things, appropriately enough, express a sort of constraint on some (given) types. The kind that goes with this is `Constraint`.
+
+A "basic" *type class* has kind `Type -> Constraint` ("basic type class" isn't really an actual term, but I just want to start here). Examples include `Ord` and `Num`. We "apply" a type class to a type to get a constraint.
+
+For example, `Ord` has kind `Type -> Constraint` (as mentioned). On the other hand, `Ord a` has kind `Constraint` (where `a` has kind `Type`). We've applied `Ord` to `a`. This allows us to write
+
+    example :: (Ord a) => a -> a -> Bool
+    example x y = not (x > y)
+
+We get a `Constraint` when we apply `Ord` to `a`, which we can then put to the left of the `=>` arrow. Everything to the left of any `=>` arrow has kind `Constraint`. In my proposed syntax for the language of the OP, everything in the comma-separated list of stuff to the right of `where` would have kind `Constraint` (or something equivalent).
+
+More generally, a "type class" (what I might call a "type relation") is just any "type" with a kind of the form `... -> Constraint`. It's anything that "eventually" gives you back a constraint, after you apply enough arguments with the appropriate kinds. If that resulting constraint is able to be "satisfied", that means that sequence of types (the arguments) is "in the relation" (if the perspective in the last sentence doesn't help right now, don't worry). ^(Incidentally, nullary type classes also exist, but I don't know of any practical use for them off the top of my head).
+
+There are type classes with kinds that are not `Type -> Constraint` as well. Consider `Functor`. This type class takes in a *type constructor* so it has kind `(Type -> Type) -> Constraint`.
+
+Some more examples from our discussion:
+
+* The original `Iterator` has kind `Type -> Constraint`.
+* The original `Default` also has kind `Type -> Constraint`.
+* The `ConstrainedFunctor` type class has kind `(Type -> Type) -> (Type -> Constraint) -> Constraint`
+
+*Exercise*: (optional and only if you feel like giving it a try, of course): Lets call the "original" parametrized iterator we discussed `Iterator1`. This is the one that I said we could use like `... where Iterator1(I, Default)` in the hypothetical language. What is the kind does `Iterator1` have, assuming `Default` has the kind I mentioned above and `I` is a "basic type"?
+
+This may seem like a lot, but once you get used to it it really helps organize things in my opinion. I might be a bit biased though =)
+
+Does this help? Also, maybe you can clarify the things I was asking about earlier in the comment.
+
+^(Sometimes, for historical reasons, the kind ")`Type`^(" is called ")`*`^(" in Haskell. I don't use this because it is confusing for multiple reasons. It has nothing to do with wildcards or anything like that, despite how it may look. It's just an alternate name that is not intended to suggest any additional meaning. To get the) `Type` ^(name, you can import) `Data.Kind`^(.)

@@ -224,10 +224,10 @@ In short, if you can derive $\mathcal{D}\ok$ for a type definition $\mathcal{D}$
     ~~~
     \infer{\Sigma ; \Gamma \vdash \uparrow_L r : D}{\Sigma ; \Gamma \vdash r : L & \Sigma ; \Gamma \vdash L : D \hra \ttt{layout}[\Delta]}
     \\\\
-    \infer{\Sigma ; \Gamma \vdash \downarrow_L f : L \ra B}{\Sigma ; \Gamma \vdash f : D \ra B & \Sigma ; \Gamma \vdash L : D \hra \ttt{layout}[\Delta]}
-    ~~~
-    \infer{\Sigma ; \Gamma \vdash \uparrow_L f : D \ra B}{\Sigma ; \Gamma \vdash f : L \ra B & \Sigma ; \Gamma \vdash L : D \hra \ttt{layout}[\Delta]}
-    \\\\
+    % \infer{\Sigma ; \Gamma \vdash \downarrow_L f : L \ra B}{\Sigma ; \Gamma \vdash f : D \ra B & \Sigma ; \Gamma \vdash L : D \hra \ttt{layout}[\Delta]}
+    % ~~~
+    % \infer{\Sigma ; \Gamma \vdash \uparrow_L f : D \ra B}{\Sigma ; \Gamma \vdash f : L \ra B & \Sigma ; \Gamma \vdash L : D \hra \ttt{layout}[\Delta]}
+    % \\\\
     \infer{\Sigma ; \Gamma \vdash \ttt{convert}_{L,L'} : L \ra L'}
           {\Sigma ; \Gamma \vdash L : D \hra \ttt{layout}[\Delta] & \Sigma ; \Gamma \vdash L' : D \hra \ttt{layout}[\Delta']}
   \end{array}
@@ -271,6 +271,56 @@ Therefore, the following law must always hold:
 \[
   \textnormal{Given any } L : D \hra \ttt{layout}[\Delta] \textnormal{ and } x : L, \downarrow_L (\uparrow_L x) = x
 \]
+
+\subsection{Conversion Using The Laws}
+
+\textbf{Example: }
+Consider the following pattern match
+
+\begin{lstlisting}
+data D = C1 Int | C2 Int Int
+
+L : D >-> layout[x]
+L (C1 a) = x :-> a
+L (C2 a b) = x :-> a, (x+1) :-> b
+
+example : D -> Int
+example d =
+  case d of
+  | C1 a -> a
+  | C2 a b -> a + b
+
+example2 : L -> Int
+example2 l = example (lift l)
+\end{lstlisting}
+
+\noindent
+Observe that \ttt{example2} can be rewritten as:
+
+\begin{lstlisting}
+example2 : L -> Int
+example2 ell =
+  case lift ell of
+  | C1 a -> a
+  | C2 a b -> a + b
+\end{lstlisting}
+
+\noindent
+This then becomes the following action on layouts (using a hypothetical syntax):
+
+\begin{lstlisting}
+example2 ell =
+  layoutcase ell of 
+  | (tag :-> C1, x :-> a) -> a
+  | (tag :-> C2, x :-> a, (x+1) :-> b) -> a + b
+\end{lstlisting}
+
+\noindent
+This demonstrates the behavior of \ttt{case} matching on an application of \lstinline{lift}. The \lstinline{lift} application
+gets eliminated and the \ttt{case} becomes a \ttt{layoutcase}.
+
+This also shows one aspect of how a function of type \lstinline{D -> B} can be converted to a function of type
+\lstinline{L -> B} where \lstinline{L : D >-> layout[$\Delta$]}.
 
 \subsection{Small-Step Operational Semantics}
 
