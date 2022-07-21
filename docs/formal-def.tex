@@ -399,9 +399,9 @@ Unfolding \ttt{ListL} again:
 toListL ell =
   layoutcase ell of
     | (tag :-> C1, x :-> a) ->
-        y :-> a, (y+1) :-> 0
+        y :-> a, (y+1) :-> 0, resultTag :-> Nil
     | (tag :-> C2, x :-> a, (x+1) :-> b) ->
-        y :-> a, (y+1) :-> b, (y+2) :-> nxt, ListL[y] Nil
+        y :-> a, (y+1) :-> b, (y+2) :-> nxt, resultTag :-> Cons, ListL[y] Nil
 \end{lstlisting}
 
 \noindent
@@ -411,9 +411,25 @@ then once more:
 toListL ell =
   layoutcase ell of
     | (tag :-> C1, x :-> a) ->
-        y :-> a, (y+1) :-> 0
+        y :-> a, (y+1) :-> 0, resultTag :-> 0
     | (tag :-> C2, x :-> a, (x+1) :-> b) ->
-        y :-> a, (y+1) :-> b, (y+2) :-> 0
+        y :-> a, (y+1) :-> b, (y+2) :-> 0, resultTag :-> Cons
+\end{lstlisting}
+
+Using 0 for the \ttt{C1} tag and 1 for the \ttt{C2} tag (and likewise for \ttt{Nil} and \ttt{Cons}), this directly corresponds to the following SuSLik
+inductive predicate:
+
+\begin{lstlisting}
+predicate toListL(int tag, loc x, loc y, loc resultTag) {
+| tag == 0 => {
+    x :-> a **
+    y :-> a ** (y+1) :-> 0 ** resultTag :-> 0
+  }
+| tag == 1 => {
+    x :-> a ** (x+1) :-> b **
+    y :-> a ** (y+1) :-> b ** (y+2) :-> 0 ** resultTag :-> 1
+  }
+}
 \end{lstlisting}
 
 \noindent
