@@ -411,7 +411,7 @@ then once more:
 toListL ell =
   layoutcase ell of
     | (tag :-> C1, x :-> a) ->
-        y :-> a, (y+1) :-> 0, resultTag :-> 0
+        y :-> a, (y+1) :-> 0, resultTag :-> Nil
     | (tag :-> C2, x :-> a, (x+1) :-> b) ->
         y :-> a, (y+1) :-> b, (y+2) :-> 0, resultTag :-> Cons
 \end{lstlisting}
