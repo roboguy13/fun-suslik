@@ -614,8 +614,8 @@ The following syntax definition is adapted from \textit{Cyclic Program Synthesis
 \section{Translation of fun-SuSLik into SuSLik}
 \label{sec:Translation}
 
-We give a denotational semantics for fun-SuSLik, where the denotations are SuSLik goals, with
-the denotation function $\sem{\blank} : \ttt{e} \ra (\Sigma \times \mathcal{G})$.
+% We give a denotational semantics for fun-SuSLik, where the denotations are SuSLik goals, with
+% the denotation function $\sem{\blank} : \ttt{e} \ra (\Sigma \times \mathcal{G})$.
 This translation is shown to preserve equivalence in two steps (Section~\ref{sec:TransSoundness}):
 
 \begin{itemize}
@@ -679,41 +679,133 @@ This translation is shown to preserve equivalence in two steps (Section~\ref{sec
 
 \subsection{Translation}
 
-\begin{math}
-  \Csem{\ttt{data T where }\overline{\ttt{alts}_i}\ttt{;}} = p^{\alpha}(x, \Nsem{0}{\,\overline{\ttt{alts}_i}\,}) : \overline{\Asem{i}{\ttt{alts}_i}}
-  \\
-  \\
-  \Nsem{k}{\ttt{C } \overline{\ttt{fields}_i}\; |\; \overline{\ttt{alts}_j}} = v_{k+1}, v_{k+2}, \dots, v_{k+i}, \Nsem{k+i}{\overline{\ttt{alts}_j}}
-  \\
-  \Nsem{k}{\cdot} = \cdot
-  \\
-  \\
-  \Asem{i}{\ttt{C }\overline{\ttt{fields}_j}\,} = \ttt{(which == i)} \Ra \ttt{[x, j+1]} * x \mapsto \ttt{which} * \overline{\Fsem{i,j+1}{\ttt{fields}_j}}
-  \\
-  \\
-  \Fsem{i,j}{\Int} = (x+j) \mapsto v_{i+j}
-  \\
-  \Fsem{i,j}{\Bool} = (x+j) \mapsto v_{i+j}
-  \\
-  \Fsem{i,j}{\ttt{T } \overline{\ttt{args}_k}} = (x+i) \mapsto v_{i+j} * \ttt{T}^{\alpha}(v_{i+j}, \Tsem{r}{\overline{\ttt{args}_k}})\qquad \text{with $r$ fresh}
-  \\
-  \\
-  \Tsem{r}{f\; \overline{z}} = f, \Tsem{r}{\,\overline{z}\,}\qquad \text{where $f$ is a variable name}
-  \\
-  \Tsem{r}{\ttt{T } \overline{\ttt{args}_i}} =
-\end{math}
-\\
-\textbf{TODO: Deal with nested type applications in the last equation above}
+We have denotational semantics given by $\sem{\cdot} : Expr \ra Name \ra SSL$:
 
-% Two cases, \nil\; and \cons:
+  % \sem{f \overline{x} := e} = 
+\[
+  \begin{array}{c}
+    \sem{\lowerS_L \; (\ite\; x\; t\; f)}r
+      =
+      \sem{x}b
+        ;
+      \ttt{if} (b) \{
+        \sem{t}r
+      \} \ttt{else} \{
+        \sem{f}r
+      \}
+
+    \\\\
+
+    \sem{\ttt{specialize}\; @L\; @L_0\; (\lambda \overline{p}\ra e)\; x}r
+      =
+        \sem{x}i
+        ;
+      \{
+        p \pointsto i
+        \sep r \pointsto 0
+      \}
+        \sem{e}r[\overline{p_i := v_i}]
+      \{
+        p \pointsto i
+        \sep r \pointsto \ell_0 \sep L_0(\ell_0)
+      \}
+
+    \\\\
+
+    \sem{\ttt{specialize}\; \overline{@L}\; @L_0\; (\lambda \overline{p}\ra e)\; \overline{v}}r
+      =
+      \{
+        \overline{p_i \pointsto \ell_i \sep L_i(p_i)}
+        \sep r \pointsto 0
+      \}
+      \sem{e}r[\overline{p_i := v_i}]
+      \{
+        \overline{p_i \pointsto \ell_i}
+        \sep r \pointsto \ell_0 \sep L_0(\ell_0)
+      \}
+
+    \\\\
+
+    \sem{\lowerS_L\; (C\; \overline{v})}r
+      =
+    \Lsem{C\; \overline{v}}\;L\;r
+  \end{array}
+\]
+
+With the layout semantics given by $\Lsem{\cdot} : Expr \ra Layout \ra Name \ra SSL$:
+
+\[
+  \begin{array}{c}
+    \Lsem{C\; \overline{v}}(L\; \overline{p} := [n, \iota] \sep \kappa)\ttt{n}
+      =
+    \ttt{let n = malloc}(\iota) ; \Lsem{C\; \overline{v}}(L\; \overline{p} := \kappa)\ttt{n}
+
+    \\\\
+
+    \Lsem{C\; \overline{v}}(L\; \overline{p} := x \pointsto a \sep \kappa)\ttt{n}
+      =
+    \ttt{*n = }p_0
+      ;
+    \Lsem{C\; \overline{v}}(L\; \overline{p} := \kappa)\ttt{n}
+    
+    \\\\
+
+    \Lsem{C\; \overline{v}}(L\; \overline{p} := (x+\iota) \pointsto a \sep \kappa)\ttt{n}
+      =
+    \ttt{*(n+$\iota$) = }p_{\iota}
+      ;
+    \Lsem{C\; \overline{v}}(L\; \overline{p} := \kappa)\ttt{n}
+
+    \\\\
+
+    \Lsem{C\; \overline{v}}(L\; \overline{p} := L_2(\overline{y}) \sep \kappa)\ttt{n}
+      =
+    \Lsem{C\; \overline{v}}(L_2(\overline{y}))\ttt{m}
+      ;
+    \Lsem{C\; \overline{v}}(L\; \overline{p} := \kappa)\ttt{n}
+
+    \\\\
+
+    \Lsem{C\; \overline{v}}(\ttt{emp})\ttt{n} = \ttt{skip}
+
+  \end{array}
+\]
+
+% \begin{math}
+%   \Csem{\ttt{data T where }\overline{\ttt{alts}_i}\ttt{;}} = p^{\alpha}(x, \Nsem{0}{\,\overline{\ttt{alts}_i}\,}) : \overline{\Asem{i}{\ttt{alts}_i}}
+%   \\
+%   \\
+%   \Nsem{k}{\ttt{C } \overline{\ttt{fields}_i}\; |\; \overline{\ttt{alts}_j}} = v_{k+1}, v_{k+2}, \dots, v_{k+i}, \Nsem{k+i}{\overline{\ttt{alts}_j}}
+%   \\
+%   \Nsem{k}{\cdot} = \cdot
+%   \\
+%   \\
+%   \Asem{i}{\ttt{C }\overline{\ttt{fields}_j}\,} = \ttt{(which == i)} \Ra \ttt{[x, j+1]} * x \mapsto \ttt{which} * \overline{\Fsem{i,j+1}{\ttt{fields}_j}}
+%   \\
+%   \\
+%   \Fsem{i,j}{\Int} = (x+j) \mapsto v_{i+j}
+%   \\
+%   \Fsem{i,j}{\Bool} = (x+j) \mapsto v_{i+j}
+%   \\
+%   \Fsem{i,j}{\ttt{T } \overline{\ttt{args}_k}} = (x+i) \mapsto v_{i+j} * \ttt{T}^{\alpha}(v_{i+j}, \Tsem{r}{\overline{\ttt{args}_k}})\qquad \text{with $r$ fresh}
+%   \\
+%   \\
+%   \Tsem{r}{f\; \overline{z}} = f, \Tsem{r}{\,\overline{z}\,}\qquad \text{where $f$ is a variable name}
+%   \\
+%   \Tsem{r}{\ttt{T } \overline{\ttt{args}_i}} =
+% \end{math}
+% \\
+% \textbf{TODO: Deal with nested type applications in the last equation above}
 %
-% \begin{itemize}
-%   \item \nil
-%     \\
-%     \[
-%       \sem{\ttt{foldr add 0 nil}} = 
-%     \]
-% \end{itemize}
+% % Two cases, \nil\; and \cons:
+% %
+% % \begin{itemize}
+% %   \item \nil
+% %     \\
+% %     \[
+% %       \sem{\ttt{foldr add 0 nil}} = 
+% %     \]
+% % \end{itemize}
 
 \end{document}
 
