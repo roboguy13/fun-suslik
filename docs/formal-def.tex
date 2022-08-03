@@ -684,11 +684,19 @@ We have denotational semantics given by $\sem{\cdot} : Expr \ra Name \ra SSL$:
   % \sem{f \overline{x} := e} = 
 \[
   \begin{array}{c}
-    \sem{\lowerS_L \; (\ite\; x\; t\; f)}r
+    \sem{i}r = r \la i~~~\textnormal{where}\; i\in\mathbb{Z}
+
+    \\\\
+
+    \sem{b}r = r \la b~~~\textnormal{where}\; b\in\mathbb{B}
+
+    \\\\
+
+    \sem{\ite\; x\; t\; f}r
       =
-      \sem{x}b
+      \sem{x}c
         ;
-      \ttt{if} (b) \{
+      \ttt{if} (c) \{
         \sem{t}r
       \} \ttt{else} \{
         \sem{f}r
@@ -696,39 +704,49 @@ We have denotational semantics given by $\sem{\cdot} : Expr \ra Name \ra SSL$:
 
     \\\\
 
-    \sem{\ttt{specialize}\; @L\; @L_0\; (\lambda \overline{p}\ra e)\; x}r
+    \sem{\ttt{specialize}\; \overline{@L}\; @L_0\; (\lambda \overline{p}\ra e)\; \overline{x}}r
       =
-        \sem{x}i
+        \overline{\sem{\lowerS_L x}v}
         ;
-      \{
-        p \pointsto i
-        \sep r \pointsto 0
-      \}
-        \sem{e}r[\overline{p_i := v_i}]
-      \{
-        p \pointsto i
-        \sep r \pointsto \ell_0 \sep L_0(\ell_0)
-      \}
+      % \{
+      %   p \pointsto i
+      %   \sep r \pointsto 0
+      % \}
+        \sem{\lowerS_{L_0} e}r[\overline{p := v}]
+      % \{
+      %   p \pointsto i
+      %   \sep r \pointsto \ell_0 \sep L_0(\ell_0)
+      % \}
 
-    \\\\
+    % \\\\
 
-    \sem{\ttt{specialize}\; \overline{@L}\; @L_0\; (\lambda \overline{p}\ra e)\; \overline{v}}r
-      =
-      \{
-        \overline{p_i \pointsto \ell_i \sep L_i(p_i)}
-        \sep r \pointsto 0
-      \}
-      \sem{e}r[\overline{p_i := v_i}]
-      \{
-        \overline{p_i \pointsto \ell_i}
-        \sep r \pointsto \ell_0 \sep L_0(\ell_0)
-      \}
+    % \sem{\ttt{specialize}\; \overline{@L}\; @L_0\; (\lambda \overline{p}\ra e)\; \overline{v}}r
+    %   =
+    %   % \{
+    %   %   \overline{p_i \pointsto \ell_i \sep L_i(p_i)}
+    %   %   \sep r \pointsto 0
+    %   % \}
+    %   \sem{e}r[\overline{p_i := v_i}]
+    %   % \{
+    %   %   \overline{p_i \pointsto \ell_i}
+    %   %   \sep r \pointsto \ell_0 \sep L_0(\ell_0)
+    %   % \}
 
     \\\\
 
     \sem{\lowerS_L\; (C\; \overline{v})}r
       =
     \Lsem{C\; \overline{v}}\;L\;r
+
+    \\\\
+
+    \sem{\ttt{case}\; x\; \ttt{of}\; \overline{\textnormal{alt}_i}}r
+      =
+    \sem{x}s; \ttt{if (s == $0$) \{ $\Asem{x}{\textnormal{alt}_0}r$ \} } \overline{\ttt{else if (s == $i+1$) \{ $\Asem{x}{\textnormal{alt}_{i+1}}r$ \}}}
+
+    \\\\
+    
+    \Asem{x}{C\; \overline{a_i} \ra e}r = \overline{\ttt{let}\; a_i \la *(x+i)}; \sem{e}r
   \end{array}
 \]
 
@@ -738,13 +756,13 @@ With the layout semantics given by $\Lsem{\cdot} : Expr \ra Layout \ra Name \ra 
   \begin{array}{c}
     \Lsem{C\; \overline{v}}(L\; \overline{p} := [n, \iota] \sep \kappa)\ttt{n}
       =
-    \ttt{let n = malloc}(\iota) ; \Lsem{C\; \overline{v}}(L\; \overline{p} := \kappa)\ttt{n}
+    \lst{let n <- malloc}(\iota) ; \Lsem{C\; \overline{v}}(L\; \overline{p} := \kappa)\ttt{n}
 
     \\\\
 
     \Lsem{C\; \overline{v}}(L\; \overline{p} := x \pointsto a \sep \kappa)\ttt{n}
       =
-    \ttt{*n = }p_0
+    \ttt{*n } \la p_0
       ;
     \Lsem{C\; \overline{v}}(L\; \overline{p} := \kappa)\ttt{n}
     
@@ -752,24 +770,39 @@ With the layout semantics given by $\Lsem{\cdot} : Expr \ra Layout \ra Name \ra 
 
     \Lsem{C\; \overline{v}}(L\; \overline{p} := (x+\iota) \pointsto a \sep \kappa)\ttt{n}
       =
-    \ttt{*(n+$\iota$) = }p_{\iota}
+    \ttt{*(n+$\iota$) }\la p_{\iota}
       ;
     \Lsem{C\; \overline{v}}(L\; \overline{p} := \kappa)\ttt{n}
 
     \\\\
 
+    % \Lsem{C\; \overline{v}}(L\; \overline{p} := L_2(\overline{y}) \sep \kappa)\ttt{n}
+    %   =
+    % \Lsem{C\; \overline{v}}(L_2(\overline{y}))\ttt{m}
+    %   ;
+    % \Lsem{C\; \overline{v}}(L\; \overline{p} := \kappa)\ttt{n}
+    %
+    % \\\\
+
     \Lsem{C\; \overline{v}}(L\; \overline{p} := L_2(\overline{y}) \sep \kappa)\ttt{n}
-      =
-    \Lsem{C\; \overline{v}}(L_2(\overline{y}))\ttt{m}
-      ;
-    \Lsem{C\; \overline{v}}(L\; \overline{p} := \kappa)\ttt{n}
+      = \Lsem{C\; \overline{v}}(L\; \overline{p} := \kappa)\ttt{n}
 
     \\\\
 
     \Lsem{C\; \overline{v}}(\ttt{emp})\ttt{n} = \ttt{skip}
 
+    \\\\
+
+    % \Lsem{C\; x\; \overline{y}}\ttt{n} = \sem{x}v; \Lsem{C\; v\; 
+
   \end{array}
 \]
+\textbf{TODO:\\
+$\bullet$ Do we need to deal with "layout applications" in $\Lsem{\cdot}$ if we use "as-needed" pattern matching expanding (as in
+my last paper on a pattern matching embedding)? We will probably at least need to somehow remember which layout to use for a later pattern
+match. Maybe we need "layout annotations" in the intermediate language.\\
+$\bullet$ What about when there are multiple parameters in the "layout context," say \ttt{layout[x, y, ...]}? Does this say something about sharing
+and fusion?}
 
 % \begin{math}
 %   \Csem{\ttt{data T where }\overline{\ttt{alts}_i}\ttt{;}} = p^{\alpha}(x, \Nsem{0}{\,\overline{\ttt{alts}_i}\,}) : \overline{\Asem{i}{\ttt{alts}_i}}
@@ -806,6 +839,22 @@ With the layout semantics given by $\Lsem{\cdot} : Expr \ra Layout \ra Name \ra 
 % %       \sem{\ttt{foldr add 0 nil}} = 
 % %     \]
 % % \end{itemize}
+
+\section{Categories}
+
+There are two main (non-common) categories involved:
+
+\begin{itemize}
+  \item FS -- The category of fun-SuSLik ADTs and functions between them
+  \item Layout -- The category of SSL layouts and functions between them
+\end{itemize}
+
+There is a collection of all functors from FS to Layout, $Layout^{FS}$. This also forms a category.
+
+A particular ADT, say \ttt{D}, gives a subcategory
+
+\begin{tikzcd}
+\end{tikzcd}
 
 \end{document}
 

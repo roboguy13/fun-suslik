@@ -9,6 +9,7 @@
     {>->}{$\rightarrowtail$}{1}
     {:->}{$:\rightarrow$}{1}
     {->}{$\rightarrow$}{1}
+    {<-}{$\leftarrow$}{1}
     {lift}{$\uparrow$}{1}
     {lower}{$\downarrow$}{1}
     {ell}{$\ell$}{1}
@@ -21,9 +22,12 @@
 \newcommand{\checks}{\ensuremath{\Leftarrow}}
 
 \newcommand{\ttt}[1]{\texttt{#1}}
+\newcommand{\lst}[1]{\text{\lstinline{#1}}}
 \newcommand{\ra}{\ensuremath{\rightarrow}}
 \newcommand{\Ra}{\ensuremath{\Rightarrow}}
 \newcommand{\hra}{\ensuremath{\rightarrowtail}}
+
+\newcommand{\la}{\ensuremath{\leftarrow}}
 
 \newcommand{\reduces}{\ensuremath{\longmapsto}}
 \newcommand{\reducestr}{\ensuremath{\longmapsto^{*}}}
@@ -70,8 +74,8 @@
 \newcommand{\true}{\ttt{true}}
 \newcommand{\false}{\ttt{false}}
 
-\newcommand{\upperS}{\ttt{upper}}
-\newcommand{\lowerS}{\ttt{lower}}
+\newcommand{\upperS}{\uparrow}
+\newcommand{\lowerS}{\downarrow}
 
 \newcommand{\lesseq}{\ttt{le}}
 \newcommand{\eq}{\ttt{eq}}
