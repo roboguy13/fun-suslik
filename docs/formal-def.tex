@@ -949,30 +949,36 @@ sortP = $\lambda$ xs r $\ra$ isNondecreasing(xs) && isPermutation(xs, r)
 If we fix the first argument to some list value (say \lst{sortP someList : List -> Bool}) and we consider the resulting predicate on the "result values", we have
 a function which decides whether a result is "valid" for the given (fixed) input. We can describe a "type" of valid values that satisfy this predicate
 as \lst{Valid(sortP, someList)} which is a "subtype" of \lst{List}.
-\\
 
 A value has this type if the value is in the \textit{preimage} of \lst{True} under \lst{sortP someList}. Equivalently, the following diagram
 commutes and is a pullback square:
+\\
 
 \begin{tikzcd}
   \Tlst{Valid(sortP, someList)}
-  \arrow[r, hook]
+  \arrow[r, hook, "i"]
   \arrow[d, "!"]
     \arrow[dr, phantom, "\lrcorner", very near start]
     & \Tlst{List} \arrow[d, "\Tlst{sortP(someList)}"] \\ \Tlst{Unit} \arrow[r, "true"] & \Tlst{Bool}
 \end{tikzcd}
+\\
 
 \noindent
+The fact that this is a \textit{pullback} (rather than \textit{just} a commuting diagram) tells us that \lstinline{Valid(sortP, someList)} is the
+\textit{largest} type satisfying this diagram: that is, it isn't "missing" any valid outputs. It has all of them, while not having any invalid outputs.
+
 More generally, the synthesis problem for any given predicate \lstinline{p : A $\ra$ B $\ra$ Bool} for any types \ttt{A} and \ttt{B} given a particular
 input \lstinline{a : A} has all of its valid solutions (outputs) in the type \lstinline{Valid(p, a)} where the following diagram is a pullback:
+\\
 
 \begin{tikzcd}
   \Tlst{Valid(p, a)}
-  \arrow[r, hook]
+  \arrow[r, hook, "i"]
   \arrow[d, "!"]
     \arrow[dr, phantom, "\lrcorner", very near start]
     & \Tlst{B} \arrow[d, "\Tlst{p(a)}"] \\ \Tlst{Unit} \arrow[r, "true"] & \Tlst{Bool}
 \end{tikzcd}
+\\
 
 \noindent
 Considering all possible inputs, we find that a valid synthesis result is a function of type \lstinline{(a : A) $\ra$ Valid(p, a)}.
