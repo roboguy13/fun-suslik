@@ -71,7 +71,9 @@ semantics preserves semantic equivalence by proving adequacy and full abstractio
 
   <$\mathcal{L}$> ::= "L" : D $\hra$ "layout"[$\overline{"x"}$]; $\overline{\textnormal{LM}}$
 
-  <LM> ::= L (C $\overline{"y"}$) ":=" $\overline{\textnormal{H}}$
+  <LM> ::= L (C $\overline{"y"}$) <G> ":=" $\overline{\textnormal{H}}$
+
+  <G> ::= $\cdot$ | "|" <e>
 
   <H> ::= p ":->" y
 
@@ -679,7 +681,12 @@ This translation is shown to preserve equivalence in two steps (Section~\ref{sec
 
 \subsection{Translation}
 
-We have big-step semantics given by the relation $\cdot \seq \cdot \bigs_{\cdot} \cdot \toCtx \cdot$ which is a subset of $Ctx \times Expr \times Name \times SSL \times Ctx$ satisfying:
+We have big-step semantics given by the relation $\cdot \seq \cdot \bigs_{\cdot} \cdot \toCtx \cdot$ which is a subset of $Ctx \times Expr \times Name \times SSL \times Ctx$ satisfying. This is defined using some other relations:
+
+\begin{itemize}
+  \item $\cdot \seq \cdot \Abigs_{\cdot} \cdot \toCtx \cdot$
+  \item $\cdot \seq \cdot \Lbigs_{\cdot} \cdot \toCtx \cdot$
+\end{itemize}
 
   % \sem{f \overline{x} := e} = 
 \[
@@ -739,16 +746,16 @@ We have big-step semantics given by the relation $\cdot \seq \cdot \bigs_{\cdot}
     %   \bigs_r
     % x}{\langle L , C\; \overline{v} , \Gamma \rangle \Lbigs_r \langle x , \Gamma' \rangle}
 
-    \labinfer{\Gamma \seq \ttt{case}\; \liftS @L\; x\; \ttt{of}\;\overline{\textnormal{alt}_i}
-      \bigs_r
-        y \toCtx \Gamma'}
-      {\Gamma \seq \ttt{case}\; x\; \ttt{of}\; \overline{\textnormal{alt}_i} \bigs_r y \toCtx \Gamma'}
-
-    \\\\
+    % \labinfer{\Gamma \seq \ttt{case}\; \liftS @L\; x\; \ttt{of}\;\overline{\textnormal{alt}_i}
+    %   \bigs_r
+    %     y \toCtx \Gamma'}
+    %   {\Gamma \seq \ttt{case}\; x\; \ttt{of}\; \overline{\textnormal{alt}_i} \bigs_r y \toCtx \Gamma'}
+    %
+    % \\\\
 
     \labinfer{\Gamma' \seq \ttt{case}\; x\; \ttt{of}\; \overline{\textnormal{alt}_i}
       \bigs_r
-        x'; \ttt{if (s == $0$) \{ y$_0$ \} } \overline{\ttt{else if (s == $i+1$) \{ y$_{i+1}$ \}}}
+        x'; \ttt{if (*s == $0$) \{ y$_0$ \} } \overline{\ttt{else if (*s == $i+1$) \{ y$_{i+1}$ \}}}
         \toCtx \Gamma''
       }{\Gamma \seq x \bigs_s x' \toCtx \Gamma' & \Gamma' \seq alt_i \Abigs_r y_i \toCtx \Gamma''}
 
@@ -765,7 +772,7 @@ We have big-step semantics given by the relation $\cdot \seq \cdot \bigs_{\cdot}
     
     \labinfer{\Gamma \seq \lowerS @L\; (C\; \overline{v})
         \bigs_r x \toCtx \Gamma'}
-      {\Gamma \seq \lowerS @L\; (C\; \overline{v}) \Lbigs_{L,r} x \toCtx \Gamma'}
+      {\Gamma \seq \lowerS @L\; (C\; \overline{v}) \Lbigs_{r} x \toCtx \Gamma'}
 
     % \Asem{x}{C\; \overline{a_i} \ra e}r = \overline{\ttt{let}\; a_i \la *(x+i)}; \sem{e}r
   \end{array}
@@ -778,9 +785,9 @@ of $Ctx \ra Expr \ra Name \ra Expr \ra Ctx \ra SSL$:
 
 \[
   \begin{array}{c}
-    \labinfer{\Gamma \seq \lowerS \layoutPart{@(L\; (C\; \overline{p}) := [n, \iota] \sep \kappa)} (C\; \overline{v}) 
+    \labinfer{\Gamma \seq \lowerS \layoutPart{@(L\; (C_j\; \overline{p}) := [n, \iota] \sep \kappa)} (C_j\; \overline{v}) 
        \Lbigs_n
-       \ttt{let $n$ $\la$ malloc}(\iota) ; y \toCtx \Gamma'}
+       \ttt{let $n$ $\la$ malloc}(\iota) ; \ttt{*}n \la j ; y \toCtx \Gamma'}
       {\Gamma \seq \lowerS \layoutPart{@(L\; (C\; \overline{p}) := \kappa)} (C\; \overline{v}) \Lbigs_n y \toCtx \Gamma'}
 
 
@@ -788,14 +795,14 @@ of $Ctx \ra Expr \ra Name \ra Expr \ra Ctx \ra SSL$:
     %   =
     % \lst{let n <- malloc}(\iota) ; \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := \kappa)\ttt{n}
 
-    \\\\
-
-    \labinfer{\Gamma \seq \lowerS \layoutPart{@(L\; (C\; \overline{p}) := x \pointsto a \sep \kappa)} (C\; \overline{v})
-        \Lbigs_n
-        \ttt{*}n \la v_0 ; y \toCtx \Gamma'}
-      {\Gamma \seq \lowerS \layoutPart{@(L\; (C\; \overline{p}) := \kappa)} (C\; \overline{v})
-          \Lbigs_n y
-          \toCtx \Gamma'}
+    % \\\\
+    %
+    % \labinfer{\Gamma \seq \lowerS \layoutPart{@(L\; (C\; \overline{p}) := x \pointsto a \sep \kappa)} (C\; \overline{v})
+    %     \Lbigs_n
+    %     \ttt{*}n \la v_0 ; y \toCtx \Gamma'}
+    %   {\Gamma \seq \lowerS \layoutPart{@(L\; (C\; \overline{p}) := \kappa)} (C\; \overline{v})
+    %       \Lbigs_n y
+    %       \toCtx \Gamma'}
 
     % \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := x \pointsto a \sep \kappa)\ttt{n}
     %   =
@@ -805,9 +812,9 @@ of $Ctx \ra Expr \ra Name \ra Expr \ra Ctx \ra SSL$:
     
     \\\\
 
-    \labinfer{\Gamma \seq \lowerS \layoutPart{@(L\; (C\; \overline{p}) := (x+\iota) \pointsto a \sep \kappa)} (C\; \overline{v})
+    \labinfer{\Gamma \seq \lowerS \layoutPart{@(L\; (C_j\; \overline{p}) := (x+\iota) \pointsto a \sep \kappa)} (C\; \overline{v})
       \Lbigs_n
-        \ttt{*}(n+\iota) \la v_{\iota}; y \toCtx \Gamma'}
+        \ttt{*}(n+\iota+1) \la v_{\iota}; y \toCtx \Gamma'}
       {\Gamma \seq \lowerS \layoutPart{@(L\; (C\; \overline{p}) := \kappa)} (C\; \overline{v}) \Lbigs_n y \toCtx \Gamma'}
 
     % \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := (x+\iota) \pointsto a \sep \kappa)\ttt{n}
@@ -836,7 +843,7 @@ of $Ctx \ra Expr \ra Name \ra Expr \ra Ctx \ra SSL$:
 
     \\\\
 
-    \labinfer{\Gamma \seq \lowerS \layoutPart{@(L\; (C\; \overline{p}) (C\; \overline{v}) := emp)}
+    \labinfer{\Gamma \seq \lowerS \layoutPart{@(L\; (C\; \overline{p}) (C\; \overline{v}) := \ttt{emp})}
       \Lbigs_n
         \ttt{skip} \toCtx \Gamma}
       {}
@@ -891,14 +898,16 @@ example2 l =
 \noindent
 apply the case-rule
 
-
-% \[
-%   \begin{array}{c}
-%     \labinfer{(case lift @L l of | C1 a -> a | C2 a b -> a + b)
-%       \bigs_r
-%         (if 
-%   \end{array}
-% \]
+\[
+  \begin{array}{c}
+    \infer{\Gamma \seq \lst{(case lift @L l of | C1 a -> a | C2 a b -> a + b)}
+      \bigs_r
+        - \toCtx -}
+      {\infer{- \seq \lst{lift @L l} \Lbigs_s - \toCtx -}{}
+         & \infer{- \seq \lst{C1 a -> a} \Abigs_r y_1 \toCtx -}{}
+         & \infer{- \seq \lst{C2 a b -> a + b} \Abigs_r y_2 \toCtx -}{}}
+  \end{array}
+\]
 
 % \begin{math}
 %   \Csem{\ttt{data T where }\overline{\ttt{alts}_i}\ttt{;}} = p^{\alpha}(x, \Nsem{0}{\,\overline{\ttt{alts}_i}\,}) : \overline{\Asem{i}{\ttt{alts}_i}}
