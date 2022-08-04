@@ -679,44 +679,45 @@ This translation is shown to preserve equivalence in two steps (Section~\ref{sec
 
 \subsection{Translation}
 
-We have denotational semantics given by $\sem{\cdot} : Expr \ra Name \ra SSL$:
+We have big-step semantics given by the relation $\cdot \seq \cdot \bigs_{\cdot} \cdot \toCtx \cdot$ which is a subset of $Ctx \times Expr \times Name \times SSL \times Ctx$:
 
   % \sem{f \overline{x} := e} = 
 \[
   \begin{array}{c}
-    \sem{i}r = r \la i~~~\textnormal{where}\; i\in\mathbb{Z}
+    \labinfer{\seq i\bigs_r r \la i \toCtx}{i\in\mathbb{Z}}
+
+    ~~~
+
+    \labinfer{\seq b\bigs_r r \la b \toCtx}{b\in\mathbb{B}}
 
     \\\\
 
-    \sem{b}r = r \la b~~~\textnormal{where}\; b\in\mathbb{B}
-
-    \\\\
-
-    \sem{\ite\; x\; t\; f}r
-      =
-      \sem{x}c
+    \labinfer{\Gamma \seq \ite\; x\; t\; f
+      \bigs_r
+      x'
         ;
       \ttt{if} (c) \{
-        \sem{t}r
+        t'
       \} \ttt{else} \{
-        \sem{f}r
-      \}
+        f'
+      \} \toCtx \Gamma'}{\Gamma \seq x \bigs_c x' \toCtx \Gamma' & \Gamma' \seq t \bigs_r t' \toCtx \Gamma_1 & \Gamma' \seq f \bigs_r f' \toCtx \Gamma_2}
 
     \\\\
 
-    \sem{\ttt{specialize}\; \overline{@L}\; @L_0\; (\lambda \overline{p}\ra e)\; \overline{x}}r
-      =
-        \overline{\sem{\lowerS_L x}v}
+    \labinfer{\Gamma \seq \ttt{specialize}\; \overline{@L}\; @L_0\; (\lambda \overline{p}\ra e)\; \overline{x}
+      \bigs_r
+        \overline{x'}
         ;
       % \{
       %   p \pointsto i
       %   \sep r \pointsto 0
       % \}
-        \sem{\lowerS_{L_0} e}r[\overline{p := v}]
+        e'[\overline{p := v}] \toCtx \Gamma''
       % \{
       %   p \pointsto i
       %   \sep r \pointsto \ell_0 \sep L_0(\ell_0)
       % \}
+      }{\Gamma \seq \overline{\lowerS_L x \bigs_v x'} \toCtx \Gamma' & \Gamma' \seq \lowerS_{L_0} e \bigs_r e' \toCtx \Gamma''}
 
     % \\\\
 
@@ -734,45 +735,56 @@ We have denotational semantics given by $\sem{\cdot} : Expr \ra Name \ra SSL$:
 
     \\\\
 
-    \sem{\lowerS_L\; (C\; \overline{v})}r
-      =
-    \Lsem{C\; \overline{v}}\;L\;r
+    \labinfer{\lowerS_L\; (C\; \overline{v})
+      \bigs_r
+    x}{\langle L , C\; \overline{v} , \Gamma \rangle \Lbigs_r \langle x , \Gamma' \rangle}
 
     \\\\
 
-    \sem{\ttt{case}\; x\; \ttt{of}\; \overline{\textnormal{alt}_i}}r
-      =
-    \sem{x}s; \ttt{if (s == $0$) \{ $\Asem{x}{\textnormal{alt}_0}r$ \} } \overline{\ttt{else if (s == $i+1$) \{ $\Asem{x}{\textnormal{alt}_{i+1}}r$ \}}}
+    \labinfer{\Gamma' \seq \ttt{case}\; x\; \ttt{of}\; \overline{\textnormal{alt}_i}
+      \bigs_r
+        x'; \ttt{if (s == $0$) \{ y$_0$ \} } \overline{\ttt{else if (s == $i+1$) \{ y$_{i+1}$ \}}}
+        \toCtx \Gamma''
+      }{\Gamma \seq x \bigs_s x' \toCtx \Gamma' & \Gamma' \seq alt_i \Abigs_r y_i \toCtx \Gamma''}
+
+    % \sem{\ttt{case}\; x\; \ttt{of}\; \overline{\textnormal{alt}_i}}r
+    %   =
+    % \sem{x}s; \ttt{if (s == $0$) \{ $\Asem{x}{\textnormal{alt}_0}r$ \} } \overline{\ttt{else if (s == $i+1$) \{ $\Asem{x}{\textnormal{alt}_{i+1}}r$ \}}}
 
     \\\\
+
+    \labinfer{\Gamma \seq (C\; \overline{a_i} \ra e) \Abigs_r \overline{\ttt{let}\; a_i \la *(x+i)}; k \toCtx \Gamma'}
+      {\Gamma \seq e \Abigs_r y \toCtx \Gamma'}
     
-    \Asem{x}{C\; \overline{a_i} \ra e}r = \overline{\ttt{let}\; a_i \la *(x+i)}; \sem{e}r
+    % \Asem{x}{C\; \overline{a_i} \ra e}r = \overline{\ttt{let}\; a_i \la *(x+i)}; \sem{e}r
   \end{array}
 \]
+
+\noindent
 
 With the layout semantics given by $\Lsem{\cdot} : Expr \ra Layout \ra Name \ra SSL$:
 
 \[
   \begin{array}{c}
-    \Lsem{C\; \overline{v}}(L\; \overline{p} := [n, \iota] \sep \kappa)\ttt{n}
+    \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := [n, \iota] \sep \kappa)\ttt{n}
       =
-    \lst{let n <- malloc}(\iota) ; \Lsem{C\; \overline{v}}(L\; \overline{p} := \kappa)\ttt{n}
+    \lst{let n <- malloc}(\iota) ; \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := \kappa)\ttt{n}
 
     \\\\
 
-    \Lsem{C\; \overline{v}}(L\; \overline{p} := x \pointsto a \sep \kappa)\ttt{n}
+    \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := x \pointsto a \sep \kappa)\ttt{n}
       =
     \ttt{*n } \la p_0
       ;
-    \Lsem{C\; \overline{v}}(L\; \overline{p} := \kappa)\ttt{n}
+    \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := \kappa)\ttt{n}
     
     \\\\
 
-    \Lsem{C\; \overline{v}}(L\; \overline{p} := (x+\iota) \pointsto a \sep \kappa)\ttt{n}
+    \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := (x+\iota) \pointsto a \sep \kappa)\ttt{n}
       =
     \ttt{*(n+$\iota$) }\la p_{\iota}
       ;
-    \Lsem{C\; \overline{v}}(L\; \overline{p} := \kappa)\ttt{n}
+    \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := \kappa)\ttt{n}
 
     \\\\
 
@@ -784,8 +796,8 @@ With the layout semantics given by $\Lsem{\cdot} : Expr \ra Layout \ra Name \ra 
     %
     % \\\\
 
-    \Lsem{C\; \overline{v}}(L\; \overline{p} := L_2(\overline{y}) \sep \kappa)\ttt{n}
-      = \Lsem{C\; \overline{v}}(L\; \overline{p} := \kappa)\ttt{n}
+    \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := L_2(\overline{y}) \sep \kappa)\ttt{n}
+      = \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := \kappa)\ttt{n}
 
     \\\\
 
@@ -803,6 +815,50 @@ my last paper on a pattern matching embedding)? We will probably at least need t
 match. Maybe we need "layout annotations" in the intermediate language.\\
 $\bullet$ What about when there are multiple parameters in the "layout context," say \ttt{layout[x, y, ...]}? Does this say something about sharing
 and fusion?}
+
+\section{Translation Example}
+
+Using an example from a prior section:
+
+\begin{lstlisting}
+data D = C1 Int | C2 Int Int
+
+L : D >-> layout[x]
+L (C1 a) = x :-> a
+L (C2 a b) = x :-> a, (x+1) :-> b
+
+example : D -> Int
+example d =
+  case d of
+  | C1 a -> a
+  | C2 a b -> a + b
+
+example2 : L -> Int
+example2 l = example (lift @L l)
+\end{lstlisting}
+
+\noindent
+We inline \ttt{example} and $\beta$-reduce:
+
+\begin{lstlisting}
+example2 : L -> Int
+example2 l =
+  case lift @L l of
+  | C1 a -> a
+  | C2 a b -> a + b
+\end{lstlisting}
+
+\noindent
+apply the case-rule
+
+
+% \[
+%   \begin{array}{c}
+%     \labinfer{(case lift @L l of | C1 a -> a | C2 a b -> a + b)
+%       \bigs_r
+%         (if 
+%   \end{array}
+% \]
 
 % \begin{math}
 %   \Csem{\ttt{data T where }\overline{\ttt{alts}_i}\ttt{;}} = p^{\alpha}(x, \Nsem{0}{\,\overline{\ttt{alts}_i}\,}) : \overline{\Asem{i}{\ttt{alts}_i}}
@@ -840,21 +896,21 @@ and fusion?}
 % %     \]
 % % \end{itemize}
 
-\section{Categories}
-
-There are two main (non-common) categories involved:
-
-\begin{itemize}
-  \item FS -- The category of fun-SuSLik ADTs and functions between them
-  \item Layout -- The category of SSL layouts and functions between them
-\end{itemize}
-
-There is a collection of all functors from FS to Layout, $Layout^{FS}$. This also forms a category.
-
-A particular ADT, say \ttt{D}, gives a subcategory
-
-\begin{tikzcd}
-\end{tikzcd}
+% \section{Categories}
+%
+% There are two main (non-common) categories involved:
+%
+% \begin{itemize}
+%   \item FS -- The category of fun-SuSLik ADTs and functions between them
+%   \item Layout -- The category of SSL layouts and functions between them
+% \end{itemize}
+%
+% There is a collection of all functors from FS to Layout, $Layout^{FS}$. This also forms a category.
+%
+% A particular ADT, say \ttt{D}, gives a subcategory
+%
+% \begin{tikzcd}
+% \end{tikzcd}
 
 \end{document}
 
