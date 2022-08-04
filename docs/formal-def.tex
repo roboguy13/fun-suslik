@@ -735,9 +735,14 @@ We have big-step semantics given by the relation $\cdot \seq \cdot \bigs_{\cdot}
 
     \\\\
 
-    \labinfer{\lowerS_L\; (C\; \overline{v})
+    % \labinfer{\lowerS_L\; (C\; \overline{v})
+    %   \bigs_r
+    % x}{\langle L , C\; \overline{v} , \Gamma \rangle \Lbigs_r \langle x , \Gamma' \rangle}
+
+    \labinfer{\Gamma \seq \ttt{case}\; \liftS @L\; x\; \ttt{of}\;\overline{\textnormal{alt}_i}
       \bigs_r
-    x}{\langle L , C\; \overline{v} , \Gamma \rangle \Lbigs_r \langle x , \Gamma' \rangle}
+        y \toCtx \Gamma'}
+      {\Gamma \seq \ttt{case}\; x\; \ttt{of}\; \overline{\textnormal{alt}_i} \bigs_r y \toCtx \Gamma'}
 
     \\\\
 
@@ -755,20 +760,33 @@ We have big-step semantics given by the relation $\cdot \seq \cdot \bigs_{\cdot}
 
     \labinfer{\Gamma \seq (C\; \overline{a_i} \ra e) \Abigs_r \overline{\ttt{let}\; a_i \la *(x+i)}; k \toCtx \Gamma'}
       {\Gamma \seq e \Abigs_r y \toCtx \Gamma'}
+
+    \\\\
     
+    \labinfer{\Gamma \seq \lowerS @L\; (C\; \overline{v})
+        \bigs_r x \toCtx \Gamma'}
+      {\Gamma \seq \lowerS @L\; (C\; \overline{v}) \Lbigs_{L,r} x \toCtx \Gamma'}
+
     % \Asem{x}{C\; \overline{a_i} \ra e}r = \overline{\ttt{let}\; a_i \la *(x+i)}; \sem{e}r
   \end{array}
 \]
 
 \noindent
 
-With the layout semantics given by $\Lsem{\cdot} : Expr \ra Layout \ra Name \ra SSL$:
+With the layout semantics given by $\cdot \seq \cdot \Lbigs_{\cdot} \cdot \toCtx \cdot$ which is a subset
+of $Ctx \ra Expr \ra Name \ra Expr \ra Ctx \ra SSL$:
 
 \[
   \begin{array}{c}
-    \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := [n, \iota] \sep \kappa)\ttt{n}
-      =
-    \lst{let n <- malloc}(\iota) ; \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := \kappa)\ttt{n}
+    \labinfer{\Gamma \seq \lowerS \layoutPart{@(L\; (C\; \overline{p}) := [n, \iota] \sep \kappa)} (C\; \overline{v}) 
+       \Lbigs_n
+       \lst{let n <- malloc}(\iota) ; y \toCtx \Gamma'}
+      {\Gamma \seq \lowerS \layoutPart{@(L\; (C\; \overline{p}) := \kappa)} (C\; \overline{v}) \Lbigs_n y \toCtx \Gamma'}
+
+
+    % \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := [n, \iota] \sep \kappa)\ttt{n}
+    %   =
+    % \lst{let n <- malloc}(\iota) ; \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := \kappa)\ttt{n}
 
     \\\\
 
