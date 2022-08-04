@@ -87,7 +87,7 @@ semantics preserves semantic equivalence by proving adequacy and full abstractio
 
   <$\mathbb{P}$> ::= $\mu$ e
 
-  <F> ::= f : <T>; f <P> ":=" <e>;
+  <F> ::= f : <T>; f <P> <G> ":=" <e>;
 
   <P> ::= $\cdot$ | x <P>
 
@@ -169,6 +169,33 @@ singlyToDoubly := convert singlyLinkedExample
 abstractDoubly : List
 abstractDoubly := lift doublyLinkedExample
 \end{lstlisting}
+
+\subsubsection{Sort Example}
+
+\begin{lstlisting}
+data List where
+  Nil : List
+  Cons : Int -> List -> List
+
+SinglyLinked : List >-> layout[x]
+SinglyLinked Nil := emp
+SinglyLinked (Cons head tail) :=
+  x :-> head, (x+1) :-> nxt, SinglyLinked[nxt] tail
+
+sort : List -> List
+sort = synth ($\lambda$ xs r ->  isIncreasing r && isPermutation xs r)
+
+isIncreasing : List -> Bool
+isIncreasing xs = and (zipWith (<=) xs (drop 1 xs))
+
+isPermutation : List -> List -> Bool
+isPermutation xs r = isSublist xs r && isSublist r xs
+
+isSublist : List -> List -> Bool
+isSublist r xs = all ($\lambda$ x ->  elem x r) xs
+\end{lstlisting}
+
+
 
 \subsection{Well-Formedness For Type Definitions}
 
@@ -863,7 +890,7 @@ match. Maybe we need "layout annotations" in the intermediate language.\\
 $\bullet$ What about when there are multiple parameters in the "layout context," say \ttt{layout[x, y, ...]}? Does this say something about sharing
 and fusion?}
 
-\section{Translation Example}
+\subsection{Translation Example}
 
 Using an example from a prior section:
 
