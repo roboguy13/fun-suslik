@@ -797,9 +797,9 @@ We have big-step semantics given by the relation $\cdot \seq \cdot \bigs_{\cdot}
 
     \\\\
     
-    \labinfer{\Gamma \seq \lowerS @L\; (C\; \overline{v})
+    \labinfer{\Gamma \seq \lowerS\; @L\; (C\; \overline{v})
         \bigs_r x \toCtx \Gamma'}
-      {\Gamma \seq \lowerS @L\; (C\; \overline{v}) \Lbigs_{r} x \toCtx \Gamma'}
+      {\Gamma \seq \lowerS\; @L\; (C\; \overline{v}) \Lbigs_{r} x \toCtx \Gamma'}
 
     % \Asem{x}{C\; \overline{a_i} \ra e}r = \overline{\ttt{let}\; a_i \la *(x+i)}; \sem{e}r
   \end{array}
@@ -927,14 +927,63 @@ apply the case-rule
 
 \[
   \begin{array}{c}
-    \infer{\Gamma \seq \lst{(case lift @L l of | C1 a -> a | C2 a b -> a + b)}
+    \infer{\Gamma \seq \Tlst{(case lift @L l of | C1 a -> a | C2 a b -> a + b)}
       \bigs_r
         - \toCtx -}
-      {\infer{- \seq \lst{lift @L l} \Lbigs_s - \toCtx -}{}
-         & \infer{- \seq \lst{C1 a -> a} \Abigs_r y_1 \toCtx -}{}
-         & \infer{- \seq \lst{C2 a b -> a + b} \Abigs_r y_2 \toCtx -}{}}
+      {\infer{- \seq \Tlst{lift @L l} \Lbigs_s - \toCtx -}{}
+         & \infer{- \seq \Tlst{C1 a -> a} \Abigs_r y_1 \toCtx -}{}
+         & \infer{- \seq \Tlst{C2 a b -> a + b} \Abigs_r y_2 \toCtx -}{}}
   \end{array}
 \]
+
+\section{An Alternative View of Synthesis}
+
+When we synthesize a program from a specification, we generate an implementation that satisfies a \textit{logical predicate} on the
+inputs and outputs. For example, in the specification of \ttt{sort} from a previous section, we have the logical predicate
+
+\begin{lstlisting}
+sortP : List -> List -> Bool
+sortP = $\lambda$ xs r $\ra$ isNondecreasing(xs) && isPermutation(xs, r)
+\end{lstlisting}
+
+If we fix the first argument to some list value (say \lst{sortP someList : List -> Bool}) and we consider the resulting predicate on the "result values", we have
+a function which decides whether a result is "valid" for the given (fixed) input. We can describe a "type" of valid values that satisfy this predicate
+as \lst{Valid(sortP, someList)} which is a "subtype" of \lst{List}.
+\\
+
+A value has this type if the value is in the \textit{preimage} of \lst{True} under \lst{sortP someList}. Equivalently, the following diagram
+commutes and is a pullback square:
+
+\begin{tikzcd}
+  \Tlst{Valid(sortP, someList)}
+  \arrow[r, hook]
+  \arrow[d, "!"]
+    \arrow[dr, phantom, "\lrcorner", very near start]
+    & \Tlst{List} \arrow[d, "\Tlst{sortP(someList)}"] \\ \Tlst{Unit} \arrow[r, "true"] & \Tlst{Bool}
+\end{tikzcd}
+
+\noindent
+More generally, the synthesis problem for any given predicate \lstinline{p : A $\ra$ B $\ra$ Bool} for any types \ttt{A} and \ttt{B} given a particular
+input \lstinline{a : A} has all of its valid solutions (outputs) in the type \lstinline{Valid(p, a)} where the following diagram is a pullback:
+
+\begin{tikzcd}
+  \Tlst{Valid(p, a)}
+  \arrow[r, hook]
+  \arrow[d, "!"]
+    \arrow[dr, phantom, "\lrcorner", very near start]
+    & \Tlst{B} \arrow[d, "\Tlst{p(a)}"] \\ \Tlst{Unit} \arrow[r, "true"] & \Tlst{Bool}
+\end{tikzcd}
+
+\noindent
+Considering all possible inputs, we find that a valid synthesis result is a function of type \lstinline{(a : A) $\ra$ Valid(p, a)}.
+
+
+% \[
+%   \begin{array}{c}
+%     \labinfer{\Gamma, x : \tau, p : \tau \ra \mathcal{B} \vdash prf : p(x) = true}
+%       {synth(p)}
+%   \end{array}
+% \]
 
 % \begin{math}
 %   \Csem{\ttt{data T where }\overline{\ttt{alts}_i}\ttt{;}} = p^{\alpha}(x, \Nsem{0}{\,\overline{\ttt{alts}_i}\,}) : \overline{\Asem{i}{\ttt{alts}_i}}
