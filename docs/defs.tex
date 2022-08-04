@@ -32,21 +32,23 @@
 \newcommand{\reduces}{\ensuremath{\longmapsto}}
 \newcommand{\reducestr}{\ensuremath{\longmapsto^{*}}}
 
-\newcommand{\bigs}{{\color{red}\;{\Downarrow}}}
-\newcommand{\Lbigs}{{\color{red}\;\mathcal{L}\!\!\Downarrow}}
-\newcommand{\Abigs}{{\color{red}\;\mathcal{A}\!\!\Downarrow}}
+\newcommand{\judgecolor}{\color{red}}
+
+\newcommand{\bigs}{{\judgecolor\;{\Downarrow}}}
+\newcommand{\Lbigs}{{\judgecolor\;\mathcal{L}\!\!\Downarrow}}
+\newcommand{\Abigs}{{\judgecolor\;\mathcal{A}\!\!\Downarrow}}
 
 % \newcommand{\layoutPart} [1] {{\color{blue!70!black}\;#1}}
-\newcommand{\layoutPart} [1] {{\color{blue}\;#1}}
+\newcommand{\layoutPart} [1] {{\color{blue}\;#1}\;}
 
 \newcommand{\pointsto}{\ensuremath{\mapsto}}
 \newcommand{\sep}{\ensuremath{\,*\,}}
 
 \newcommand{\BigStep}{\ensuremath{\Downarrow}}
 
-\newcommand{\toCtx}{\;{\color{red}\vartriangleright}\;}
+\newcommand{\toCtx}{\;{\judgecolor\vartriangleright}\;}
 
-\newcommand{\seq}{\;{\color{red}\vdash}\;}
+\newcommand{\seq}{\;{\judgecolor\vdash}\;}
 
 \newcommand{\val}{\textnormal{ val}}
 \newcommand{\ok}{\textnormal{ ok}}
@@ -86,7 +88,7 @@
 \newcommand{\false}{\ttt{false}}
 
 \newcommand{\liftS}{\ttt{lift}\;}
-\newcommand{\lowerS}{\ttt{lower}\;}
+\newcommand{\lowerS}{\ttt{lower}}
 
 \newcommand{\lesseq}{\ttt{le}}
 \newcommand{\eq}{\ttt{eq}}
