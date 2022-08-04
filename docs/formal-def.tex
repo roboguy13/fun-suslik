@@ -183,10 +183,10 @@ SinglyLinked (Cons head tail) :=
   x :-> head, (x+1) :-> nxt, SinglyLinked[nxt] tail
 
 sort : List -> List
-sort = synth ($\lambda$ xs r ->  isIncreasing r && isPermutation xs r)
+sort = synth ($\lambda$ xs r ->  isNondecreasing r && isPermutation xs r)
 
-isIncreasing : List -> Bool
-isIncreasing xs = and (zipWith (<=) xs (drop 1 xs))
+isNondecreasing : List -> Bool
+isNondecreasing xs = and (zipWith (<=) xs (drop 1 xs))
 
 isPermutation : List -> List -> Bool
 isPermutation xs r = isSublist xs r && isSublist r xs
