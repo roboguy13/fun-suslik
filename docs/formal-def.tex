@@ -182,6 +182,9 @@ SinglyLinked Nil := emp
 SinglyLinked (Cons head tail) :=
   x :-> head, (x+1) :-> nxt, SinglyLinked[nxt] tail
 
+sortSingly : SinglyLinked -> SinglyLinked
+sortSingly = lift @SinglyLinked sort
+
 sort : List -> List
 sort = synth ($\lambda$ xs r ->  isNondecreasing r && isPermutation xs r)
 
@@ -870,7 +873,7 @@ of $Ctx \ra Expr \ra Name \ra Expr \ra Ctx \ra SSL$:
 
     \\\\
 
-    \labinfer{\Gamma \seq \lowerS \layoutPart{@(L\; (C\; \overline{p}) (C\; \overline{v}) := \ttt{emp})}
+    \labinfer{\Gamma \seq \lowerS \layoutPart{@(L\; (C\; \overline{p}) := \ttt{emp})} (C\; \overline{v})
       \Lbigs_n
         \ttt{skip} \toCtx \Gamma}
       {}
@@ -927,38 +930,52 @@ apply the case-rule
 
 \[
   \begin{array}{c}
-    \infer{\Gamma \seq \Tlst{(case lift @L l of | C1 a -> a | C2 a b -> a + b)}
+    \infer{\Gamma \seq \ttt{(case lift @L l of | C1 a $\ra$ a | C2 a b $\ra$ a + b)}
       \bigs_r
         - \toCtx -}
-      {\infer{- \seq \Tlst{lift @L l} \Lbigs_s - \toCtx -}{}
-         & \infer{- \seq \Tlst{C1 a -> a} \Abigs_r y_1 \toCtx -}{}
-         & \infer{- \seq \Tlst{C2 a b -> a + b} \Abigs_r y_2 \toCtx -}{}}
+      {\infer{- \seq \ttt{lift @L l} \Lbigs_s - \toCtx -}{}
+         & \infer{- \seq \ttt{C1 a $\ra$ a} \Abigs_r y_1 \toCtx -}{}
+         & \infer{- \seq \ttt{C2 a b $\ra$ a + b} \Abigs_r y_2 \toCtx -}{}}
   \end{array}
 \]
 
 \section{An Alternative View of Synthesis}
 
 When we synthesize a program from a specification, we generate an implementation that satisfies a \textit{logical predicate} on the
-inputs and outputs. For example, in the specification of \ttt{sort} from a previous section, we have the logical predicate
+input and output. For example, in the specification of \ttt{sort} from a previous section, we have the logical predicate
 
 \begin{lstlisting}
 sortP : List -> List -> Bool
 sortP = $\lambda$ xs r $\ra$ isNondecreasing(xs) && isPermutation(xs, r)
 \end{lstlisting}
 
-If we fix the first argument to some list value (say \lst{sortP someList : List -> Bool}) and we consider the resulting predicate on the "result values", we have
+If we fix the first argument to some list value (say \lstinline{sortP someList : List -> Bool}) and we consider the resulting predicate on the "result values", we have
 a function which decides whether a result is "valid" for the given (fixed) input. We can describe a "type" of valid values that satisfy this predicate
 as \lst{Valid(sortP, someList)} which is a "subtype" of \lst{List}.
 
-A value has this type if the value is in the \textit{preimage} of \lst{True} under \lst{sortP someList}. Equivalently, the following diagram
-commutes and is a pullback square:
+A value has this type if the value is in the \textit{preimage} of \lst{True} under \lst{sortP someList}. That is, the type \lst{Valid(sortP, someList)}
+consists of exactly the values \ttt{r} that solve the following equation:
+
+\begin{equation*}
+  \ttt{sortP someList r} = \ttt{True}
+\end{equation*}
+
+% \noindent
+% Note we can rewrite this as
+%
+% \begin{equation*}
+%   \ttt{sortP someList} \circ \ttt{const r} = \ttt{const True}
+% \end{equation*}
+
+\noindent
+Equivalently, we can say that the following diagram commutes and is a pullback square:
 \\
 
 \begin{tikzcd}
   \Tlst{Valid(sortP, someList)}
   \arrow[r, hook, "i"]
-  \arrow[d, "!"]
-    \arrow[dr, phantom, "\lrcorner", very near start]
+  \arrow[d, "!", swap]
+    \arrow[d, phantom, "\lrcorner", very near start, shift right=-3.5]
     & \Tlst{List} \arrow[d, "\Tlst{sortP(someList)}"] \\ \Tlst{Unit} \arrow[r, "true"] & \Tlst{Bool}
 \end{tikzcd}
 \\
@@ -974,14 +991,15 @@ input \lstinline{a : A} has all of its valid solutions (outputs) in the type \ls
 \begin{tikzcd}
   \Tlst{Valid(p, a)}
   \arrow[r, hook, "i"]
-  \arrow[d, "!"]
-    \arrow[dr, phantom, "\lrcorner", very near start]
+  \arrow[d, "!", swap]
+    \arrow[d, phantom, "\lrcorner", very near start, shift right=-3.5]
     & \Tlst{B} \arrow[d, "\Tlst{p(a)}"] \\ \Tlst{Unit} \arrow[r, "true"] & \Tlst{Bool}
 \end{tikzcd}
 \\
 
 \noindent
-Considering all possible inputs, we find that a valid synthesis result is a function of type \lstinline{(a : A) $\ra$ Valid(p, a)}.
+Considering all possible inputs, we find that a valid synthesis result is a function of type \lstinline{(a : A) $\ra$ Valid(p, a)}. This type is
+a "subtype" of \lstinline{A $\ra$ B} in the sense that, if we have \lstinline{f : (a : A) $\ra$ Valid(p, a)} then we also have \lstinline{f : A $\ra$ B}.
 
 
 % \[
