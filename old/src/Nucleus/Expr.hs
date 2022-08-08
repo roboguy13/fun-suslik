@@ -394,11 +394,43 @@ instance ToParts (ExprU uv a) where
 
 -- instance Unify ExprU
 
--- | Top-level definition
+-- | For now, just "simple" patterns of the form (Constructor arg1 arg2 ... argN)
+data Pattern =
+  Pattern
+    { patternConstr :: String
+    , patternArgs :: [String]
+    }
+
+data LayoutType =
+  LayoutType
+    { layoutTypeSource :: Type String
+    , layoutTypeTargetEnv :: [String] -- | Variable names in target environment
+    }
+
+-- | Top-level function definition
 data Def =
   Def
     { defType :: Type String
     , defBinding :: (String, [(SrcLoc, String)], Expr String)
+    }
+
+-- | ADT definition
+data DataDef =
+  DataDef
+    { dataDefName :: String
+    , dataDefBranches :: [DataDefBranch]
+    }
+
+data DataDefBranch =
+  DataDefBranch
+    { dataDefBranchConstr :: String
+    , dataDefBranchType :: Type String
+    }
+
+data LayoutDef =
+  LayoutDef
+    { layoutDefType :: LayoutType a
+    , layoutDefCases :: [(Pattern, Expr String)]
     }
 
 defName :: Def -> String

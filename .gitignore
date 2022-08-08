@@ -7,3 +7,4 @@ dist-newstyle
 *.aux
 *.log
 *.pdf
+*.out

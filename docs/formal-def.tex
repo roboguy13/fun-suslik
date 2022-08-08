@@ -127,6 +127,30 @@ Further, we define a set of base types
   \textnormal{base} = \{\Int, \Bool\}
 \]
 
+\subsection{Layout Mappings}
+
+We can view a layout mapping, such as \ttt{DoublyLinked}:
+
+\begin{lstlisting}
+data List where
+  Nil : List
+  Cons : Int -> List -> List
+
+DoublyLinked : List >-> layout[x, z]
+DoublyLinked Nil := emp
+DoublyLinked (Cons head tail) := 
+  x :-> head, (x+1) :-> w, (x+2) :-> z, DoublyLinked[w, x] tail
+\end{lstlisting}
+
+\noindent
+as a function from an ADT to a function that takes in SuSLik \verb|loc| parameters for each
+layout variable (in this case, \verb|w| and \verb|x|):
+
+\begin{lstlisting}
+DoublyLinked' : List -> (loc $\times$ loc) ->  layout[]
+...
+\end{lstlisting}
+
 \subsection{fun-SuSLik Examples}
 
 \begin{lstlisting}
@@ -863,7 +887,7 @@ of $Ctx \ra Expr \ra Name \ra Expr \ra Ctx \ra SSL$:
     %
     % \\\\
 
-    \labinfer{\Gamma \seq \lowerS \layoutPart{@(L\; (C\; \overline{p}) (C\; \overline{v}) := L_2(\overline{z}) \sep \kappa)}
+    \labinfer{\Gamma \seq \lowerS \layoutPart{@(L\; (C\; \overline{p})  := L_2(\overline{z}) \sep \kappa)} (C\; \overline{v})
       \Lbigs_n
         y \toCtx \Gamma', L_2(\overline{z})}
       {\Gamma \seq \lowerS \layoutPart{@(L\; (C\; \overline{p}) := \kappa)} (C\; \overline{v}) \Lbigs_n y \toCtx \Gamma'}
