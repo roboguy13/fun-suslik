@@ -963,6 +963,73 @@ apply the case-rule
   \end{array}
 \]
 
+\section{Semantics Preservation}
+
+In order to show a form of semantics preservation, we prove three properties. First, we have two semantic
+functions:
+
+\begin{itemize}
+  \item $\sem{\cdot} : FsExpr \ra Layout$, the functor which maps fun-SuSLik functions to partial functions
+    on layouts
+  \item $\Ssem{\cdot} : SuSLik \ra \mathcal{P}(Layout)$, the functor which maps SuSLik procedures to \textit{sets} of partial functions on layouts. The
+    arrows here are given exactly by the subset partial order relation.
+\end{itemize}
+
+Note that we are consider the particular subset of SuSLik where procedures have a specified "out parameter".
+
+We also have the translation $\compile : FsExpr \ra SuSLik$ and a function $\uncompile : SuSLik \ra FsExpr$
+
+
+These are the three properties we consider:
+
+\begin{itemize}
+  \item For any fun-SuSLik expression, its corresponding layout function will exist in the set given by compiling it to SuSLik.
+    To say it another way:
+    \begin{equation*}
+      \forall e, \sem{e} \in \Ssem{\compile(e)}
+    \end{equation*}
+
+    \begin{tikzcd}
+      *
+      \arrow[r, "e"]
+      & FsExpr
+        \arrow[r, "compile"]
+        \arrow[d, "\sem{\cdot}", swap]
+        & SuSLik
+          \arrow[r, "\Ssem{\cdot}"]
+          & \mathcal{P}(Layout)
+        \\ & Layout
+          \arrow[urr, hook]
+    \end{tikzcd}
+
+  \item $\compile$ and $\uncompile$ form a section/retraction pair. This means that we do not lose information when we uncompile something
+    that we have compiled:
+    \begin{equation*}
+      \uncompile \circ \compile = id
+    \end{equation*}
+
+    \begin{tikzcd}
+      FsExpr
+      \arrow[r, "compile"]
+      \arrow[dr, "id", swap]
+      & SuSLik
+        \arrow[d, "uncompile"]
+      \\ &
+      FsExpr
+    \end{tikzcd}
+
+  \item For any other translation $t : FsExpr \ra SuSLik$ that also satisfies the above two properties that $\compile$ satisfies with a retraction
+    $\tilde{t} : SuSLik \ra FsExpr$, we have
+
+  \begin{equation*}
+    \forall e, \compile(e) \subseteq t(e)
+  \end{equation*}
+
+  That is, the $\compile$ function gives the smallest set of possible
+    synthesis results of any transformation that obeys the first two properties.
+
+\end{itemize}
+
 \section{An Alternative View of Synthesis}
 
 When we synthesize a program from a specification, we generate an implementation that satisfies a \textit{logical predicate} on the
