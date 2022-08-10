@@ -61,6 +61,8 @@ data PFormula a
   | PAnd (PFormula a) (PFormula a)
   | POr (PFormula a) (PFormula a)
 
+  | PIf (PFormula a) (PFormula a) (PFormula a)
+
   | PAdd (PFormula a) (PFormula a)
   | PSub (PFormula a) (PFormula a)
   | PMul (PFormula a) (PFormula a)
@@ -89,25 +91,11 @@ instance Emit a => Emit (IndPred a) where
       , unlines' $ map emit (indPredAlts indPred)
       ,"}"
       ]
-    -- EmitBlock "" ""
-    --   (emitJuxt
-    --       [EmitPart "inductive"
-    --       ,EmitPart (indPredName indPred)
-    --       ,withParens (emitJuxt (intersperse (EmitPart ", ") (map emit (indPredParams indPred))))
-    --       ]
-    --     : map emit (indPredAlts indPred)
-    --   )
 
 instance Emit a => Emit (IndPredAlt a) where
   emit alt =
     "| " <> emit (indPredAltCond alt) <> " => " <> emit (indPredAltAsn alt)
-    -- emitJuxt
-    --   [ EmitPart "|"
-    --   , emit (indPredAltCond alt)
-    --   , EmitPart "=>"
-    --   , EmitBlock "{" "}" [emit (indPredAltAsn alt)]
-    --   ]
---
+
 instance Emit a => Emit (Spec a) where
   emit spec =
     unlines'
@@ -116,13 +104,6 @@ instance Emit a => Emit (Spec a) where
       ,emit (specPost spec)
       ,"{ ?? }"
       ]
---   emit spec =
---     EmitBlock "" ""
---       [emitJuxt [EmitPart "void", EmitPart (specProcName spec), withParens (emitJuxt (map EmitPart (specParams spec)))]
---       ,emit (specPre spec)
---       ,emit (specPost spec)
---       ]
---
 
 instance Emit a => Emit (Param a) where
   emit (MkParam ty name) = unwords [emit ty, emit name]
@@ -136,30 +117,26 @@ instance Emit SuSLikType where
 instance Emit a => Emit (Assertion a) where
   emit (MkAssertion purePart spatialPart) =
     "{ " <> emit purePart <> " ; " <> emit spatialPart <> " }"
---     emitJuxt [emit purePart, EmitPart ";", emit spatialPart]
---
+
+
 instance Emit a => Emit (SFormula a) where
   emit (MkSFormula []) = "emp"
   emit (MkSFormula xs) = intercalate " ** " (map emit xs)
---   emit (SFormula _ xs) = intercalateS (EmitPart "emp") (EmitPart " ** ") (map emit xs)
---
+
+
 instance Emit a => Emit (Heaplet a) where
   emit (PointsTo (x, 0) y) = emitBinOp ":->" x y
   emit (PointsTo (x, i) y) = emitBinOp ":->" (withParens (emit x <> "+" <> show i)) y
   emit (Block x sz) = "[" <> emit x <> ", " <> show sz <> "]"
   emit (HeapletApp h) = emit h
---   emit (PointsTo _ x y) = emitJuxt [emit x, EmitPart ":->", emit y]
---   emit (Block _ x sz) = emitJuxt [EmitPart "[", emit x, EmitPart ", ", EmitPart (show sz), EmitPart "]"]
---   emit (HeapletApp _ h) = emit h
---
+
 instance Emit a => Emit (HExpr a) where
   emit (HExprVar a) = emit a
   emit (HExprApp app) = emit app
---
+
 instance Emit a => Emit (HApp a) where
   emit (MkHApp f args) = emit f <> withParens (intercalate ", " (map emit args))
---   emit (MkHApp _ f args) = emitJuxt [emit f, withParens (emitJuxt (intersperse (EmitPart ", ") (map emit args)))]
---
+
 instance Emit a => Emit (PFormula a) where
   emit (PBool True) = "true"
   emit (PBool False) = "false"
@@ -176,6 +153,8 @@ instance Emit a => Emit (PFormula a) where
   emit (PNot x) = "not " <> withParens (emit x)
   emit (PAnd x y) = emitBinOp "&&" x y
   emit (POr x y) = emitBinOp "||" x y
+
+  emit (PIf x y z) = withParens (emit x) <> " ? " <> withParens (emit y) <> " : " <> withParens (emit z)
 
   emit (PAdd x y) = emitBinOp "+" x y
   emit (PSub x y) = emitBinOp "-" x y
