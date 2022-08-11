@@ -917,7 +917,7 @@ match. Maybe we need "layout annotations" in the intermediate language.\\
 $\bullet$ What about when there are multiple parameters in the "layout context," say \ttt{layout[x, y, ...]}? Does this say something about sharing
 and fusion?}
 
-\subsection{Translation Example}
+\subsection{A Simple Translation Example}
 
 Using an example from a prior section:
 
@@ -963,6 +963,32 @@ apply the case-rule
   \end{array}
 \]
 
+\subsection{Translation Example: Filter}
+
+\begin{lstlisting}
+data List := Nil | Cons Int List List;
+
+sll : List >-> layout[x];
+sll list :=
+  case list of
+    Nil -> emp
+    Cons head tail ->
+      [x, 2], x :-> head, (x+1) :-> nxt, sll[nxt] tail;
+
+filterLt : Int -> List -> List
+filterLt n list :=
+  case list of
+  | Nil -> Nil
+  | Cons x xs ->
+      if x < n
+      then Cons x (filterLt n xs)
+      else filterLt n xs;
+
+sllFilterLt : Int -> sll -> sll
+sllFilterLt := lift filterLt
+\end{lstlisting}
+
+
 \section{Semantics Preservation}
 
 In order to show a form of semantics preservation, we prove three properties. First, we have two semantic
@@ -977,58 +1003,103 @@ functions:
 
 Note that we are consider the particular subset of SuSLik where procedures have a specified "out parameter".
 
-We also have the translation $\compile : FsExpr \ra SuSLik$ and a function $\uncompile : SuSLik \ra FsExpr$
+We also have the translation $\compile : FsExpr \ra SuSLik$ and a function $\uncompile : SuSLik \ra FsExpr$.
 
 
-These are the three properties we consider:
+These are the four properties we consider:
 
-\begin{itemize}
+\begin{enumerate}
   \item For any fun-SuSLik expression, its corresponding layout function will exist in the set given by compiling it to SuSLik.
     To say it another way:
     \begin{equation*}
       \forall e, \sem{e} \in \Ssem{\compile(e)}
     \end{equation*}
 
-    \begin{tikzcd}
-      *
-      \arrow[r, "e"]
-      & FsExpr
-        \arrow[r, "compile"]
-        \arrow[d, "\sem{\cdot}", swap]
-        & SuSLik
-          \arrow[r, "\Ssem{\cdot}"]
-          & \mathcal{P}(Layout)
-        \\ & Layout
-          \arrow[urr, hook]
-    \end{tikzcd}
+    % \begin{tikzcd}
+    %   *
+    %   \arrow[r, "e"]
+    %   & FsExpr
+    %     \arrow[r, "\compile"]
+    %     \arrow[d, "\sem{\cdot}", swap]
+    %     & SuSLik
+    %       \arrow[r, "\Ssem{\cdot}"]
+    %       & \mathcal{P}(Layout)
+    %     \\ & Layout
+    %       \arrow[rr, rightarrowtail, "x\mapsto\{x\}"]
+    %     & & X
+    %       % \arrow[u, rightarrowtail, "\rotatebox{180}{$\supseteq$}", sloped, swap]
+    %       \arrow[u, rightarrowtail, swap]
+    %       % \arrow[urr, rightarrowtail]
+    % \end{tikzcd}
+
+  \item Compositionality: Given two fun-SuSLik functions $f : A \ra B$ and $g : B \ra C$, we have
+
+    % NOTE: This essentially gives a functor
+
+    % \begin{equation*}
+    %   s \in \Ssem{\compile(g \circ f)} \implies \exists q \in \Ssem{\compile(g)}, \exists p \in \Ssem{\compile(f)}, s = q \circ p
+    % \end{equation*}
+
+    \begin{equation*}
+      \Ssem{\compile(g \circ f)} \subseteq \{ p \circ q \mid p \in \Ssem{\compile(g)} \land q \in \Ssem{\compile(f)} \}
+    \end{equation*}
+
+    % \begin{equation*}
+    %   \Ssem{\compile(g \circ f)} = \Ssem{\compile(g) \circ \compile(f)}
+    % \end{equation*}
 
   \item $\compile$ and $\uncompile$ form a section/retraction pair. This means that we do not lose information when we uncompile something
-    that we have compiled:
+    that we have compiled. Specifically, the compile transformation does not lose information.
     \begin{equation*}
       \uncompile \circ \compile = id
     \end{equation*}
 
     \begin{tikzcd}
       FsExpr
-      \arrow[r, "compile"]
+      \arrow[r, "\compile"]
       \arrow[dr, "id", swap]
       & SuSLik
-        \arrow[d, "uncompile"]
+        \arrow[d, "\uncompile"]
       \\ &
       FsExpr
     \end{tikzcd}
 
-  \item For any other translation $t : FsExpr \ra SuSLik$ that also satisfies the above two properties that $\compile$ satisfies with a retraction
-    $\tilde{t} : SuSLik \ra FsExpr$, we have
+  \item For any other translation $t : FsExpr \ra SuSLik$ that also satisfies the above properties, we have
 
-  \begin{equation*}
-    \forall e, \Ssem{\compile(e)} \subseteq \Ssem{t(e)}
-  \end{equation*}
+    \begin{equation*}
+      \forall e, |\Ssem{\compile(e)}| \le |\Ssem{t(e)}|
+    \end{equation*}
 
   That is, the $\compile$ function gives the smallest set of possible
     synthesis results of any transformation that obeys the first two properties.
 
-\end{itemize}
+  % \item For any other translation $t : FsExpr \ra SuSLik$ that also satisfies the above two properties that $\compile$ satisfies with a retraction
+  %   $\tilde{t} : SuSLik \ra FsExpr$, we have an injective function
+  %
+  % \begin{equation*}
+  %   i : \Ssem{\compile(e)} \rightarrowtail \Ssem{t(e)}
+  % \end{equation*}
+
+  % \begin{equation*}
+  %   \forall e, \Ssem{\compile(e)} \subseteq \Ssem{t(e)}
+  % \end{equation*}
+
+  % \begin{tikzcd}
+  %   & SuSLik
+  %     \arrow[r, "\Ssem{\cdot}"]
+  %     & \mathcal{P}(Layout)
+  %   \\
+  %     \arrow[ur, "t"]
+  %     FsExpr
+  %     \arrow[dr, "\compile", swap]
+  %     \\ & SuSLik
+  %       \arrow[r, "\Ssem{\cdot}"]
+  %     & \mathcal{P}(Layout)
+  %       \arrow[uu, rightarrowtail]
+  % \end{tikzcd}
+
+
+\end{enumerate}
 
 \section{An Alternative View of Synthesis}
 
