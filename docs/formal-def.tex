@@ -1009,11 +1009,16 @@ We also have the translation $\compile : FsExpr \ra SuSLik$ and a function $\unc
 These are the four properties we consider:
 
 \begin{enumerate}
-  \item For any fun-SuSLik expression, its corresponding layout function will exist in the set given by compiling it to SuSLik.
+  \item \itopic{Existence of Correct Programs}: For any fun-SuSLik expression, its corresponding layout function will exist in the set given by compiling it to SuSLik.
     To say it another way:
     \begin{equation*}
       \forall e, \sem{e} \in \Ssem{\compile(e)}
     \end{equation*}
+
+    \textbox{
+    \proofidea: Given any fun-SuSLik expression $e$, construct a SuSLik derivation for $\compile(e)$ that
+    has behavior $\sem{e}$.
+  }
 
     % \begin{tikzcd}
     %   *
@@ -1032,7 +1037,7 @@ These are the four properties we consider:
     %       % \arrow[urr, rightarrowtail]
     % \end{tikzcd}
 
-  \item Compositionality: Given two fun-SuSLik functions $f : A \ra B$ and $g : B \ra C$, we have
+  \item \itopic{Compositionality}: Given two fun-SuSLik functions $f : A \ra B$ and $g : B \ra C$, we have
 
     % NOTE: This essentially gives a functor
 
@@ -1044,34 +1049,60 @@ These are the four properties we consider:
       \Ssem{\compile(g \circ f)} \subseteq \{ p \circ q \mid p \in \Ssem{\compile(g)} \land q \in \Ssem{\compile(f)} \}
     \end{equation*}
 
+    \textbox{
+      \proofidea: Given fun-SuSLik functions $f : A \ra B$ and $g : B \ra C$, and any a SuSLik derivation of $\Ssem{\compile(g \circ f)}$,
+      show that the behavior of the resulting program is the same as the composition of some program from $\Ssem{\compile(g)}$ with some
+      program from $\Ssem{\compile(f)}$.
+    }
+
     % \begin{equation*}
     %   \Ssem{\compile(g \circ f)} = \Ssem{\compile(g) \circ \compile(f)}
     % \end{equation*}
 
-  \item $\compile$ and $\uncompile$ form a section/retraction pair. This means that we do not lose information when we uncompile something
-    that we have compiled. Specifically, the compile transformation does not lose information.
+  \item \itopic{Retraction}: $\compile$ and $\uncompile$ form a section/retraction pair. This means that we do not lose information when we uncompile something
+    that we have compiled. Specifically, the $\compile$ transformation does not lose information.
     \begin{equation*}
       \uncompile \circ \compile = id
     \end{equation*}
 
-    \begin{tikzcd}
-      FsExpr
-      \arrow[r, "\compile"]
-      \arrow[dr, "id", swap]
-      & SuSLik
-        \arrow[d, "\uncompile"]
-      \\ &
-      FsExpr
-    \end{tikzcd}
+    \textbox{
+      \proofidea: We need to show that $\compile$ is an injective function, up to $\alpha$-equivalence.
+    }
 
-  \item For any other translation $t : FsExpr \ra SuSLik$ that also satisfies the above properties, we have
+    % \begin{tikzcd}
+    %   FsExpr
+    %   \arrow[r, "\compile"]
+    %   \arrow[dr, "id", swap]
+    %   & SuSLik
+    %     \arrow[d, "\uncompile"]
+    %   \\ &
+    %   FsExpr
+    % \end{tikzcd}
+
+  % \item \itopic{Preservation of Restrictions}: If we are given any two fun-SuSLik functions $f, g : A \ra B$ where we define $X$ to
+  %   be the set of inputs that the functions agree on $X = \{ a \med a \in A \land f(a) = g(a)$ and we define
+  %   $h : X \ra B$ to be the restriction of $f$ (or, equivalently, $g$) to $X$, then we have
+  %
+  %   \begin{equation*}
+  %     \Ssem{\compile(h)}(\Ssem{X}) 
+  %   \end{equation*}
+
+  \item \itopic{Lower Bound}: For any other translation $t : FsExpr \ra SuSLik$ that also satisfies the above properties, we have
 
     \begin{equation*}
       \forall e, |\Ssem{\compile(e)}| \le |\Ssem{t(e)}|
     \end{equation*}
 
   That is, the $\compile$ function gives the smallest set of possible
-    synthesis results of any transformation that obeys the first two properties.
+    synthesis results of any transformation that obeys the other properties.
+
+  \textbox{
+    \proofidea: Find any injective function $i : \Ssem{\compile(e)} \rightarrowtail \Ssem{t(e)}$. Alternatively,
+  find any \textit{surjective} function $s : \Ssem{t(e)} \twoheadrightarrow \Ssem{\compile(e)}$.
+  
+  Also, note that there are specific synthesis rules which are non-deterministic such as \textsc{Close}. These will
+  potentially (though not always) expand the space of programs that can be synthesis results from a given spec.
+}
 
   % \item For any other translation $t : FsExpr \ra SuSLik$ that also satisfies the above two properties that $\compile$ satisfies with a retraction
   %   $\tilde{t} : SuSLik \ra FsExpr$, we have an injective function
@@ -1111,7 +1142,7 @@ sortP : List -> List -> Bool
 sortP = $\lambda$ xs r $\ra$ isNondecreasing(xs) && isPermutation(xs, r)
 \end{lstlisting}
 
-If we fix the first argument to some list value (say \lstinline{sortP someList : List -> Bool}) and we consider the resulting predicate on the "result values", we have
+If we fix the first argument to some list value (say \lstinline{sortP someList : List $\ra$ Bool}) and we consider the resulting predicate on the "result values", we have
 a function which decides whether a result is "valid" for the given (fixed) input. We can describe a "type" of valid values that satisfy this predicate
 as \lst{Valid(sortP, someList)} which is a "subtype" of \lst{List}.
 
