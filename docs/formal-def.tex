@@ -566,21 +566,17 @@ First, the ``value'' judgment val (as in Harper's Practical Foundations for Prog
 
 \[
   \begin{array}{cc}
-    \infer{i \val}{i \in \mathbb{Z}}
+    \infer{\vdash i \val}{i \in \mathbb{Z}}
     ~~~
-    \infer{\True \val}{}
+    \infer{\vdash \True \val}{}
     ~~~
-    \infer{\False \val}{}
-    ~~~
-    \infer{\nil \val}{}
+    \infer{\vdash \False \val}{}
     \\\\
-    \infer{\cons\; e_1\; e_2 \val}{e_1 \val & e_2 \val}
-    ~~~
-    \infer{\pair\; e_1\; e_2 \val}{e_1 \val & e_2 \val}
-    ~~~
-    \infer{\lambda x \ra e \val}{}
+    \infer{\Sigma \vdash C\; \overline{v} \val}{(C : \tau) \in \Sigma & \overline{\Sigma \vdash v \val}}
     \\\\
-    \infer{\lowerS{L} e \val}{e \val}
+    \infer{\vdash \lambda x \ra e \val}{}
+    ~~~
+    \infer{\Sigma \vdash \lowerS{L} e \val}{\Sigma \vdash e \val}
   \end{array}
 \]
 
