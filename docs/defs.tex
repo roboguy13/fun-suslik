@@ -33,6 +33,8 @@
 \newcommand{\reduces}{\ensuremath{\longmapsto}}
 \newcommand{\reducestr}{\ensuremath{\longmapsto^{*}}}
 
+\newcommand{\Hreduces}{\ensuremath{\longmapsto_H}}
+
 \newcommand{\judgecolor}{\color{red}}
 
 \newcommand{\bigs}{{\judgecolor\;{\Downarrow}}}
@@ -99,7 +101,7 @@
 
 \newcommand{\sem} [1] {\llbracket#1\rrbracket}
 \newcommand{\Csem} [1] {\mathcal{C}\sem{#1}}
-\newcommand{\Isem} [1] {\mathcal{I}\sem{#1}}
+\newcommand{\Isem} [2] {\mathcal{I}_{#1}\sem{#2}}
 \newcommand{\Gsem} [1] {\mathcal{G}\sem{#1}}
 \newcommand{\Ssem} [1] {\mathcal{S}\sem{#1}}
 \newcommand{\Esem} [1] {\mathcal{E}\sem{#1}}
@@ -153,6 +155,17 @@
 \newcommand{\textbox} [1] {\fbox{\parbox{\textwidth}{#1}}}
 \newcommand{\itopic} [1] {\textbf{\textit{#1}}}
 \newcommand{\proofidea} {\textbf{\underline{Proof Idea}}}
+
+\newcommand{\Heap}{\textnormal{Heap}}
+\newcommand{\Loc}{\textnormal{Loc}}
+\newcommand{\Val}{\textnormal{Val}}
+
+\newcommand{\FsExpr}{\textnormal{FsExpr}}
+
+\newcommand{\Ctx}{\textnormal{Ctx}}
+\newcommand{\Assertion}{\textnormal{Assertion}}
+
+\newcommand{\unused}{\textnormal{unused}}
 
 \endinput
 
