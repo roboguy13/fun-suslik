@@ -71,11 +71,9 @@ semantics preserves semantic equivalence by proving adequacy and full abstractio
 
   <$\mathcal{L}$> ::= "L" : D $\hra$ "layout"[$\overline{"x"}$]; $\overline{\textnormal{LM}}$
 
-  <LM> ::= L (C $\overline{"y"}$) <G> ":=" $\overline{\textnormal{H}}$
+  <LM> ::= L (C $\overline{"y"}$) ":=" $\overline{\textnormal{H}}$
 
-  <G> ::= $\cdot$ | "|" <e>
-
-  <H> ::= p ":->" y
+  <H> ::= p ":->" y | L[$\overline{"x"}$] $\overline{"a"}$
 
   <p> ::= x | "(" x "+" <n> ")"
 
@@ -85,21 +83,15 @@ semantics preserves semantic equivalence by proving adequacy and full abstractio
 
   <B> ::= "True" | "False"
 
-  <$\mathbb{P}$> ::= $\mu$ e
-
-  <F> ::= f : <T>; f <P> <G> ":=" <e>;
-
-  <P> ::= $\cdot$ | x <P>
+  <F> ::= f : <T>; f $\overline{"a"}$ ":=" <e>;
 
   <e> ::= <e>$_0$ | <e> <e>$_0$
 
-  <e$_0$> ::= <I> | <B> | $\ell$ | <C> | "let" x ":=" <e> "in" <e> | ( <e> )
+  <e$_0$> ::= <I> | <B> | $\lambda "a" \ra "e"$ | <C> | "let" x ":=" <e> "in" <e> | ( <e> )
 
-  <$\ell$> ::= $\lambda "x" \ra$ <e>
+  <C> ::= "convert"$_{"L","L"}$ | $\liftS$ | $\lowerS$ | \ite\; | \lesseq\; | \eq\; | \add\; | \sub\; | \ttt{and}\; | \ttt{or}\; | \ttt{not}
 
-  <C> ::= "convert"$_{"L","L"}$ | "fold" | $\uparrow$ | $\downarrow$ | \ite\; | \lesseq\; | \eq\; | \add\; | \sub\; | \ttt{and}\; | \ttt{or}\; | \ttt{not}
-
-  <T> ::= "Int" | "Bool" | <T> $\ra$ <T> | L ( D ) | ( <T> )
+  <T> ::= "Int" | "Bool" | <T> $\ra$ <T> | L | ( <T> )
 
   <$\Gamma$> ::= $\cdot$ | x : <T>, $\Gamma$
 
@@ -712,26 +704,26 @@ This translation is shown to preserve equivalence in two steps (Section~\ref{sec
 %
 
 
-\subsection{Soundness}
-\label{sec:TransSoundness}
-
-% \begin{definition}[$\alpha$-Equivalence of Contexts]
-%   If $\Sigma$ and $\Sigma'$ are equal up to renaming, then we write $\Sigma \approx_{\alpha} \Sigma'$
-% \end{definition}
-
-% \begin{theorem}[Context Preservation]
-%   $e \approx_F e' \implies \sem{e} = \sem{e'}$
+% \subsection{Soundness}
+% \label{sec:TransSoundness}
+%
+% % \begin{definition}[$\alpha$-Equivalence of Contexts]
+% %   If $\Sigma$ and $\Sigma'$ are equal up to renaming, then we write $\Sigma \approx_{\alpha} \Sigma'$
+% % \end{definition}
+%
+% % \begin{theorem}[Context Preservation]
+% %   $e \approx_F e' \implies \sem{e} = \sem{e'}$
+% % \end{theorem}
+%
+% \begin{theorem}[Full Abstraction]
+%   If $e$ and $e'$ are fun-SuSLik expressions and $\Sigma \vdash e \approx_F e'$,
+%   then $\sem{\Sigma} \vdash \sem{e} \approx_{S} \sem{e'}$
 % \end{theorem}
-
-\begin{theorem}[Full Abstraction]
-  If $e$ and $e'$ are fun-SuSLik expressions and $\Sigma \vdash e \approx_F e'$,
-  then $\sem{\Sigma} \vdash \sem{e} \approx_{S} \sem{e'}$
-\end{theorem}
-
-\begin{theorem}[Adequacy]
-  If $e$ and $e'$ are fun-SuSLik expressions and\\ $\Sigma \vdash e \not\approx_F e'$,
-  then $\sem{\Sigma} \vdash \sem{e} \not\approx_{S} \sem{e'}$
-\end{theorem}
+%
+% \begin{theorem}[Adequacy]
+%   If $e$ and $e'$ are fun-SuSLik expressions and\\ $\Sigma \vdash e \not\approx_F e'$,
+%   then $\sem{\Sigma} \vdash \sem{e} \not\approx_{S} \sem{e'}$
+% \end{theorem}
 
 \subsection{Translation}
 
@@ -989,148 +981,17 @@ sllFilterLt := lift filterLt
 \end{lstlisting}
 
 
-\section{Semantics Preservation}
+\section{Soundness and Completeness}
 
-In order to show a form of semantics preservation, we prove three properties. First, we have two semantic
-functions:
+\textbf{TODO}: Do we need to explicitly keep track of the inductive predicate environment in these theorems?
 
-\begin{itemize}
-  \item $\sem{\cdot} : FsExpr \ra Layout$, the functor which maps fun-SuSLik functions to partial functions
-    on layouts
-  \item $\Ssem{\cdot} : SuSLik \ra \mathcal{P}(Layout)$, the functor which maps SuSLik procedures to \textit{sets} of partial functions on layouts. The
-    arrows here are given exactly by the subset partial order relation.
-\end{itemize}
+\begin{theorem} Completeness. \textbf{TODO}: Is this actually completeness?\\
+  $\forall e, P, Q.\; \Fsem{e} = (P, Q) \Ra \forall x.\; \Hsem{x} \models P \Ra \Hsem{e(x)} \models Q$
+\end{theorem}
 
-Note that we are consider the particular subset of SuSLik where procedures have a specified "out parameter".
-
-We also have the translation $\compile : FsExpr \ra SuSLik$ and a function $\uncompile : SuSLik \ra FsExpr$.
-
-
-These are the four properties we consider:
-
-\begin{enumerate}
-  \item \itopic{Existence of Correct Programs}: For any fun-SuSLik expression, its corresponding layout function will exist in the set given by compiling it to SuSLik.
-    To say it another way:
-    \begin{equation*}
-      \forall e, \sem{e} \in \Ssem{\compile(e)}
-    \end{equation*}
-
-    \textbox{
-    \proofidea: Given any fun-SuSLik expression $e$, construct a SuSLik derivation for $\compile(e)$ that
-    has behavior $\sem{e}$.
-  }
-
-    % \begin{tikzcd}
-    %   *
-    %   \arrow[r, "e"]
-    %   & FsExpr
-    %     \arrow[r, "\compile"]
-    %     \arrow[d, "\sem{\cdot}", swap]
-    %     & SuSLik
-    %       \arrow[r, "\Ssem{\cdot}"]
-    %       & \mathcal{P}(Layout)
-    %     \\ & Layout
-    %       \arrow[rr, rightarrowtail, "x\mapsto\{x\}"]
-    %     & & X
-    %       % \arrow[u, rightarrowtail, "\rotatebox{180}{$\supseteq$}", sloped, swap]
-    %       \arrow[u, rightarrowtail, swap]
-    %       % \arrow[urr, rightarrowtail]
-    % \end{tikzcd}
-
-  \item \itopic{Compositionality}: Given two fun-SuSLik functions $f : A \ra B$ and $g : B \ra C$, we have
-
-    % NOTE: This essentially gives a functor
-
-    % \begin{equation*}
-    %   s \in \Ssem{\compile(g \circ f)} \implies \exists q \in \Ssem{\compile(g)}, \exists p \in \Ssem{\compile(f)}, s = q \circ p
-    % \end{equation*}
-
-    \begin{equation*}
-      \Ssem{\compile(g \circ f)} \subseteq \{ p \circ q \mid p \in \Ssem{\compile(g)} \land q \in \Ssem{\compile(f)} \}
-    \end{equation*}
-
-    \textbox{
-      \proofidea: Given fun-SuSLik functions $f : A \ra B$ and $g : B \ra C$, and any a SuSLik derivation of $\Ssem{\compile(g \circ f)}$,
-      show that the behavior of the resulting program is the same as the composition of some program from $\Ssem{\compile(g)}$ with some
-      program from $\Ssem{\compile(f)}$.
-    }
-
-    % \begin{equation*}
-    %   \Ssem{\compile(g \circ f)} = \Ssem{\compile(g) \circ \compile(f)}
-    % \end{equation*}
-
-  \item \itopic{Retraction}: $\compile$ and $\uncompile$ form a section/retraction pair. This means that we do not lose information when we uncompile something
-    that we have compiled. Specifically, the $\compile$ transformation does not lose information.
-    \begin{equation*}
-      \uncompile \circ \compile = id
-    \end{equation*}
-
-    \textbox{
-      \proofidea: We need to show that $\compile$ is an injective function, up to $\alpha$-equivalence.
-    }
-
-    % \begin{tikzcd}
-    %   FsExpr
-    %   \arrow[r, "\compile"]
-    %   \arrow[dr, "id", swap]
-    %   & SuSLik
-    %     \arrow[d, "\uncompile"]
-    %   \\ &
-    %   FsExpr
-    % \end{tikzcd}
-
-  % \item \itopic{Preservation of Restrictions}: If we are given any two fun-SuSLik functions $f, g : A \ra B$ where we define $X$ to
-  %   be the set of inputs that the functions agree on $X = \{ a \med a \in A \land f(a) = g(a)$ and we define
-  %   $h : X \ra B$ to be the restriction of $f$ (or, equivalently, $g$) to $X$, then we have
-  %
-  %   \begin{equation*}
-  %     \Ssem{\compile(h)}(\Ssem{X}) 
-  %   \end{equation*}
-
-  \item \itopic{Lower Bound}: For any other translation $t : FsExpr \ra SuSLik$ that also satisfies the above properties, we have
-
-    \begin{equation*}
-      \forall e, |\Ssem{\compile(e)}| \le |\Ssem{t(e)}|
-    \end{equation*}
-
-  That is, the $\compile$ function gives the smallest set of possible
-    synthesis results of any transformation that obeys the other properties.
-
-  \textbox{
-    \proofidea: Find any injective function $i : \Ssem{\compile(e)} \rightarrowtail \Ssem{t(e)}$. Alternatively,
-  find any \textit{surjective} function $s : \Ssem{t(e)} \twoheadrightarrow \Ssem{\compile(e)}$.
-  
-  Also, note that there are specific synthesis rules which are non-deterministic such as \textsc{Close}. These will
-  potentially (though not always) expand the space of programs that can be synthesis results from a given spec.
-}
-
-  % \item For any other translation $t : FsExpr \ra SuSLik$ that also satisfies the above two properties that $\compile$ satisfies with a retraction
-  %   $\tilde{t} : SuSLik \ra FsExpr$, we have an injective function
-  %
-  % \begin{equation*}
-  %   i : \Ssem{\compile(e)} \rightarrowtail \Ssem{t(e)}
-  % \end{equation*}
-
-  % \begin{equation*}
-  %   \forall e, \Ssem{\compile(e)} \subseteq \Ssem{t(e)}
-  % \end{equation*}
-
-  % \begin{tikzcd}
-  %   & SuSLik
-  %     \arrow[r, "\Ssem{\cdot}"]
-  %     & \mathcal{P}(Layout)
-  %   \\
-  %     \arrow[ur, "t"]
-  %     FsExpr
-  %     \arrow[dr, "\compile", swap]
-  %     \\ & SuSLik
-  %       \arrow[r, "\Ssem{\cdot}"]
-  %     & \mathcal{P}(Layout)
-  %       \arrow[uu, rightarrowtail]
-  % \end{tikzcd}
-
-
-\end{enumerate}
+\begin{theorem} Soundness.\\
+  $\forall P, Q. \forall e : A \ra B, x : A.\; \Fsem{e} = (P, Q) \Ra\; \vdash e(x) : B \Ra \Hsem{x} \models P$
+\end{theorem}
 
 \section{An Alternative View of Synthesis}
 
