@@ -339,17 +339,17 @@ We define a heap to be a partial function from locations to values:
 
 \noindent
 and start by defining an operational semantics given by $\bigs$ and then we
-define a semantic relation $\Hbigs\; \subset \FsExpr \times \Heap$ using $\bigs$ as follows:
+define a semantic relation $\Hbigs\; \subset \Ctx \times \FsExpr \times \Heap$ using $\bigs$ as follows:
 
 \[
   \begin{array}{c}
-    \infer{e \Hbigs r \pointsto i}{\Sigma ; \cdot \vdash e \bigs\; i & i \in \mathbb{Z}}
+    \infer{\Sigma \vdash e \Hbigs r \pointsto i}{\Sigma ; \cdot \vdash e \bigs\; i & i \in \mathbb{Z}}
     ~~~
-    \infer{e \Hbigs r \pointsto b}{\Sigma ; \cdot \vdash e \bigs\; b & b \in \mathbb{B}}
+    \infer{\Sigma \vdash e \Hbigs r \pointsto b}{\Sigma ; \cdot \vdash e \bigs\; b & b \in \mathbb{B}}
     \\\\
-    \infer{e \Hbigs r \pointsto x \sep x \pointsto i \sep \overline{(x+j) \pointsto v_j}}{\Sigma ; \cdot \vdash e \bigs\; C_i\; \overline{v_j}}
+    \infer{\Sigma \vdash e \Hbigs r \pointsto x \sep x \pointsto i \sep \overline{(x+j) \pointsto v_j}}{\Sigma ; \cdot \vdash e \bigs\; C_i\; \overline{v_j}}
     \\\\
-    \infer{e \Hbigs h}{e \Hbigs \lowerS{L} (C_i\; \overline{v_j}) & (C_i\; \overline{v_j}) \Lbigs{L} h}
+    \infer{\Sigma \vdash e \Hbigs h}{\Sigma \vdash e \Hbigs \lowerS{L} (C_i\; \overline{v_j}) & \Sigma \vdash (C_i\; \overline{v_j}) \Lbigs{L} h}
   \end{array}
 \]
 
