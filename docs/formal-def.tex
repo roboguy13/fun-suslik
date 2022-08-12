@@ -139,9 +139,36 @@ as a function from an ADT to a function that takes in SuSLik \verb|loc| paramete
 layout variable (in this case, \verb|w| and \verb|x|):
 
 \begin{lstlisting}
-DoublyLinked' : List -> (loc $\times$ loc) ->  layout[]
+DoublyLinked' : List -> (Loc $\times$ Loc) ->  layout[]
 ...
 \end{lstlisting}
+
+\noindent
+This is given by the $\CloseLayout$ function, defined as:
+
+\begin{equation*}
+  \CloseLayout : (D \monic \layout{\overline{x}}) \ra \overline{Loc} \ra (D \monic \layout{})
+\end{equation*}
+
+\subsection{Layout Instantiation}
+
+The relation for instantiating layouts with specific ADT values is
+$\cdot \vdash \cdot\Lbigs{\cdot}\cdot \subset \Ctx \times \FsExpr \times (D \monic \layout{\overline{x}}) \times \Heap$ which is defined by
+
+\[
+  \begin{array}{c}
+    \infer{\Sigma \vdash (C_i\; \overline{x}) \Lbigs{L} \TranslateLayout{d}[p:=x]}{\Sigma \ni (L (C_i\; \overline{p}) := d)}
+  \end{array}
+\]
+
+\noindent
+where $\TranslateLayout{\cdot}$ is a helper function translates the fun-SuSLik layout syntax into SuSLik SSL syntax defined by:
+
+\begin{align*}
+  &\TranslateLayout{\emp} = \emp\\
+  &\TranslateLayout{x \pointsto y , \kappa} = x \pointsto y \sep \TranslateLayout{\kappa}\\
+  &\TranslateLayout{L[\overline{x}]\; \overline{a} , \kappa} = L(\overline{x}) \sep \TranslateLayout{\kappa}
+\end{align*}
 
 \subsection{fun-SuSLik Examples}
 
@@ -312,15 +339,17 @@ We define a heap to be a partial function from locations to values:
 
 \noindent
 and start by defining an operational semantics given by $\bigs$ and then we
-define a semantic relation $\Hbigs \subset \FsExpr \times \Heap$ using $\bigs$ as follows:
+define a semantic relation $\Hbigs\; \subset \FsExpr \times \Heap$ using $\bigs$ as follows:
 
 \[
   \begin{array}{c}
-    \infer{e \Hbigs r \pointsto i}{e \bigs\; i & i \in \mathbb{Z}}
+    \infer{e \Hbigs r \pointsto i}{\Sigma ; \cdot \vdash e \bigs\; i & i \in \mathbb{Z}}
     ~~~
-    \infer{e \Hbigs r \pointsto b}{e \bigs\; b & b \in \mathbb{B}}
+    \infer{e \Hbigs r \pointsto b}{\Sigma ; \cdot \vdash e \bigs\; b & b \in \mathbb{B}}
     \\\\
-    \infer{e \Hbigs r \pointsto i \sep \overline{(r+j) \pointsto v_j}}{e \bigs\; C_i\; \overline{v_j}}
+    \infer{e \Hbigs r \pointsto x \sep x \pointsto i \sep \overline{(x+j) \pointsto v_j}}{\Sigma ; \cdot \vdash e \bigs\; C_i\; \overline{v_j}}
+    \\\\
+    \infer{e \Hbigs h}{e \Hbigs \lowerS{L} (C_i\; \overline{v_j}) & (C_i\; \overline{v_j}) \Lbigs{L} h}
   \end{array}
 \]
 
@@ -550,6 +579,8 @@ First, the ``value'' judgment val (as in Harper's Practical Foundations for Prog
     \infer{\pair\; e_1\; e_2 \val}{e_1 \val & e_2 \val}
     ~~~
     \infer{\lambda x \ra e \val}{}
+    \\\\
+    \infer{\lowerS{L} e \val}{e \val}
   \end{array}
 \]
 
@@ -770,189 +801,189 @@ This translation is shown to preserve equivalence in two steps (Section~\ref{sec
 %   then $\sem{\Sigma} \vdash \sem{e} \not\approx_{S} \sem{e'}$
 % \end{theorem}
 
-\subsection{Translation}
-
-We have big-step semantics given by the relation $\cdot \seq \cdot \bigs_{\cdot} \cdot \toCtx \cdot$ which is a subset of $Ctx \times Expr \times Name \times SSL \times Ctx$ satisfying the following rules. This is defined using some other relations:
-
-\begin{itemize}
-  \item $\cdot \seq \cdot \Abigs_{\cdot} \cdot \toCtx \cdot$
-  \item $\cdot \seq \cdot \Lbigs_{\cdot} \cdot \toCtx \cdot$
-\end{itemize}
-
-  % \sem{f \overline{x} := e} = 
-\[
-  \begin{array}{c}
-    \labinfer{\seq i\bigs_r r \la i \toCtx}{i\in\mathbb{Z}}
-
-    ~~~
-
-    \labinfer{\seq b\bigs_r r \la b \toCtx}{b\in\mathbb{B}}
-
-    \\\\
-
-    \labinfer{\Gamma \seq \ite\; x\; t\; f
-      \bigs_r
-      x'
-        ;
-      \ttt{if} (c) \{
-        t'
-      \} \ttt{else} \{
-        f'
-      \} \toCtx \Gamma'}{\Gamma \seq x \bigs_c x' \toCtx \Gamma' & \Gamma' \seq t \bigs_r t' \toCtx \Gamma_1 & \Gamma' \seq f \bigs_r f' \toCtx \Gamma_2}
-
-    \\\\
-
-    \labinfer{\Gamma \seq \ttt{specialize}\; \overline{@L}\; @L_0\; (\lambda \overline{p}\ra e)\; \overline{x}
-      \bigs_r
-        \overline{x'}
-        ;
-      % \{
-      %   p \pointsto i
-      %   \sep r \pointsto 0
-      % \}
-        e'[\overline{p := v}] \toCtx \Gamma'
-      % \{
-      %   p \pointsto i
-      %   \sep r \pointsto \ell_0 \sep L_0(\ell_0)
-      % \}
-      }{\Gamma_0 = \Gamma & \Gamma_{i-1} \seq \lowerS{L} x_i \bigs_v x_i' \toCtx \Gamma_i & \Gamma_n \seq \lowerS{L_0} e \bigs_r e' \toCtx \Gamma' & n = len(\overline{x})}
-
-    % \\\\
-
-    % \sem{\ttt{specialize}\; \overline{@L}\; @L_0\; (\lambda \overline{p}\ra e)\; \overline{v}}r
-    %   =
-    %   % \{
-    %   %   \overline{p_i \pointsto \ell_i \sep L_i(p_i)}
-    %   %   \sep r \pointsto 0
-    %   % \}
-    %   \sem{e}r[\overline{p_i := v_i}]
-    %   % \{
-    %   %   \overline{p_i \pointsto \ell_i}
-    %   %   \sep r \pointsto \ell_0 \sep L_0(\ell_0)
-    %   % \}
-
-    \\\\
-
-    % \labinfer{\lowerS_L\; (C\; \overline{v})
-    %   \bigs_r
-    % x}{\langle L , C\; \overline{v} , \Gamma \rangle \Lbigs_r \langle x , \Gamma' \rangle}
-
-    % \labinfer{\Gamma \seq \ttt{case}\; \liftS @L\; x\; \ttt{of}\;\overline{\textnormal{alt}_i}
-    %   \bigs_r
-    %     y \toCtx \Gamma'}
-    %   {\Gamma \seq \ttt{case}\; x\; \ttt{of}\; \overline{\textnormal{alt}_i} \bigs_r y \toCtx \Gamma'}
-    %
-    % \\\\
-
-    \labinfer{\Gamma' \seq \ttt{case}\; x\; \ttt{of}\; \overline{\textnormal{alt}_i}
-      \bigs_r
-        x'; \ttt{if (*s == $0$) \{ y$_0$ \} } \overline{\ttt{else if (*s == $i+1$) \{ y$_{i+1}$ \}}}
-        \toCtx \Gamma''
-      }{\Gamma \seq x \bigs_s x' \toCtx \Gamma' & \Gamma' \seq alt_i \Abigs_r y_i \toCtx \Gamma''}
-
-    % \sem{\ttt{case}\; x\; \ttt{of}\; \overline{\textnormal{alt}_i}}r
-    %   =
-    % \sem{x}s; \ttt{if (s == $0$) \{ $\Asem{x}{\textnormal{alt}_0}r$ \} } \overline{\ttt{else if (s == $i+1$) \{ $\Asem{x}{\textnormal{alt}_{i+1}}r$ \}}}
-
-    \\\\
-
-    \labinfer{\Gamma \seq (C\; \overline{a_i} \ra e) \Abigs_r \overline{\ttt{let}\; a_i \la *(x+i)}; k \toCtx \Gamma'}
-      {\Gamma \seq e \Abigs_r y \toCtx \Gamma'}
-
-    \\\\
-    
-    \labinfer{\Gamma \seq \lowerS{L} (C\; \overline{v})
-        \bigs_r x \toCtx \Gamma'}
-      {\Gamma \seq \lowerS{L} (C\; \overline{v}) \Lbigs_{r} x \toCtx \Gamma'}
-
-    % \Asem{x}{C\; \overline{a_i} \ra e}r = \overline{\ttt{let}\; a_i \la *(x+i)}; \sem{e}r
-  \end{array}
-\]
-
-\noindent
-
-With the layout semantics given by $\cdot \seq \cdot \Lbigs_{\cdot} \cdot \toCtx \cdot$ which is a subset
-of $Ctx \ra Expr \ra Name \ra Expr \ra Ctx \ra SSL$:
-
-\[
-  \begin{array}{c}
-    \labinfer{\Gamma \seq \lowerS{\layoutPart{L\; (C_j\; \overline{p}) := [n, \iota] \sep \kappa}} (C_j\; \overline{v}) 
-       \Lbigs_n
-       \ttt{let $n$ $\la$ malloc}(\iota) ; \ttt{*}n \la j ; y \toCtx \Gamma'}
-      {\Gamma \seq \lowerS{\layoutPart{L\; (C\; \overline{p}) := \kappa}} (C\; \overline{v}) \Lbigs_n y \toCtx \Gamma'}
-
-
-    % \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := [n, \iota] \sep \kappa)\ttt{n}
-    %   =
-    % \lst{let n <- malloc}(\iota) ; \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := \kappa)\ttt{n}
-
-    % \\\\
-    %
-    % \labinfer{\Gamma \seq \lowerS \layoutPart{@(L\; (C\; \overline{p}) := x \pointsto a \sep \kappa)} (C\; \overline{v})
-    %     \Lbigs_n
-    %     \ttt{*}n \la v_0 ; y \toCtx \Gamma'}
-    %   {\Gamma \seq \lowerS \layoutPart{@(L\; (C\; \overline{p}) := \kappa)} (C\; \overline{v})
-    %       \Lbigs_n y
-    %       \toCtx \Gamma'}
-
-    % \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := x \pointsto a \sep \kappa)\ttt{n}
-    %   =
-    % \ttt{*n } \la p_0
-    %   ;
-    % \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := \kappa)\ttt{n}
-    
-    \\\\
-
-    \labinfer{\Gamma \seq \lowerS{ \layoutPart{L\; (C_j\; \overline{p}) := (x+\iota) \pointsto a \sep \kappa}} (C\; \overline{v})
-      \Lbigs_n
-        \ttt{*}(n+\iota+1) \la v_{\iota}; y \toCtx \Gamma'}
-      {\Gamma \seq \lowerS{\layoutPart{L\; (C\; \overline{p}) := \kappa}} (C\; \overline{v}) \Lbigs_n y \toCtx \Gamma'}
-
-    % \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := (x+\iota) \pointsto a \sep \kappa)\ttt{n}
-    %   =
-    % \ttt{*(n+$\iota$) }\la p_{\iota}
-    %   ;
-    % \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := \kappa)\ttt{n}
-
-    \\\\
-
-    % \Lsem{C\; \overline{v}}(L\; \overline{p} := L_2(\overline{y}) \sep \kappa)\ttt{n}
-    %   =
-    % \Lsem{C\; \overline{v}}(L_2(\overline{y}))\ttt{m}
-    %   ;
-    % \Lsem{C\; \overline{v}}(L\; \overline{p} := \kappa)\ttt{n}
-    %
-    % \\\\
-
-    \labinfer{\Gamma \seq \lowerS{\layoutPart{L\; (C\; \overline{p})  := L_2(\overline{z}) \sep \kappa}} (C\; \overline{v})
-      \Lbigs_n
-        y \toCtx \Gamma', L_2(\overline{z})}
-      {\Gamma \seq \lowerS{\layoutPart{L\; (C\; \overline{p}) := \kappa}} (C\; \overline{v}) \Lbigs_n y \toCtx \Gamma'}
-
-    % \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := L_2(\overline{y}) \sep \kappa)\ttt{n}
-    %   = \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := \kappa)\ttt{n}
-
-    \\\\
-
-    \labinfer{\Gamma \seq \lowerS{\layoutPart{L\; (C\; \overline{p}) := \ttt{emp}}} (C\; \overline{v})
-      \Lbigs_n
-        \ttt{skip} \toCtx \Gamma}
-      {}
-
-    % \Lsem{C\; \overline{v}}(\ttt{emp})\ttt{n} = \ttt{skip}
-
-    \\\\
-
-    % \Lsem{C\; x\; \overline{y}}\ttt{n} = \sem{x}v; \Lsem{C\; v\; 
-
-  \end{array}
-\]
-\textbf{TODO:\\
-$\bullet$ Do we need to deal with "layout applications" in $\Lsem{\cdot}$ if we use "as-needed" pattern matching expanding (as in
-my last paper on a pattern matching embedding)? We will probably at least need to somehow remember which layout to use for a later pattern
-match. Maybe we need "layout annotations" in the intermediate language.\\
-$\bullet$ What about when there are multiple parameters in the "layout context," say \ttt{layout[x, y, ...]}? Does this say something about sharing
-and fusion?}
+% \subsection{Translation}
+%
+% We have big-step semantics given by the relation $\cdot \seq \cdot \bigs_{\cdot} \cdot \toCtx \cdot$ which is a subset of $Ctx \times Expr \times Name \times SSL \times Ctx$ satisfying the following rules. This is defined using some other relations:
+%
+% \begin{itemize}
+%   \item $\cdot \seq \cdot \Abigs_{\cdot} \cdot \toCtx \cdot$
+%   \item $\cdot \seq \cdot \Lbigs_{\cdot} \cdot \toCtx \cdot$
+% \end{itemize}
+%
+%   % \sem{f \overline{x} := e} = 
+% \[
+%   \begin{array}{c}
+%     \labinfer{\seq i\bigs_r r \la i \toCtx}{i\in\mathbb{Z}}
+%
+%     ~~~
+%
+%     \labinfer{\seq b\bigs_r r \la b \toCtx}{b\in\mathbb{B}}
+%
+%     \\\\
+%
+%     \labinfer{\Gamma \seq \ite\; x\; t\; f
+%       \bigs_r
+%       x'
+%         ;
+%       \ttt{if} (c) \{
+%         t'
+%       \} \ttt{else} \{
+%         f'
+%       \} \toCtx \Gamma'}{\Gamma \seq x \bigs_c x' \toCtx \Gamma' & \Gamma' \seq t \bigs_r t' \toCtx \Gamma_1 & \Gamma' \seq f \bigs_r f' \toCtx \Gamma_2}
+%
+%     \\\\
+%
+%     \labinfer{\Gamma \seq \ttt{specialize}\; \overline{@L}\; @L_0\; (\lambda \overline{p}\ra e)\; \overline{x}
+%       \bigs_r
+%         \overline{x'}
+%         ;
+%       % \{
+%       %   p \pointsto i
+%       %   \sep r \pointsto 0
+%       % \}
+%         e'[\overline{p := v}] \toCtx \Gamma'
+%       % \{
+%       %   p \pointsto i
+%       %   \sep r \pointsto \ell_0 \sep L_0(\ell_0)
+%       % \}
+%       }{\Gamma_0 = \Gamma & \Gamma_{i-1} \seq \lowerS{L} x_i \bigs_v x_i' \toCtx \Gamma_i & \Gamma_n \seq \lowerS{L_0} e \bigs_r e' \toCtx \Gamma' & n = len(\overline{x})}
+%
+%     % \\\\
+%
+%     % \sem{\ttt{specialize}\; \overline{@L}\; @L_0\; (\lambda \overline{p}\ra e)\; \overline{v}}r
+%     %   =
+%     %   % \{
+%     %   %   \overline{p_i \pointsto \ell_i \sep L_i(p_i)}
+%     %   %   \sep r \pointsto 0
+%     %   % \}
+%     %   \sem{e}r[\overline{p_i := v_i}]
+%     %   % \{
+%     %   %   \overline{p_i \pointsto \ell_i}
+%     %   %   \sep r \pointsto \ell_0 \sep L_0(\ell_0)
+%     %   % \}
+%
+%     \\\\
+%
+%     % \labinfer{\lowerS_L\; (C\; \overline{v})
+%     %   \bigs_r
+%     % x}{\langle L , C\; \overline{v} , \Gamma \rangle \Lbigs_r \langle x , \Gamma' \rangle}
+%
+%     % \labinfer{\Gamma \seq \ttt{case}\; \liftS @L\; x\; \ttt{of}\;\overline{\textnormal{alt}_i}
+%     %   \bigs_r
+%     %     y \toCtx \Gamma'}
+%     %   {\Gamma \seq \ttt{case}\; x\; \ttt{of}\; \overline{\textnormal{alt}_i} \bigs_r y \toCtx \Gamma'}
+%     %
+%     % \\\\
+%
+%     \labinfer{\Gamma' \seq \ttt{case}\; x\; \ttt{of}\; \overline{\textnormal{alt}_i}
+%       \bigs_r
+%         x'; \ttt{if (*s == $0$) \{ y$_0$ \} } \overline{\ttt{else if (*s == $i+1$) \{ y$_{i+1}$ \}}}
+%         \toCtx \Gamma''
+%       }{\Gamma \seq x \bigs_s x' \toCtx \Gamma' & \Gamma' \seq alt_i \Abigs_r y_i \toCtx \Gamma''}
+%
+%     % \sem{\ttt{case}\; x\; \ttt{of}\; \overline{\textnormal{alt}_i}}r
+%     %   =
+%     % \sem{x}s; \ttt{if (s == $0$) \{ $\Asem{x}{\textnormal{alt}_0}r$ \} } \overline{\ttt{else if (s == $i+1$) \{ $\Asem{x}{\textnormal{alt}_{i+1}}r$ \}}}
+%
+%     \\\\
+%
+%     \labinfer{\Gamma \seq (C\; \overline{a_i} \ra e) \Abigs_r \overline{\ttt{let}\; a_i \la *(x+i)}; k \toCtx \Gamma'}
+%       {\Gamma \seq e \Abigs_r y \toCtx \Gamma'}
+%
+%     \\\\
+%     
+%     \labinfer{\Gamma \seq \lowerS{L} (C\; \overline{v})
+%         \bigs_r x \toCtx \Gamma'}
+%       {\Gamma \seq \lowerS{L} (C\; \overline{v}) \Lbigs_{r} x \toCtx \Gamma'}
+%
+%     % \Asem{x}{C\; \overline{a_i} \ra e}r = \overline{\ttt{let}\; a_i \la *(x+i)}; \sem{e}r
+%   \end{array}
+% \]
+%
+% \noindent
+%
+% With the layout semantics given by $\cdot \seq \cdot \Lbigs_{\cdot} \cdot \toCtx \cdot$ which is a subset
+% of $Ctx \ra Expr \ra Name \ra Expr \ra Ctx \ra SSL$:
+%
+% \[
+%   \begin{array}{c}
+%     \labinfer{\Gamma \seq \lowerS{\layoutPart{L\; (C_j\; \overline{p}) := [n, \iota] \sep \kappa}} (C_j\; \overline{v}) 
+%        \Lbigs_n
+%        \ttt{let $n$ $\la$ malloc}(\iota) ; \ttt{*}n \la j ; y \toCtx \Gamma'}
+%       {\Gamma \seq \lowerS{\layoutPart{L\; (C\; \overline{p}) := \kappa}} (C\; \overline{v}) \Lbigs_n y \toCtx \Gamma'}
+%
+%
+%     % \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := [n, \iota] \sep \kappa)\ttt{n}
+%     %   =
+%     % \lst{let n <- malloc}(\iota) ; \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := \kappa)\ttt{n}
+%
+%     % \\\\
+%     %
+%     % \labinfer{\Gamma \seq \lowerS \layoutPart{@(L\; (C\; \overline{p}) := x \pointsto a \sep \kappa)} (C\; \overline{v})
+%     %     \Lbigs_n
+%     %     \ttt{*}n \la v_0 ; y \toCtx \Gamma'}
+%     %   {\Gamma \seq \lowerS \layoutPart{@(L\; (C\; \overline{p}) := \kappa)} (C\; \overline{v})
+%     %       \Lbigs_n y
+%     %       \toCtx \Gamma'}
+%
+%     % \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := x \pointsto a \sep \kappa)\ttt{n}
+%     %   =
+%     % \ttt{*n } \la p_0
+%     %   ;
+%     % \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := \kappa)\ttt{n}
+%     
+%     \\\\
+%
+%     \labinfer{\Gamma \seq \lowerS{ \layoutPart{L\; (C_j\; \overline{p}) := (x+\iota) \pointsto a \sep \kappa}} (C\; \overline{v})
+%       \Lbigs_n
+%         \ttt{*}(n+\iota+1) \la v_{\iota}; y \toCtx \Gamma'}
+%       {\Gamma \seq \lowerS{\layoutPart{L\; (C\; \overline{p}) := \kappa}} (C\; \overline{v}) \Lbigs_n y \toCtx \Gamma'}
+%
+%     % \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := (x+\iota) \pointsto a \sep \kappa)\ttt{n}
+%     %   =
+%     % \ttt{*(n+$\iota$) }\la p_{\iota}
+%     %   ;
+%     % \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := \kappa)\ttt{n}
+%
+%     \\\\
+%
+%     % \Lsem{C\; \overline{v}}(L\; \overline{p} := L_2(\overline{y}) \sep \kappa)\ttt{n}
+%     %   =
+%     % \Lsem{C\; \overline{v}}(L_2(\overline{y}))\ttt{m}
+%     %   ;
+%     % \Lsem{C\; \overline{v}}(L\; \overline{p} := \kappa)\ttt{n}
+%     %
+%     % \\\\
+%
+%     \labinfer{\Gamma \seq \lowerS{\layoutPart{L\; (C\; \overline{p})  := L_2(\overline{z}) \sep \kappa}} (C\; \overline{v})
+%       \Lbigs_n
+%         y \toCtx \Gamma', L_2(\overline{z})}
+%       {\Gamma \seq \lowerS{\layoutPart{L\; (C\; \overline{p}) := \kappa}} (C\; \overline{v}) \Lbigs_n y \toCtx \Gamma'}
+%
+%     % \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := L_2(\overline{y}) \sep \kappa)\ttt{n}
+%     %   = \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := \kappa)\ttt{n}
+%
+%     \\\\
+%
+%     \labinfer{\Gamma \seq \lowerS{\layoutPart{L\; (C\; \overline{p}) := \ttt{emp}}} (C\; \overline{v})
+%       \Lbigs_n
+%         \ttt{skip} \toCtx \Gamma}
+%       {}
+%
+%     % \Lsem{C\; \overline{v}}(\ttt{emp})\ttt{n} = \ttt{skip}
+%
+%     \\\\
+%
+%     % \Lsem{C\; x\; \overline{y}}\ttt{n} = \sem{x}v; \Lsem{C\; v\; 
+%
+%   \end{array}
+% \]
+% \textbf{TODO:\\
+% $\bullet$ Do we need to deal with "layout applications" in $\Lsem{\cdot}$ if we use "as-needed" pattern matching expanding (as in
+% my last paper on a pattern matching embedding)? We will probably at least need to somehow remember which layout to use for a later pattern
+% match. Maybe we need "layout annotations" in the intermediate language.\\
+% $\bullet$ What about when there are multiple parameters in the "layout context," say \ttt{layout[x, y, ...]}? Does this say something about sharing
+% and fusion?}
 
 \subsection{A Simple Translation Example}
 
@@ -994,7 +1025,7 @@ apply the case-rule
     \infer{\Gamma \seq \ttt{(case lift @L l of | C1 a $\ra$ a | C2 a b $\ra$ a + b)}
       \bigs_r
         - \toCtx -}
-      {\infer{- \seq \ttt{lift @L l} \Lbigs_s - \toCtx -}{}
+      {\infer{- \seq \ttt{lift @L l} \Lbigs{L}s - \toCtx -}{}
          & \infer{- \seq \ttt{C1 a $\ra$ a} \Abigs_r y_1 \toCtx -}{}
          & \infer{- \seq \ttt{C2 a b $\ra$ a + b} \Abigs_r y_2 \toCtx -}{}}
   \end{array}

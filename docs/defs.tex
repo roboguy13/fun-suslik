@@ -38,7 +38,7 @@
 \newcommand{\judgecolor}{\color{red}}
 
 \newcommand{\bigs}{{\judgecolor\;{\Downarrow}}}
-\newcommand{\Lbigs}{{\judgecolor\;\mathcal{L}\!\!\Downarrow}}
+\newcommand{\Lbigs} [1] {\;\mathcal{L}\!\!\Downarrow_{#1}}
 \newcommand{\LbigsGo}{{\judgecolor\;\mathcal{L}_1\!\!\Downarrow}}
 \newcommand{\Abigs}{{\judgecolor\;\mathcal{A}\!\!\Downarrow}}
 
@@ -168,6 +168,15 @@
 \newcommand{\Assertion}{\textnormal{Assertion}}
 
 \newcommand{\unused}{\textnormal{unused}}
+
+\newcommand{\ApplyLayout}{\textnormal{ApplyLayout}}
+\newcommand{\CloseLayout}{\textnormal{CloseLayout}}
+\newcommand{\layout} [1] {\ttt{layout[$#1$]}}
+
+\newcommand{\monic}{\rightarrowtail}
+
+\newcommand{\emp}{\ttt{emp}}
+\newcommand{\TranslateLayout} [1] {\textnormal{TranslateLayout}(#1)}
 
 \endinput
 
