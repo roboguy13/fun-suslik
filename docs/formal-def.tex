@@ -268,16 +268,16 @@ In short, if you can derive $\mathcal{D}\ok$ for a type definition $\mathcal{D}$
     ~~~
     \infer{\Sigma ; \Gamma \vdash \ttt{sub x y} : \Int}{\Sigma ; \Gamma \vdash \ttt{x} : \Int & \Sigma ; \Gamma \vdash \ttt{y} : \Int}
     \\\\
-    \infer{\Sigma ; \Gamma \vdash \lowerS{L} a : L}{\Sigma ; \Gamma \vdash a : D & \Sigma ; \Gamma \vdash L : D \hra \ttt{layout}[\Delta]}
+    \infer{\Sigma ; \Gamma \vdash \lowerS{L} a : L}{\Sigma ; \Gamma \vdash a : D & \Sigma \ni L : D \hra \ttt{layout}[\Delta]}
     ~~~
-    \infer{\Sigma ; \Gamma \vdash \liftS{L} r : D}{\Sigma ; \Gamma \vdash r : L & \Sigma ; \Gamma \vdash L : D \hra \ttt{layout}[\Delta]}
+    \infer{\Sigma ; \Gamma \vdash \liftS{L} r : D}{\Sigma ; \Gamma \vdash r : L & \Sigma \ni L : D \hra \ttt{layout}[\Delta]}
     \\\\
     % \infer{\Sigma ; \Gamma \vdash \downarrow_L f : L \ra B}{\Sigma ; \Gamma \vdash f : D \ra B & \Sigma ; \Gamma \vdash L : D \hra \ttt{layout}[\Delta]}
     % ~~~
     % \infer{\Sigma ; \Gamma \vdash \uparrow_L f : D \ra B}{\Sigma ; \Gamma \vdash f : L \ra B & \Sigma ; \Gamma \vdash L : D \hra \ttt{layout}[\Delta]}
     % \\\\
     \infer{\Sigma ; \Gamma \vdash \ttt{convert}_{L,L'} : L \ra L'}
-          {\Sigma ; \Gamma \vdash L : D \hra \ttt{layout}[\Delta] & \Sigma ; \Gamma \vdash L' : D \hra \ttt{layout}[\Delta']}
+          {\Sigma \ni L : D \hra \ttt{layout}[\Delta] & \Sigma \ni L' : D \hra \ttt{layout}[\Delta']}
   \end{array}
 \]
 
@@ -312,17 +312,20 @@ We define a heap to be a partial function from locations to values:
 
 \noindent
 and start by defining an operational semantics given by $\bigs$ and then we
-define a semantic function $\Hsem{\cdot} : \FsExpr \ra \Heap$ using $\bigs$ as follows:
+define a semantic relation $\Hbigs \subset \FsExpr \times \Heap$ using $\bigs$ as follows:
 
 \[
   \begin{array}{c}
-    \infer{\Hsem{e} = r \pointsto i}{e \bigs\; i & i \in \mathbb{Z}}
+    \infer{e \Hbigs r \pointsto i}{e \bigs\; i & i \in \mathbb{Z}}
     ~~~
-    \infer{\Hsem{e} = r \pointsto b}{e \bigs\; b & b \in \mathbb{B}}
+    \infer{e \Hbigs r \pointsto b}{e \bigs\; b & b \in \mathbb{B}}
     \\\\
-    \infer{\Hsem{e} = r \pointsto i \sep \overline{(r+j) \pointsto v_j}}{e \bigs\; C_i\; \overline{v_j}}
+    \infer{e \Hbigs r \pointsto i \sep \overline{(r+j) \pointsto v_j}}{e \bigs\; C_i\; \overline{v_j}}
   \end{array}
 \]
+
+\noindent
+\textbf{Note}: This semantic function is only defined for \textit{closed} fun-SuSLik terms.
 
 \subsection{Separation Logic Semantics For fun-SuSLik}
 We define a semantic function which takes a fun-SuSLik expression and produces a collection
@@ -341,6 +344,9 @@ We use a specifically identified location name \ttt{r} to store results of expre
   \Fsem{\False} = (\cdot, r \pointsto \unused, r \pointsto \false)\\
   \Fsem{\lowerS{L} e} = (\Isem{n}{L}, \overline{(r+\iota) \pointsto \unused}, \overline{(r+\iota) \pointsto x_{\iota}} \sep n(\overline{x_\iota}))\\
 \end{align*}
+
+\noindent
+\textbf{Note}: Unlike the heap semantics function, the separation logic semantic function is defined for \textit{open} fun-SuSLik terms.
 
 
 \subsection{Some Equational Laws For fun-SuSLik}
