@@ -89,7 +89,7 @@ semantics preserves semantic equivalence by proving adequacy and full abstractio
 
   <e$_0$> ::= <I> | <B> | $\lambda "a" \ra "e"$ | <C> | "let" x ":=" <e> "in" <e> | ( <e> )
 
-  <C> ::= "convert"$_{"L","L"}$ | $\liftS$ | $\lowerS$ | \ite\; | \lesseq\; | \eq\; | \add\; | \sub\; | \ttt{and}\; | \ttt{or}\; | \ttt{not}
+  <C> ::= "convert"$_{"L","L"}$ | $\liftS{"L"}$ | $\lowerS{"L"}$ | \ite\; | \lesseq\; | \eq\; | \add\; | \sub\; | \ttt{and}\; | \ttt{or}\; | \ttt{not}
 
   <T> ::= "Int" | "Bool" | <T> $\ra$ <T> | L | ( <T> )
 
@@ -268,11 +268,9 @@ In short, if you can derive $\mathcal{D}\ok$ for a type definition $\mathcal{D}$
     ~~~
     \infer{\Sigma ; \Gamma \vdash \ttt{sub x y} : \Int}{\Sigma ; \Gamma \vdash \ttt{x} : \Int & \Sigma ; \Gamma \vdash \ttt{y} : \Int}
     \\\\
-    \infer{\Sigma ; \Gamma \vdash \ttt{fold}_{\tau(\mathcal{D})} \ttt{ f z} : \tau(\mathcal{D}) \ra S}{(R,\tau(\mathcal{D}),\sigma(\mathcal{D}))\; \mathcal{F}\; S & \Sigma ; \Gamma \vdash f : R & \Sigma ; \Gamma \vdash z : S & \mathcal{D} \in \Sigma}
-    \\\\
-    \infer{\Sigma ; \Gamma \vdash \downarrow_L a : L}{\Sigma ; \Gamma \vdash a : D & \Sigma ; \Gamma \vdash L : D \hra \ttt{layout}[\Delta]}
+    \infer{\Sigma ; \Gamma \vdash \lowerS{L} a : L}{\Sigma ; \Gamma \vdash a : D & \Sigma ; \Gamma \vdash L : D \hra \ttt{layout}[\Delta]}
     ~~~
-    \infer{\Sigma ; \Gamma \vdash \uparrow_L r : D}{\Sigma ; \Gamma \vdash r : L & \Sigma ; \Gamma \vdash L : D \hra \ttt{layout}[\Delta]}
+    \infer{\Sigma ; \Gamma \vdash \liftS{L} r : D}{\Sigma ; \Gamma \vdash r : L & \Sigma ; \Gamma \vdash L : D \hra \ttt{layout}[\Delta]}
     \\\\
     % \infer{\Sigma ; \Gamma \vdash \downarrow_L f : L \ra B}{\Sigma ; \Gamma \vdash f : D \ra B & \Sigma ; \Gamma \vdash L : D \hra \ttt{layout}[\Delta]}
     % ~~~
@@ -283,11 +281,11 @@ In short, if you can derive $\mathcal{D}\ok$ for a type definition $\mathcal{D}$
   \end{array}
 \]
 
-\textbf{TODO: Get this to work}
-\noindent
-The following relation gives the ``type specification'' of a fold, which includes a unification variable $\alpha$. As there is no
-polymorphism in fun-SuSLik, this unification variable is only used internally and is not user-visible. It must eventually
-unify with a concrete type.
+% \textbf{TODO: Get this to work}
+% \noindent
+% The following relation gives the ``type specification'' of a fold, which includes a unification variable $\alpha$. As there is no
+% polymorphism in fun-SuSLik, this unification variable is only used internally and is not user-visible. It must eventually
+% unify with a concrete type.
 
 
 
@@ -306,20 +304,20 @@ unify with a concrete type.
 
 \subsection{Some Equational Laws For fun-SuSLik}
 
-Note that the $\downarrow_L$ function is always injective: internally, there is a tag stored in one of the memory locations corresponding
+Note that the $\lowerS{L}$ function is always injective: internally, there is a tag stored in one of the memory locations corresponding
 to the algebraic data type constructor.
 
 \noindent
 Therefore, the following law must always hold:
 
 \[
-  \textnormal{Given any } L : D \hra \ttt{layout}[\Delta] \textnormal{ and } x : D, \uparrow_L (\downarrow_L x) = x
+  \textnormal{Given any } L : D \hra \ttt{layout}[\Delta] \textnormal{ and } x : D, \liftS{L} (\lowerS{L} x) = x
 \]
 
 \noindent
 \textbf{TODO}: Should we also include this, which probably requires layout functions to be linear in their variables?
 \[
-  \textnormal{Given any } L : D \hra \ttt{layout}[\Delta] \textnormal{ and } x : L, \downarrow_L (\uparrow_L x) = x
+  \textnormal{Given any } L : D \hra \ttt{layout}[\Delta] \textnormal{ and } x : L, \lowerS{L} (\liftS{L} x) = x
 \]
 
 \subsection{Conversion Using The Laws}
@@ -770,7 +768,7 @@ We have big-step semantics given by the relation $\cdot \seq \cdot \bigs_{\cdot}
       %   p \pointsto i
       %   \sep r \pointsto \ell_0 \sep L_0(\ell_0)
       % \}
-      }{\Gamma_0 = \Gamma & \Gamma_{i-1} \seq \lowerS_L x_i \bigs_v x_i' \toCtx \Gamma_i & \Gamma_n \seq \lowerS_{L_0} e \bigs_r e' \toCtx \Gamma' & n = len(\overline{x})}
+      }{\Gamma_0 = \Gamma & \Gamma_{i-1} \seq \lowerS{L} x_i \bigs_v x_i' \toCtx \Gamma_i & \Gamma_n \seq \lowerS{L_0} e \bigs_r e' \toCtx \Gamma' & n = len(\overline{x})}
 
     % \\\\
 
@@ -816,9 +814,9 @@ We have big-step semantics given by the relation $\cdot \seq \cdot \bigs_{\cdot}
 
     \\\\
     
-    \labinfer{\Gamma \seq \lowerS\; @L\; (C\; \overline{v})
+    \labinfer{\Gamma \seq \lowerS{L} (C\; \overline{v})
         \bigs_r x \toCtx \Gamma'}
-      {\Gamma \seq \lowerS\; @L\; (C\; \overline{v}) \Lbigs_{r} x \toCtx \Gamma'}
+      {\Gamma \seq \lowerS{L} (C\; \overline{v}) \Lbigs_{r} x \toCtx \Gamma'}
 
     % \Asem{x}{C\; \overline{a_i} \ra e}r = \overline{\ttt{let}\; a_i \la *(x+i)}; \sem{e}r
   \end{array}
@@ -831,10 +829,10 @@ of $Ctx \ra Expr \ra Name \ra Expr \ra Ctx \ra SSL$:
 
 \[
   \begin{array}{c}
-    \labinfer{\Gamma \seq \lowerS \layoutPart{@(L\; (C_j\; \overline{p}) := [n, \iota] \sep \kappa)} (C_j\; \overline{v}) 
+    \labinfer{\Gamma \seq \lowerS{\layoutPart{L\; (C_j\; \overline{p}) := [n, \iota] \sep \kappa}} (C_j\; \overline{v}) 
        \Lbigs_n
        \ttt{let $n$ $\la$ malloc}(\iota) ; \ttt{*}n \la j ; y \toCtx \Gamma'}
-      {\Gamma \seq \lowerS \layoutPart{@(L\; (C\; \overline{p}) := \kappa)} (C\; \overline{v}) \Lbigs_n y \toCtx \Gamma'}
+      {\Gamma \seq \lowerS{\layoutPart{L\; (C\; \overline{p}) := \kappa}} (C\; \overline{v}) \Lbigs_n y \toCtx \Gamma'}
 
 
     % \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := [n, \iota] \sep \kappa)\ttt{n}
@@ -858,10 +856,10 @@ of $Ctx \ra Expr \ra Name \ra Expr \ra Ctx \ra SSL$:
     
     \\\\
 
-    \labinfer{\Gamma \seq \lowerS \layoutPart{@(L\; (C_j\; \overline{p}) := (x+\iota) \pointsto a \sep \kappa)} (C\; \overline{v})
+    \labinfer{\Gamma \seq \lowerS{ \layoutPart{L\; (C_j\; \overline{p}) := (x+\iota) \pointsto a \sep \kappa}} (C\; \overline{v})
       \Lbigs_n
         \ttt{*}(n+\iota+1) \la v_{\iota}; y \toCtx \Gamma'}
-      {\Gamma \seq \lowerS \layoutPart{@(L\; (C\; \overline{p}) := \kappa)} (C\; \overline{v}) \Lbigs_n y \toCtx \Gamma'}
+      {\Gamma \seq \lowerS{\layoutPart{L\; (C\; \overline{p}) := \kappa}} (C\; \overline{v}) \Lbigs_n y \toCtx \Gamma'}
 
     % \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := (x+\iota) \pointsto a \sep \kappa)\ttt{n}
     %   =
@@ -879,17 +877,17 @@ of $Ctx \ra Expr \ra Name \ra Expr \ra Ctx \ra SSL$:
     %
     % \\\\
 
-    \labinfer{\Gamma \seq \lowerS \layoutPart{@(L\; (C\; \overline{p})  := L_2(\overline{z}) \sep \kappa)} (C\; \overline{v})
+    \labinfer{\Gamma \seq \lowerS{\layoutPart{L\; (C\; \overline{p})  := L_2(\overline{z}) \sep \kappa}} (C\; \overline{v})
       \Lbigs_n
         y \toCtx \Gamma', L_2(\overline{z})}
-      {\Gamma \seq \lowerS \layoutPart{@(L\; (C\; \overline{p}) := \kappa)} (C\; \overline{v}) \Lbigs_n y \toCtx \Gamma'}
+      {\Gamma \seq \lowerS{\layoutPart{L\; (C\; \overline{p}) := \kappa}} (C\; \overline{v}) \Lbigs_n y \toCtx \Gamma'}
 
     % \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := L_2(\overline{y}) \sep \kappa)\ttt{n}
     %   = \Lsem{C\; \overline{v}}(L\; (C\; \overline{p}) := \kappa)\ttt{n}
 
     \\\\
 
-    \labinfer{\Gamma \seq \lowerS \layoutPart{@(L\; (C\; \overline{p}) := \ttt{emp})} (C\; \overline{v})
+    \labinfer{\Gamma \seq \lowerS{\layoutPart{L\; (C\; \overline{p}) := \ttt{emp}}} (C\; \overline{v})
       \Lbigs_n
         \ttt{skip} \toCtx \Gamma}
       {}
