@@ -150,6 +150,38 @@ This is given by the $\CloseLayout$ function, defined as:
   \CloseLayout : (D \monic \layout{\overline{x}}) \ra \overline{Loc} \ra (D \monic \layout{})
 \end{equation*}
 
+\subsubsection{Example: Instantiating A Doubly-Linked List}
+
+Consider
+
+\begin{lstlisting}
+\lowerS{DoublyLinked} (Cons 1 (Cons 2 (Cons 3 Nil)))
+\end{lstlisting}
+
+What layout does this correspond to? Starting with the outermost \ttt{Cons}:
+
+\begin{lstlisting}
+x :-> 1, (x+1) :-> w, (x+2) :-> z, DoublyLinked[w, x] (Cons 2 (Cons 3 Nil))
+\end{lstlisting}
+
+Performing another step, we get
+
+\begin{lstlisting}
+x :-> 1, (x+1) :-> w, (x+2) :-> z, w :-> 2, (w+1) :-> w', (w+2) :-> x, DoublyLinked[w', w] (Cons 3 Nil)
+\end{lstlisting}
+
+Then,
+
+\begin{lstlisting}
+x :-> 1, (x+1) :-> w, (x+2) :-> z, w :-> 2, (w+1) :-> w', (w+2) :-> x, w' :-> 3, (w'+1) :-> w'', (w'+2) :-> w, DoublyLinked[w'', w] Nil
+\end{lstlisting}
+
+and finally
+
+\begin{lstlisting}
+x :-> 1, (x+1) :-> w, (x+2) :-> z, w :-> 2, (w+1) :-> w', (w+2) :-> x, w' :-> 3, (w'+1) :-> w'', (w'+2) :-> w, w'' = 0
+\end{lstlisting}
+
 \subsection{Layout Instantiation}
 
 The relation for instantiating layouts with specific ADT values is
@@ -169,6 +201,11 @@ where $\TranslateLayout{\cdot}$ is a helper function translates the fun-SuSLik l
   &\TranslateLayout{x \pointsto y , \kappa} = x \pointsto y \sep \TranslateLayout{\kappa}\\
   &\TranslateLayout{L[\overline{x}]\; \overline{a} , \kappa} = L(\overline{x}) \sep \TranslateLayout{\kappa}
 \end{align*}
+
+\begin{lemma}
+  The relation $\cdot \vdash \cdot\Lbigs{\cdot}\cdot$ defines a unique function $(\Ctx \times \FsExpr \times (D \monic \layout{\overline{x}})) \ra \Heap$:\\
+  $\forall \Sigma, e, L, h, h'. (\Sigma \vdash e \Lbigs{L} h) \land (\Sigma \vdash e \Lbigs{L} h') \implies h = h'$
+\end{lemma}
 
 \subsection{fun-SuSLik Examples}
 
@@ -339,7 +376,7 @@ We define a heap to be a partial function from locations to values:
 
 \noindent
 and start by defining an operational semantics given by $\bigs$ and then we
-define a semantic relation $\Hbigs\; \subset \Ctx \times \FsExpr \times \Heap$ using $\bigs$ as follows:
+define a semantic relation $\cdot \vdash \cdot \Hbigs \cdot\; \subset \Ctx \times \FsExpr \times \Heap$ using $\bigs$ as follows:
 
 \[
   \begin{array}{c}
@@ -356,6 +393,19 @@ define a semantic relation $\Hbigs\; \subset \Ctx \times \FsExpr \times \Heap$ u
 \noindent
 \textbf{Note}: This semantic function is only defined for \textit{closed} fun-SuSLik terms.
 
+\begin{lemma}
+  The relation $\cdot \vdash \cdot \Hbigs \cdot$ defines a unique function $(\Ctx \times \FsExpr) \ra \Heap$:
+  \begin{enumerate}
+    \item $\forall \Sigma, e. \exists h.\; \Sigma \vdash e \Hbigs h$
+    \item $\forall \Sigma, e, h, h'.\; (\Sigma \vdash e \Hbigs h) \land (\Sigma \vdash e \Hbigs h') \implies h = h'$
+  \end{enumerate}
+\end{lemma}
+
+\begin{definition}
+  Define the function $\Hsem{\cdot}{\cdot}$ described in the lemma above by\\
+  $\forall \Sigma, e, h.\; \Hsem{\Sigma}{e} = h \iff (\Sigma \vdash e \Hbigs h)$
+\end{definition}
+
 \subsection{Separation Logic Semantics For fun-SuSLik}
 We define a semantic function which takes a fun-SuSLik expression and produces a collection
 of inductive predicates as well as a pre- and post-condition:
@@ -368,10 +418,10 @@ of inductive predicates as well as a pre- and post-condition:
 We use a specifically identified location name \ttt{r} to store results of expressions and we define.
 
 \begin{align*}
-  \Fsem{i} = (\cdot, r \pointsto \unused, r \pointsto i)~~~\textnormal{where $i \in \mathbb{Z}$}\\
-  \Fsem{\True} = (\cdot, r \pointsto \unused, r \pointsto \true)\\
-  \Fsem{\False} = (\cdot, r \pointsto \unused, r \pointsto \false)\\
-  \Fsem{\lowerS{L} e} = (\Isem{n}{L}, \overline{(r+\iota) \pointsto \unused}, \overline{(r+\iota) \pointsto x_{\iota}} \sep n(\overline{x_\iota}))\\
+  &\Fsem{i} = (\cdot, r \pointsto \unused, r \pointsto i)~~~\textnormal{where $i \in \mathbb{Z}$}\\
+  &\Fsem{\True} = (\cdot, r \pointsto \unused, r \pointsto \true)\\
+  &\Fsem{\False} = (\cdot, r \pointsto \unused, r \pointsto \false)\\
+  &\Fsem{\lowerS{L} e} = (\Isem{n}{L}, \overline{(r+\iota) \pointsto \unused}, \overline{(r+\iota) \pointsto x_{\iota}} \sep n(\overline{x_\iota}))\\
 \end{align*}
 
 \noindent
@@ -1058,11 +1108,11 @@ sllFilterLt := lift filterLt
 \textbf{TODO}: Do we need to explicitly keep track of the inductive predicate environment in these theorems?
 
 \begin{theorem} Completeness. \textbf{TODO}: Is this actually completeness?\\
-  $\forall e, P, Q.\; \Fsem{e} = (P, Q) \Ra \forall x.\; \Hsem{x} \models P \Ra \Hsem{e(x)} \models Q$
+  $\forall e, P, Q.\; \Fsem{e} = (P, Q) \Ra \forall x.\; \Hsem{\Sigma}{x} \models P \Ra \Hsem{\Sigma}{e(x)} \models Q$
 \end{theorem}
 
 \begin{theorem} Soundness.\\
-  $\forall P, Q. \forall e : A \ra B, x : A.\; \Fsem{e} = (P, Q) \Ra\; \vdash e(x) : B \Ra \Hsem{x} \models P$
+  $\forall P, Q. \forall e : A \ra B, x : A.\; \Fsem{e} = (P, Q) \Ra\; \vdash e(x) : B \Ra \Hsem{\Sigma}{x} \models P$
 \end{theorem}
 
 \section{An Alternative View of Synthesis}
