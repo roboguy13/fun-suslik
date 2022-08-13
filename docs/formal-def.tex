@@ -411,9 +411,9 @@ define a semantic relation $\cdot \vdash \cdot \Hbigs \cdot\; \subset \Ctx \time
     ~~~
     \infer{\Sigma \vdash e \Hbigs r \pointsto b}{\Sigma ; \cdot \vdash e \bigs\; b & b \in \mathbb{B}}
     \\\\
-    \infer{\Sigma \vdash e \Hbigs r \pointsto x \sep x \pointsto i \sep \overline{(x+j) \pointsto v_j}}{\Sigma ; \cdot \vdash e \bigs\; C_i\; \overline{v_j}}
+    \labinfer[H-Points]{\Sigma \vdash e \Hbigs r \pointsto x \sep x \pointsto i \sep \overline{(x+j) \pointsto v_j}}{\Sigma ; \cdot \vdash e \bigs\; C_i\; \overline{v_j}}
     \\\\
-    \infer{\Sigma \vdash e \Hbigs h}
+    \labinfer[H-Lower]{\Sigma \vdash e \Hbigs h}
       {\Sigma; \cdot \vdash e \bigs\; \lowerS{L} (C_i\; \overline{v_j})
       & \Sigma \vdash (\lambda[\Delta] (C_i\; \overline{p}) \ra d); (C_i\; \overline{v_j}) \Lbigs h
       & (\lambda[\Delta] (C_i\; \overline{p}) \ra d) \in \Sigma(L)
@@ -422,7 +422,9 @@ define a semantic relation $\cdot \vdash \cdot \Hbigs \cdot\; \subset \Ctx \time
 \]
 
 \noindent
-\textbf{Note}: This semantic function is only defined for \textit{closed} fun-SuSLik terms.
+\textbf{Note}: This semantic function is only defined for \textit{closed} fun-SuSLik terms. It also only
+accepts fun-SuSLik expressions that are step to \textit{values} by the big step reduction relation. However,
+that reduction relation will always step to a value when given a closed term if it terminates.
 
 \begin{lemma}
   The relation $\cdot \vdash \cdot \Hbigs \cdot$ defines a unique function $(\Ctx \times \FsExpr) \ra \Heap$:
