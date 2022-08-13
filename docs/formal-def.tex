@@ -184,27 +184,55 @@ x :-> 1, (x+1) :-> w, (x+2) :-> z, w :-> 2, (w+1) :-> w', (w+2) :-> x, w' :-> 3,
 
 \subsection{Layout Instantiation}
 
-The relation for instantiating layouts with specific ADT values is
-$\cdot \vdash \cdot\Lbigs{\cdot}\cdot \subset \Ctx \times \FsExpr \times (D \monic \layout{\overline{x}}) \times \Heap$ which is defined by
+To simplify passing layouts around the various relations, each case of a layout function is represented using a \textit{layout lambda}, which has the
+syntax:
+
+\begin{grammar}
+  <$\ell$> := $\lambda (C_i[x;\overline{"y"}]\; \overline{"p"}) \ra e$
+\end{grammar}
+
+\noindent
+It can be applied to an ADT constructor value with a matching constructor, like this:
+
+\begin{equation*}
+  (\lambda (C_i[x;\overline{y}]\; \overline{p}) \ra e) (C_i\; \overline{a})
+\end{equation*}
+
+\noindent
+Using this, the relation for instantiating layouts with specific ADT values is
+$\cdot; \cdot\Lbigs\cdot \subset \LayoutCase \times \FsValue \times \Heap$ which is defined by
 
 \[
   \begin{array}{c}
-    \infer{\Sigma \vdash (C_i\; \overline{x}) \Lbigs{L} \TranslateLayout{d}[p:=x]}{\Sigma \ni (L (C_i\; \overline{p}) := d)}
+    \infer{(\lambda (C_i[z;\overline{w}]\; \overline{p}) \ra \emp); (C_i\; \overline{a}) \Lbigs x = 0}{\overline{a \val}}
+    \\\\
+    \infer{(\lambda (C_i[x;\overline{y}]\; \overline{p}) \ra x \pointsto z, \kappa); (C_i\; \overline{a}) \Lbigs x \pointsto z \sep \kappa'}
+      {(\lambda (C_i[x;\overline{y}]\; \overline{p}) \ra \kappa); (C_i[x;\overline{y}]\; \overline{a}) \Lbigs \kappa' & \overline{a \val}}
+    \\\\
+    \infer{(\lambda (C_i\; \overline{p}) \ra L[\overline{x}] (C_j[x;\overline{y}] \overline{b}), \kappa); (C_i[x;\overline{y}]\; \overline{a})
+            \Lbigs \kappa_L \sep \kappa'}
+      {
+      & (\lambda (C_j[z;\overline{w}]\; \overline{q}) \ra h) \in \Sigma(L[\overline{x}] (\overline{b})) \\
+\overline{a \val}
+      & (\lambda (C_j[z;\overline{w}]\; \overline{q}) \ra h); (C_j[x;\overline{y}]\; \overline{b}) \Lbigs \kappa_L
+ & \overline{b \val} \\
+      & (\lambda (C_i[x;\overline{y}]\; \overline{p}) \ra \kappa); (C_i[x;\overline{y}]\; \overline{a}) \Lbigs \kappa'
+      }
   \end{array}
 \]
 
-\noindent
-where $\TranslateLayout{\cdot}$ is a helper function translates the fun-SuSLik layout syntax into SuSLik SSL syntax defined by:
+% \noindent
+% where $\TranslateLayout{\cdot}$ is a helper function translates the fun-SuSLik layout syntax into SuSLik SSL syntax defined by:
 
-\begin{align*}
-  &\TranslateLayout{\emp} = \emp\\
-  &\TranslateLayout{x \pointsto y , \kappa} = x \pointsto y \sep \TranslateLayout{\kappa}\\
-  &\TranslateLayout{L[\overline{x}]\; \overline{a} , \kappa} = L(\overline{x}) \sep \TranslateLayout{\kappa}
-\end{align*}
+% \begin{align*}
+%   &\TranslateLayout{\emp} = \emp\\
+%   &\TranslateLayout{x \pointsto y , \kappa} = x \pointsto y \sep \TranslateLayout{\kappa}\\
+%   &\TranslateLayout{L[\overline{x}]\; \overline{a} , \kappa} = L(\overline{x}) \sep \TranslateLayout{\kappa}
+% \end{align*}
 
 \begin{lemma}
-  The relation $\cdot \vdash \cdot\Lbigs{\cdot}\cdot$ defines a unique function $(\Ctx \times \FsExpr \times (D \monic \layout{\overline{x}})) \ra \Heap$:\\
-  $\forall \Sigma, e, L, h, h'. (\Sigma \vdash e \Lbigs{L} h) \land (\Sigma \vdash e \Lbigs{L} h') \implies h = h'$
+  The relation $\cdot \vdash \cdot\Lbigs\cdot$ defines a unique function $(\Ctx \times \FsExpr \times (D \monic \layout{\overline{x}})) \ra \Heap$:\\
+  $\forall \Sigma, e, L, h, h'. (\Sigma \vdash e \Lbigs h) \land (\Sigma \vdash e \Lbigs h') \implies h = h'$
 \end{lemma}
 
 \subsection{fun-SuSLik Examples}
@@ -386,7 +414,7 @@ define a semantic relation $\cdot \vdash \cdot \Hbigs \cdot\; \subset \Ctx \time
     \\\\
     \infer{\Sigma \vdash e \Hbigs r \pointsto x \sep x \pointsto i \sep \overline{(x+j) \pointsto v_j}}{\Sigma ; \cdot \vdash e \bigs\; C_i\; \overline{v_j}}
     \\\\
-    \infer{\Sigma \vdash e \Hbigs h}{\Sigma \vdash e \Hbigs \lowerS{L} (C_i\; \overline{v_j}) & \Sigma \vdash (C_i\; \overline{v_j}) \Lbigs{L} h}
+    \infer{\Sigma \vdash e \Hbigs h}{\Sigma \vdash e \Hbigs \lowerS{L} (C_i\; \overline{v_j}) & \Sigma \vdash (C_i\; \overline{v_j}) \Lbigs h}
   \end{array}
 \]
 
@@ -1071,7 +1099,7 @@ apply the case-rule
     \infer{\Gamma \seq \ttt{(case lift @L l of | C1 a $\ra$ a | C2 a b $\ra$ a + b)}
       \bigs_r
         - \toCtx -}
-      {\infer{- \seq \ttt{lift @L l} \Lbigs{L}s - \toCtx -}{}
+      {\infer{- \seq \ttt{lift @L l} \Lbigs s - \toCtx -}{}
          & \infer{- \seq \ttt{C1 a $\ra$ a} \Abigs_r y_1 \toCtx -}{}
          & \infer{- \seq \ttt{C2 a b $\ra$ a + b} \Abigs_r y_2 \toCtx -}{}}
   \end{array}
