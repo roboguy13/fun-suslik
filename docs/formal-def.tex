@@ -158,7 +158,8 @@ Consider
 \lowerS{DoublyLinked} (Cons 1 (Cons 2 (Cons 3 Nil)))
 \end{lstlisting}
 
-What layout does this correspond to? Starting with the outermost \ttt{Cons}:
+What layout does this correspond to? Starting with the outermost \ttt{Cons}, and looking
+at the applications of \textsc{L-Apply}:
 
 \begin{lstlisting}
 x :-> 1, (x+1) :-> w, (x+2) :-> z, DoublyLinked[w, x] (Cons 2 (Cons 3 Nil))
@@ -188,7 +189,7 @@ To simplify passing layouts around the various relations, each case of a layout 
 syntax:
 
 \begin{grammar}
-  <$\ell$> := $\lambda (C_i[x;\overline{"y"}]\; \overline{"p"}) \ra e$
+  <$\ell$> ::= $\lambda (C_i[x;\overline{"y"}]\; \overline{"p"}) \ra e$
 \end{grammar}
 
 \noindent
@@ -200,23 +201,21 @@ It can be applied to an ADT constructor value with a matching constructor, like 
 
 \noindent
 Using this, the relation for instantiating layouts with specific ADT values is
-$\cdot; \cdot\Lbigs\cdot \subset \LayoutCase \times \FsValue \times \Heap$ which is defined by
+$\cdot \vdash \cdot; \cdot\Lbigs\cdot \subset \Ctx \times \LayoutCase \times \FsValue \times \Heap$ which is defined by
 
 \[
   \begin{array}{c}
-    \infer{(\lambda (C_i[z;\overline{w}]\; \overline{p}) \ra \emp); (C_i\; \overline{a}) \Lbigs x = 0}{\overline{a \val}}
+    \labinfer[L-Emp]{\Sigma \vdash (\lambda (C_i[x;\overline{y}]\; \overline{p}) \ra \emp); (C_i\; \overline{a}) \Lbigs x = 0}{}
     \\\\
-    \infer{(\lambda (C_i[x;\overline{y}]\; \overline{p}) \ra x \pointsto z, \kappa); (C_i\; \overline{a}) \Lbigs x \pointsto z \sep \kappa'}
-      {(\lambda (C_i[x;\overline{y}]\; \overline{p}) \ra \kappa); (C_i[x;\overline{y}]\; \overline{a}) \Lbigs \kappa' & \overline{a \val}}
+    \labinfer[L-Points]{\Sigma \vdash (\lambda (C_i[x;\overline{y}]\; \overline{p}) \ra x \pointsto z, \kappa); (C_i\; \overline{a}) \Lbigs x \pointsto z \sep \kappa'}
+      {\Sigma \vdash (\lambda (C_i[x;\overline{y}]\; \overline{p}) \ra \kappa); (C_i[x;\overline{y}]\; \overline{a}) \Lbigs \kappa'}
     \\\\
-    \infer{(\lambda (C_i\; \overline{p}) \ra L[\overline{x}] (C_j[x;\overline{y}] \overline{b}), \kappa); (C_i[x;\overline{y}]\; \overline{a})
-            \Lbigs \kappa_L \sep \kappa'}
+    \labinfer[L-Apply]{\Sigma \vdash (\lambda (C_i[x;\overline{y}]\; \overline{p}) \ra L[z;\overline{w}] (C_j[z;\overline{w}] \overline{b}), \kappa); (C_i[x;\overline{y}]\; \overline{a})
+            \Lbigs \kappa_L[z':=z][\overline{w'}:=\overline{w}] \sep \kappa'}
       {
-      & (\lambda (C_j[z;\overline{w}]\; \overline{q}) \ra h) \in \Sigma(L[\overline{x}] (\overline{b})) \\
-\overline{a \val}
-      & (\lambda (C_j[z;\overline{w}]\; \overline{q}) \ra h); (C_j[x;\overline{y}]\; \overline{b}) \Lbigs \kappa_L
- & \overline{b \val} \\
-      & (\lambda (C_i[x;\overline{y}]\; \overline{p}) \ra \kappa); (C_i[x;\overline{y}]\; \overline{a}) \Lbigs \kappa'
+      & (\Sigma \vdash \lambda (C_j[z';\overline{w'}]\; \overline{q}) \ra h) \in \Sigma(L) \\
+      & (\Sigma \vdash \lambda (C_j[z';\overline{w'}]\; \overline{q}) \ra h); (C_j[x;\overline{y}]\; \overline{b}) \Lbigs \kappa_L \\
+      & (\Sigma \vdash \lambda (C_i[x;\overline{y}]\; \overline{p}) \ra \kappa); (C_i[x;\overline{y}]\; \overline{a}) \Lbigs \kappa'
       }
   \end{array}
 \]
@@ -231,8 +230,8 @@ $\cdot; \cdot\Lbigs\cdot \subset \LayoutCase \times \FsValue \times \Heap$ which
 % \end{align*}
 
 \begin{lemma}
-  The relation $\cdot \vdash \cdot\Lbigs\cdot$ defines a unique function $(\Ctx \times \FsExpr \times (D \monic \layout{\overline{x}})) \ra \Heap$:\\
-  $\forall \Sigma, e, L, h, h'. (\Sigma \vdash e \Lbigs h) \land (\Sigma \vdash e \Lbigs h') \implies h = h'$
+  The relation $\cdot \vdash \cdot; \cdot\Lbigs\cdot$ defines a unique function $(\Ctx \times \LayoutCase \times \FsValue \times) \ra \Heap$:\\
+  $\forall \Sigma, \ell, e, h, h'. (\Sigma \vdash \ell;e \Lbigs h) \land (\Sigma \vdash \ell;e \Lbigs h') \implies h = h'$
 \end{lemma}
 
 \subsection{fun-SuSLik Examples}
@@ -414,7 +413,11 @@ define a semantic relation $\cdot \vdash \cdot \Hbigs \cdot\; \subset \Ctx \time
     \\\\
     \infer{\Sigma \vdash e \Hbigs r \pointsto x \sep x \pointsto i \sep \overline{(x+j) \pointsto v_j}}{\Sigma ; \cdot \vdash e \bigs\; C_i\; \overline{v_j}}
     \\\\
-    \infer{\Sigma \vdash e \Hbigs h}{\Sigma \vdash e \Hbigs \lowerS{L} (C_i\; \overline{v_j}) & \Sigma \vdash (C_i\; \overline{v_j}) \Lbigs h}
+    \infer{\Sigma \vdash e \Hbigs h}
+      {\Sigma; \cdot \vdash e \bigs\; \lowerS{L} (C_i\; \overline{v_j})
+      & \Sigma \vdash (\lambda[\Delta] (C_i\; \overline{p}) \ra d); (C_i\; \overline{v_j}) \Lbigs h
+      & (\lambda[\Delta] (C_i\; \overline{p}) \ra d) \in \Sigma(L)
+      }
   \end{array}
 \]
 
