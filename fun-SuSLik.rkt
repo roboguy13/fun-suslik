@@ -286,9 +286,10 @@
                           layout-fn-def
                           (e_L → (κ ...))
                           [z ...])
-   (layout-inst-fn Γ [x ...] (substitute (layout-freshen-free-vars layout-fn-def) [z x] ...) (C e ...) fs-assertion)
+   #;(layout-inst-fn Γ [x ...] (substitute (layout-freshen-free-vars layout-fn-def) [z x] ...) (C e ...) fs-assertion)
+   (layout-inst-fn Γ [z ...] layout-fn-def (C e ...) fs-assertion)
    -------------------
-   (reduce-layout-heaplet-inst Γ (L [x ...] (C e ...)) fs-assertion)]
+   (reduce-layout-heaplet-inst Γ (L [x ...] (C e ...)) (substitute fs-assertion [z x] ...))]
 
 
   )
@@ -331,20 +332,24 @@
    (lookup Γ L layout-fn-def)
    (lookup-layout-fn-case C
                           layout-fn-def
-                          (e_L → (κ ...))
+                          (e_L → (κ_0 ...))
                           [z ...])
+   (where (κ ...) ((substitute κ_0 [z y] ...) ...))
    (layout-pat-match [z ...] (e_L → (κ ...)) e_2 [x ...] (κ_2 ...))
    (layout-inst Γ [x ...] (e → (κ_3 ...)) e_2 (κ_r ...))
-   (layout-inst-app Γ [z ...] layout-fn-def e_arg (κ_here ...))
+   #;(layout-inst-app Γ [z ...] layout-fn-def e_arg (κ_here ...))
    (reduce-layout-inst Γ
                        #;((substitute κ_2 [z y] ...) ... (substitute κ_here [z y] ...) ... κ_r ...)
-                       ((substitute κ_2 [z y] ...) ...)
+                       #;((substitute κ_2 [z y] ...) ...)
+                       (κ_2 ...)
                        fs-assertion)
    -------------------
    (layout-inst Γ
                 [x ...]
                 (e → ((L [y ...] e_arg) κ_3 ...))
                 e_2
+                #;(κ ...)
+                #;(κ_2 ...)
                 fs-assertion)])
 
 (define-judgment-form fun-SuSLik
@@ -392,7 +397,7 @@
 
 (caching-enabled? #f) ; To freshen FVs in layout functions properly
 
-(current-traced-metafunctions '(reduce-layout-heaplet-inst))
+(current-traced-metafunctions '(reduce-layout-inst))
 
 (judgment-holds (layout-inst-fn ,sll-ctx [x] ,sll-layout (Cons a (Cons b c)) fs-assertion) fs-assertion)
 #;(judgment-holds (layout-inst-fn ,sll-ctx [x] ,sll-layout (Cons a (Cons b (Nil))) fs-assertion) fs-assertion)
