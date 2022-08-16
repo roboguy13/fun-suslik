@@ -171,6 +171,12 @@
   [-------------------
    (pat-match-asn C C fs-assertion fs-assertion)]
 
+ [-------------------
+   (pat-match-asn (C) (C) fs-assertion fs-assertion)]
+
+ [-------------------
+   (pat-match-asn (C) C fs-assertion fs-assertion)]
+  
   [-------------------
    (pat-match-asn (C layout-arg) (C x) fs-assertion (substitute fs-assertion (x layout-arg)))]
   
@@ -302,6 +308,7 @@
   [-------------------
    (reduce-layout-inst Γ () ())]
 
+
   [(reduce-layout-heaplet-inst Γ κ (κ_new ...))
    (reduce-layout-inst Γ (κ_s ...) (κ_newS ...))
    -------------------
@@ -392,7 +399,8 @@
 
 (caching-enabled? #f) ; To freshen FVs in layout functions properly
 
-(current-traced-metafunctions '(reduce-layout-inst))
+#;(current-traced-metafunctions '(reduce-layout-inst))
+(current-traced-metafunctions '(pat-match-asn))
 
-(judgment-holds (layout-inst-fn ,sll-ctx [x] ,sll-layout (Cons a (Cons b c)) fs-assertion) fs-assertion)
-#;(judgment-holds (layout-inst-fn ,sll-ctx [x] ,sll-layout (Cons a (Cons b (Nil))) fs-assertion) fs-assertion)
+#;(judgment-holds (layout-inst-fn ,sll-ctx [x] ,sll-layout (Cons a (Cons b c)) fs-assertion) fs-assertion)
+(judgment-holds (layout-inst-fn ,sll-ctx [x] ,sll-layout (Cons a (Cons b (Nil))) fs-assertion) fs-assertion)
