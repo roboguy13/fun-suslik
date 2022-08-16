@@ -148,7 +148,7 @@
   [(substitute-lists fs-assertion [x ...] [y ...])
    (substitute-lists fs-assertion (x y) ...)])
 
-(define-metafunction fun-SuSLik
+#;(define-metafunction fun-SuSLik
   freshen : x -> y
   [(freshen x)
    ,(gensym (term x))])
@@ -189,7 +189,7 @@
    ])
 
 ; Freshen variable when it's *not* in the given list
-(define-judgment-form fun-SuSLik
+#;(define-judgment-form fun-SuSLik
   #:contract (freshen-var [x ...] y z)
   #:mode (freshen-var I I O)
 
@@ -201,6 +201,18 @@
    -------------------
    (freshen-var [x ...] y y)]
   )
+
+#;(define-judgment-form fun-SuSLik
+  #:contract (p-freshen [x ...] p p_2)
+  #:mode (p-freshen I I O)
+
+  [(freshen-var [x ...] y y_2)
+   -------------------
+   (p-freshen [x ...] y y_2)]
+
+  [(freshen-var [x ...] y y_2)
+   -------------------
+   (p-freshen [x ...] (y + n) (y_2 + n))])
 
 (define-metafunction fun-SuSLik
   p-var : p -> y
@@ -251,57 +263,6 @@
        (term (substitute layout-cases
                          ,@(map list fvs (map gensym fvs))))))])
 
-#;(define-judgment-form fun-SuSLik
-  #:contract (case-freshen-free-vars [x ...] layout-case layout-case)
-  #:mode (case-freshen-free-vars I I O)
-
-  
-  [-------------------
-   (case-freshen-free-vars [x ...] (e → ()) (e → ()))]
-
-  [-------------------
-   (case-freshen-free-vars [x ...] (e → (emp)) (e → (emp)))]
-
-  [(freshen-var [x ...] y y_fresh)
-   (freshen-var [x ...] z z_fresh)
-   (case-freshen-free-vars [x ...] (e → (κ ...)) (e → (κ_r ...)))
-   -------------------
-   (case-freshen-free-vars
-    [x ...]
-    (e → ((y :-> z) κ ...))
-    (e → ((y_fresh :-> z_fresh) κ_r ...)))]
-  )
-
-
-; TODO: This needs to uniformly freshen vars
-#;(define-judgment-form fun-SuSLik
-  #:contract (case-freshen-free-vars [x ...] layout-case layout-case)
-  #:mode (case-freshen-free-vars I I O)
-
-  [-------------------
-   (case-freshen-free-vars [x ...] (e → ()) (e → ()))]
-
-  [-------------------
-   (case-freshen-free-vars [x ...] (e → (emp)) (e → (emp)))]
-
-  [(freshen-var [x ...] y y_fresh)
-   (freshen-var [x ...] z z_fresh)
-   (case-freshen-free-vars [x ...] (e → (κ ...)) (e → (κ_r ...)))
-   -------------------
-   (case-freshen-free-vars
-    [x ...]
-    (e → ((y :-> z) κ ...))
-    (e → ((y_fresh :-> z_fresh) κ_r ...)))]
-
-  [(freshen-var [x ...] y y_fresh)
-   (case-freshen-free-vars [x ...] (e → (κ ...)) (e → (κ_r ...)))
-   ---------------------
-   (case-freshen-free-vars
-    [x ...]
-    (e → ((y = 0) κ ...))
-    (e → ((y_fresh = 0) κ_r ...)))]
-  )
-
 (define-judgment-form fun-SuSLik
   #:contract (reduce-layout-heaplet-inst Γ κ fs-assertion)
   #:mode (reduce-layout-heaplet-inst I I O)
@@ -325,7 +286,7 @@
                           layout-fn-def
                           (e_L → (κ ...))
                           [z ...])
-   (layout-inst-fn Γ [x ...] (substitute layout-fn-def [z x] ...) (C e ...) fs-assertion)
+   (layout-inst-fn Γ [x ...] (substitute (layout-freshen-free-vars layout-fn-def) [z x] ...) (C e ...) fs-assertion)
    -------------------
    (reduce-layout-heaplet-inst Γ (L [x ...] (C e ...)) fs-assertion)]
 
@@ -346,6 +307,7 @@
    (reduce-layout-inst Γ (κ κ_s ...) (κ_new ... κ_newS ...))
    ])
 
+; This is the main judgment for translating layout functions being applied to ADT values
 (define-judgment-form fun-SuSLik
   #:contract (layout-inst Γ [x ...] layout-case e fs-assertion)
   #:mode (layout-inst I I I I O)
@@ -360,35 +322,23 @@
 
   [(match-pat-con C e)
    (match-pat-con C e_2)
-   ; TODO: We need substitution here
+   ; TODO: We need substitution here?
    (layout-inst Γ [x ...] (e → (κ ...)) e_2 (κ_2 ...))
    -------------------
    (layout-inst Γ [x ...] (e → ((p :-> z) κ ...)) e_2 ((p :-> z) κ_2 ...))]
 
-  [#;(match-pat-con C e)
-   (match-pat-con C e_2)
+  [(match-pat-con C e_2)
    (lookup Γ L layout-fn-def)
-   #;(where layout-fn-def_fresh (layout-freshen-free-vars layout-fn-def))
    (lookup-layout-fn-case C
                           layout-fn-def
                           (e_L → (κ ...))
                           [z ...])
-   ;(match-pat-con C_b e_b)
-   ;(lookup-layout-fn-case C_b layout-fn-def (e_L → h) [z ...])
-   ;(get-pat-vars e [x_e ...])
-   ;(get-pat-vars e_2 [x_2 ...])
-   ;(get-pat-vars e_L [x_L ...])
-   ;(layout-inst Γ
-   ;             params
-   ;             (e_L → (substitute-lists h [z ...] params))
-   ;             (substitute e_b [x_e x_2] ...)
-   ;             (κ_2 ...))
    (layout-pat-match [z ...] (e_L → (κ ...)) e_2 [x ...] (κ_2 ...))
    (layout-inst Γ [x ...] (e → (κ_3 ...)) e_2 (κ_r ...))
    (layout-inst-app Γ [z ...] layout-fn-def e_arg (κ_here ...))
    (reduce-layout-inst Γ
-                       ((substitute κ_2 [z y] ...) ... (substitute κ_here [z y] ...) ... κ_r ...)
-                       #;(κ_2 ...)
+                       #;((substitute κ_2 [z y] ...) ... (substitute κ_here [z y] ...) ... κ_r ...)
+                       ((substitute κ_2 [z y] ...) ...)
                        fs-assertion)
    -------------------
    (layout-inst Γ
@@ -416,8 +366,10 @@
 
   [(match-pat-con C e)
    #;(where layout-fn-def_fresh (layout-freshen-free-vars layout-fn-def))
-   (lookup-layout-fn-case C layout-fn-def layout-case [x ...])
-   (layout-inst Γ [x ...] layout-case e fs-assertion)
+   (lookup-layout-fn-case C layout-fn-def (e_L → (κ ...)) [x ...])
+
+   (layout-pat-match [x ...] (e_L → (κ ...)) e [x ...] (κ_2 ...))
+   (layout-inst Γ [x ...] (e_L → (κ_2 ...)) e fs-assertion)
    --------------------
    (layout-inst-fn Γ [x ...] layout-fn-def e fs-assertion)])
 
@@ -440,4 +392,7 @@
 
 (caching-enabled? #f) ; To freshen FVs in layout functions properly
 
+(current-traced-metafunctions '(reduce-layout-heaplet-inst))
+
 (judgment-holds (layout-inst-fn ,sll-ctx [x] ,sll-layout (Cons a (Cons b c)) fs-assertion) fs-assertion)
+#;(judgment-holds (layout-inst-fn ,sll-ctx [x] ,sll-layout (Cons a (Cons b (Nil))) fs-assertion) fs-assertion)
