@@ -335,12 +335,9 @@
                           (e_L → (κ_0 ...))
                           [z ...])
    (where (κ ...) ((substitute κ_0 [z y] ...) ...))
-   (layout-pat-match [z ...] (e_L → (κ ...)) e_2 [x ...] (κ_2 ...))
+   (layout-pat-match [z ...] (e_L → (κ ...)) e_arg [x ...] (κ_2 ...))
    (layout-inst Γ [x ...] (e → (κ_3 ...)) e_2 (κ_r ...))
-   #;(layout-inst-app Γ [z ...] layout-fn-def e_arg (κ_here ...))
    (reduce-layout-inst Γ
-                       #;((substitute κ_2 [z y] ...) ... (substitute κ_here [z y] ...) ... κ_r ...)
-                       #;((substitute κ_2 [z y] ...) ...)
                        (κ_2 ...)
                        fs-assertion)
    -------------------
@@ -348,8 +345,6 @@
                 [x ...]
                 (e → ((L [y ...] e_arg) κ_3 ...))
                 e_2
-                #;(κ ...)
-                #;(κ_2 ...)
                 fs-assertion)])
 
 (define-judgment-form fun-SuSLik
