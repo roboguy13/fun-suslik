@@ -18,16 +18,18 @@
   (fs-heaplet κ ::= emp (p :-> y) (p = 0) (L [x ...] layout-arg))
   (fs-assertion ::= (fs-heaplet ...))
   (layout-arg ::= y constr-app)
-  (pat ::= C (C x ...))
+  (pat ::= x (C x ...))
   (p ::= x (x + n))
   (n ::= natural)
   (I ::= integer)
   (B ::= boolean)
+  (base-val ::= integer boolean x)
   (params ::= [x ...])
-  (constr-app ::= C (C e ...))
+  (constr-app ::= (C e ...))
   (e ::= x I B (e_1 e_2 ...) (λ (a : τ) → e) (let x := e_1 in e_2) (e_1 e_2) builtin)
   (builtin ::= ite le eq add sub and or not (lower L))
-  (D L C a b f g h x y z i j k ::= variable-not-otherwise-mentioned)
+  (D L a b f g h x y z i j k ::= variable-not-otherwise-mentioned)
+  (C ::= (variable-prefix C-))
   #:binding-forms
   (λ (x : τ) → e #:refers-to x)
   (let x := e_1 in e_2 #:refers-to x)
@@ -98,7 +100,7 @@
   #:mode (match-pat-con O I)
 
   [-------------------
-   (match-pat-con C C)]
+   (match-pat-con C (C))]
 
   [-------------------
    (match-pat-con C (C e ...))])
@@ -165,7 +167,7 @@
    (get-pat-vars (C x ...) [x ...])])
 
 (define-judgment-form fun-SuSLik
-  #:contract (pat-match-asn e pat fs-assertion fs-assertion)
+  #:contract (pat-match-asn constr-app pat fs-assertion fs-assertion)
   #:mode (pat-match-asn I I I O)
 
   [-------------------
@@ -187,6 +189,12 @@
 (define-judgment-form fun-SuSLik
   #:contract (layout-pat-match [x ...] layout-case e [y ...] fs-assertion)
   #:mode (layout-pat-match I I I I O)
+
+  [
+   -------------------
+   (layout-pat-match [x ...] (pat → fs-assertion) z [y ...]
+                     (substitute fs-assertion [x y] ...))
+   ]
 
   [(pat-match-asn e_arg pat fs-assertion fs-assertion_Applied)
    -------------------
@@ -335,7 +343,16 @@
    -------------------
    (layout-inst Γ [x ...] (e → ((p :-> z) κ ...)) e_2 ((p :-> z) κ_2 ...))]
 
+  #;[
+   -------------------
+   (layout-inst Γ
+                [x ...]
+                (e → ((L [y ...] z) κ_3 ...))
+                e_2
+                (e → ((L [y ...] z) κ_3 ...)))]
+
   [(match-pat-con C e_2)
+   (where (C_2 e_C ...) e_arg) ; TODO: This probably shouldn't be needed
    (lookup Γ L layout-fn-def)
    (lookup-layout-fn-case C
                           layout-fn-def
@@ -391,16 +408,38 @@
   (term
    ((sll : List >-> layout [x])
     (
-     (Nil → (emp))
-     ((Cons head tail) →
+     ((C-Nil) → (emp))
+     ((C-Cons head tail) →
        ((x :-> head) ((x + 1) :-> nxt) (sll [nxt] tail)))))))
 
 (define sll-ctx (term (extend · sll ,sll-layout)))
 
+(define dll-layout
+  (term
+   ((dll : List >-> layout [x z])
+    (
+     ((C-Nil) → (emp))
+     ((C-Cons head tail) →
+                       ((x :-> head) ((x + 1) :-> w)
+                                     ((x + 2) :-> z)
+                                     (dll [w x] tail)))))))
+
+(define dll-ctx (term (extend · dll ,dll-layout)))
+
 (caching-enabled? #f) ; To freshen FVs in layout functions properly
 
-#;(current-traced-metafunctions '(reduce-layout-inst))
-(current-traced-metafunctions '(pat-match-asn))
+
+
+(current-traced-metafunctions '(reduce-layout-inst))
+#;(current-traced-metafunctions '(layout-pat-match))
 
 #;(judgment-holds (layout-inst-fn ,sll-ctx [x] ,sll-layout (Cons a (Cons b c)) fs-assertion) fs-assertion)
-(judgment-holds (layout-inst-fn ,sll-ctx [x] ,sll-layout (Cons a (Cons b (Nil))) fs-assertion) fs-assertion)
+
+#;(judgment-holds (layout-inst-fn ,sll-ctx [x] ,sll-layout (Cons a (Cons b (Nil))) fs-assertion) fs-assertion)
+
+
+(judgment-holds (layout-inst-fn ,sll-ctx [x] ,sll-layout (C-Cons a (C-Cons b (C-Cons c d))) fs-assertion) fs-assertion)
+
+#;(judgment-holds (layout-inst-fn ,sll-ctx [x] ,sll-layout (Cons a b) fs-assertion) fs-assertion)
+
+#;(judgment-holds (layout-inst-fn ,dll-ctx [x z] ,dll-layout (Cons a (Cons b (Nil))) fs-assertion) fs-assertion)
