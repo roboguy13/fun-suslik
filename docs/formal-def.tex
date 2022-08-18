@@ -121,41 +121,41 @@ Further, we define a set of base types
 
 \subsection{Layout Mappings}
 
-We can view a layout mapping, such as \ttt{DoublyLinked}:
-
-\begin{lstlisting}
-data List where
-  Nil : List
-  Cons : Int -> List -> List
-
-DoublyLinked : List >-> layout[x, z]
-DoublyLinked Nil := emp
-DoublyLinked (Cons head tail) := 
-  x :-> head, (x+1) :-> w, (x+2) :-> z, DoublyLinked[w, x] tail
-\end{lstlisting}
-
-\noindent
-as a function from an ADT to a function that takes in SuSLik \verb|loc| parameters for each
-layout variable (in this case, \verb|w| and \verb|x|):
-
-\begin{lstlisting}
-DoublyLinked' : List -> (Loc $\times$ Loc) ->  layout[]
-...
-\end{lstlisting}
-
-\noindent
-This is given by the $\CloseLayout$ function, defined as:
-
-\begin{equation*}
-  \CloseLayout : (D \monic \layout{\overline{x}}) \ra \overline{Loc} \ra (D \monic \layout{})
-\end{equation*}
+% We can view a layout mapping, such as \ttt{DoublyLinked}:
+%
+% \begin{lstlisting}
+% data List where
+%   Nil : List
+%   Cons : Int -> List -> List
+%
+% DoublyLinked : List >-> layout[x, z]
+% DoublyLinked Nil := emp
+% DoublyLinked (Cons head tail) := 
+%   x :-> head, (x+1) :-> w, (x+2) :-> z, DoublyLinked[w, x] tail
+% \end{lstlisting}
+%
+% \noindent
+% as a function from an ADT to a function that takes in SuSLik \verb|loc| parameters for each
+% layout variable (in this case, \verb|w| and \verb|x|):
+%
+% \begin{lstlisting}
+% DoublyLinked' : List -> (Loc $\times$ Loc) ->  layout[]
+% ...
+% \end{lstlisting}
+%
+% \noindent
+% This is given by the $\CloseLayout$ function, defined as:
+%
+% \begin{equation*}
+%   \CloseLayout : (D \monic \layout{\overline{x}}) \ra \overline{Loc} \ra (D \monic \layout{})
+% \end{equation*}
 
 \subsubsection{Example: Instantiating A Doubly-Linked List}
 
 Consider
 
 \begin{lstlisting}
-\lowerS{DoublyLinked} (Cons 1 (Cons 2 (Cons 3 Nil)))
+$\lowerS{DoublyLinked}$ (Cons 1 (Cons 2 (Cons 3 Nil)))
 \end{lstlisting}
 
 What layout does this correspond to? Starting with the outermost \ttt{Cons}, and looking
@@ -1138,14 +1138,20 @@ sllFilterLt := lift filterLt
 
 \section{Soundness and Completeness}
 
+We will abbreviate $\lowerS{L_1} \circ f \circ \liftS{L_2}$ by $f_{L_1,L_2}$.
+
 \textbf{TODO}: Do we need to explicitly keep track of the inductive predicate environment in these theorems?
 
 \begin{theorem} Completeness. \textbf{TODO}: Is this actually completeness?\\
-  $\forall e, P, Q.\; \Fsem{e} = (P, Q) \Ra \forall x.\; \Hsem{\Sigma}{x} \models P \Ra \Hsem{\Sigma}{e(x)} \models Q$
+  $\forall f : A \ra B, L_1 : A \monic \layout{\Delta_1}, L_2 : B \monic \layout{\Delta_2}.\\
+  ~~~\forall P, Q.\\
+  ~~~\Fsem{f_{L_1,L_2}} = (P, Q) \Ra \forall x : A. \vdash f(x) : B \Ra \Hsem{\Sigma}{(f_{L_1,L_2}(\lowerS{L_1}(x)))} \models Q$
 \end{theorem}
 
 \begin{theorem} Soundness.\\
-  $\forall P, Q. \forall e : A \ra B, x : A.\; \Fsem{e} = (P, Q) \Ra\; \vdash e(x) : B \Ra \Hsem{\Sigma}{x} \models P$
+  $\forall f : A \ra B, x : A.\forall L_1 : A \monic \layout{\Delta_1}, L_2 : B \monic \layout{\Delta_2}.\\
+  ~~~\forall P, Q.\\
+  ~~~\; \Fsem{f_{L_1,L_2}} = (P, Q) \Ra\; \vdash f(x) : B \Ra \Hsem{\Sigma}{\lowerS{L_1}(x)} \models P$
 \end{theorem}
 
 \section{An Alternative View of Synthesis}
