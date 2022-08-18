@@ -44,15 +44,37 @@
   (e-lower ::= hole
            (e-lower e ...)
            (lower L e-lower)
-           (C lowered ... e-lower e ...)
-           (f lowered ... e-lower e ...)
-           #;(lower L (C base-val ... e-lower e ...))
-           #;(lower L (f base-val ... e-lower e ...)))
+           #;(C lowered ... e-lower e ...)
+           (f lowered ... e-lower e ...))
+
+  (suslik-predicate ::=
+                    (inductive f (y ...) (pred-branch ...)))
+  (pred-branch ::= ((pure-part) ⇒ suslik-assertion))
+  (suslik-heaplet ::= emp (p :-> pointed-to) (func f x ...) (L x ...))
+  (suslik-assertion ::= (pure-part (suslik-heaplet ...)))
+  (pure-part ::= bool-expr)
+  (int-expr ::=
+            x
+            integer
+            (int-expr + int-expr)
+            (int-expr - int-expr)
+            (int-expr * int-expr))
+  (bool-expr ::=
+             x
+             boolean
+             (and bool-expr bool-expr)
+             (or bool-expr bool-expr)
+             (not bool-expr)
+             (le int-expr int-expr)
+             (equal int-expr int-expr))
+  (suslik-spec ::= (suslik-assertion suslik-assertion))
+
   #:binding-forms
   (λ (x : τ) → e #:refers-to x)
   (let x := e_1 in e_2 #:refers-to x)
   (((f_1 : τ) ((C x ...) := e #:refers-to (shadow x ...)) ...))
-  ([x ...] (C y ...) → fs-assertion #:refers-to (shadow x ... y ...)))
+  ([x ...] (C y ...) → fs-assertion #:refers-to (shadow x ... y ...))
+  (inductive f (y ...) (pred-branch ...) #:refers-to (shadow y ...)))
 
 (define-metafunction fun-SuSLik
   different : x y -> boolean
@@ -282,8 +304,8 @@
   (reduction-relation
    fun-SuSLik
 
-   [--> (in-hole e-lower (lower L (C e ...)))
-        (in-hole e-lower (C ,@(map (λ(arg) (term (lower L ,arg))) (term (e ...)))))]))
+   [--> (in-hole e-lower (f (C e ...)))
+        (in-hole e-lower (f ,@(map (λ(arg) (term (lower L ,arg))) (term (e ...)))))]))
 
 
 ;;;;;;;
