@@ -1,0 +1,80 @@
+=== Soundness ===
+
+forall e, P, Q, [[e]] = (P, Q) -> 
+       forall arg, [arg] |= P -> [e(arg)] |= Q 
+
+
+- data D := C1 Int | C2 Int Int
+  data List := Nil | Cons Int List
+
+  L_List : List >-> layout[x]
+  L_List Nil := emp
+  L_List (Cons head tail) := x :-> a, (x+1) :-> nxt, L_List[nxt] tail
+
+  L_D : D >-> layout[x]
+  L_D (C1 a) := x :-> a
+  L_D (C2 a b) := x :-> a, (x+1) :-> b
+
+  e : D -> List
+  e := \d ->
+    case d of
+      C1 a -> Cons a Nil
+      C2 a b -> Cons a (Cons b Nil)
+
+  arg : D
+  arg := C2 10 100
+
+
+
+  [[lower_{L_List} . e . lift_{L_D}]] =
+          (d_tag, x, r); (x :-> d ** I_d(d_tag, d, y) ** r :-> 0)  <-- P
+                         (x :-> d ** I_e(d_tag, d, r))             <-- Q
+
+    (where C1_tag = 0 and C2_tag = 1)
+
+  [lower_{L_D}(arg)] = (x :-> C2_tag ** (x+1) :-> 10 ** (x+2) :-> 100)
+
+  [lower_{L_List}(e(lift_{L_D}(lower_{L_D}(arg))))] = [Cons 10 (Cons 100 Nil)]
+    = (x :-> Cons_tag ** (x+1) :-> 10 ** (x+2) :-> nxt ** nxt :-> Cons_tag ** (nxt+1) :-> 100 ** (nxt+2) :-> nxt1 ** nxt1 :-> Nil_tag)
+
+    (x :-> Cons_tag ** (x+1) :-> 10 ** (x+2) :-> nxt ** nxt :-> Cons_tag ** (nxt+1) :-> 100 ** (nxt+2) :-> nxt1 ** nxt1 :-> Nil_tag)
+      |=
+    (x :-> d ** I_e(d_tag, d, r))
+
+  Can't we make an even stronger statement, by leaving out the "[arg] |= P" part of the implication? We might also need to include a "lower" (and "lift")
+
+      Given [[e]] = (P, Q), all well-typed programs e(arg) satisfy [e(arg)] |= Q
+      
+
+=== Completeness ===
+
+forall arg : T, |- e(arg) -> [arg] |= P
+
+- Using the above example: e(arg) is well-typed.
+
+    [arg] = (x :-> C2_tag ** (x+1) :-> 10 ** (x+2) :-> 100)
+
+    (x :-> C2_tag ** (x+1) :-> 10 ** (x+2) :-> 100) |= (x :-> d ** I_d(d_tag, d, y) ** r :-> 0)
+
+
+
+where
+
+predicate I_d(int tag, loc x) {
+| which == 0 => { x :-> tag ** (x+1) :-> a }
+| which == 1 => { x :-> tag ** (x+1) :-> b ** (x+2) :-> c }
+}
+
+
+predicate I_e(int tag, loc x, loc result) {
+| tag == 0 => { x :-> tag ** (x+1) :-> a ** result :-> r ** [r, 2] ** r :-> a ** (r+1) :-> nxt ** [nxt, 1] ** nxt :-> 0 }
+| tag == 1 => {
+    x :-> tag ** (x+1) :-> b ** (x+2) :-> c ** result :-> r
+    ** [r, 2]
+    ** r :-> a ** (r+1) :-> nxt
+    ** [nxt, 2]
+    ** nxt :-> b ** (nxt+1) :-> nxt1
+    ** [nxt1, 1]
+    ** nxt1 :-> 0
+}
+
