@@ -8,6 +8,7 @@ import           Bound.Scope
 
 import           Data.List
 import           Data.Ord
+import           Data.Maybe
 
 data FsExpr p a
   = FsVar p a
@@ -27,9 +28,11 @@ data FsExpr p a
 
   | FsLt p (FsExpr p a) (FsExpr p a)
   | FsEq p (FsExpr p a) (FsExpr p a)
-  | FsNot p (FsExpr p a) (FsExpr p a)
+  | FsNot p (FsExpr p a)
   | FsAnd p (FsExpr p a) (FsExpr p a)
   | FsOr p (FsExpr p a) (FsExpr p a)
+
+  | forall b. FsLift p (FsLayout p b a) (FsExpr p a)
 
   | FsFoldr p (FsExpr p a) (FsExpr p a) (FsExpr p a)
   | FsFilter p (FsExpr p a) (FsExpr p a)
@@ -67,6 +70,33 @@ data FsLayout p b a =
   { fsLayoutP :: p
   , fsLayoutName :: String
   , fsLayoutType :: FsLayoutType p b
-  , fsLayoutAlts :: [FsAlt p a]
+  , fsLayoutAlts :: [(ConName p a, LayoutBody p b a)]
   }
+
+newtype LayoutBody p b a = LayoutBody { getLayoutHeaplets :: [LayoutHeaplet p b a] }
+
+data LayoutHeaplet p b a
+  = LayoutPointsTo (b, Int) b
+  | LayoutBlock b Int
+  | LayoutHApply a [b] [a]   -- | @f[x,y,...] a b ...@
+
+getLayoutApps :: FsLayout p b a -> [(a, [b], [a])]
+getLayoutApps =
+  concatMap goAlt . fsLayoutAlts
+  where
+    goAlt (_, (LayoutBody alt)) = mapMaybe go alt
+
+    go (LayoutHApply f xs ys) = Just (f, xs, ys)
+    go _ = Nothing
+
+getLayoutPointsTo :: FsLayout p b a -> [((b, Int), b)]
+getLayoutPointsTo =
+  concatMap goAlt . fsLayoutAlts
+  where
+    goAlt (_, (LayoutBody alt)) = mapMaybe go alt
+
+    go (LayoutPointsTo x v) = Just (x, v)
+    go _ = Nothing
+
+
 

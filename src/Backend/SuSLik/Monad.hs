@@ -12,32 +12,43 @@ import           Control.Monad.State
 
 import           Data.List
 
--- | Maps fun-SuSLik names to their inductive predicate names
-newtype SuSLikEnv = SuSLikEnv [(String, String)]
 
-envExtend :: String -> String -> SuSLikEnv -> SuSLikEnv
-envExtend fnName indPred (SuSLikEnv e)
-  = SuSLikEnv ((fnName, indPred) : e)
+data SuSLikEnv a b =
+  SuSLikEnv
+    { indPredNames :: [(a, b)] -- | Maps fun-SuSLik names to their inductive predicate names
+    , uniq :: Int
+    }
 
-envLookup :: String -> SuSLikEnv -> Maybe String
-envLookup fnName (SuSLikEnv e) = lookup fnName e
+envExtend :: a -> b -> SuSLikEnv a b -> SuSLikEnv a b
+envExtend fnName indPred e
+  = e { indPredNames = (fnName, indPred) : indPredNames e }
 
-envEmpty :: SuSLikEnv
-envEmpty = SuSLikEnv mempty
+envLookup :: Eq a => a -> SuSLikEnv a b -> Maybe b
+envLookup fnName = lookup fnName . indPredNames
 
-newtype SuSLik a
-  = SuSLik (State SuSLikEnv a)
-  deriving (Functor, Applicative, Monad, MonadState SuSLikEnv)
+envEmpty :: SuSLikEnv a b
+envEmpty = SuSLikEnv mempty 0
 
-runSuSLik :: SuSLik a -> (a, SuSLikEnv)
+newtype SuSLik a b r
+  = SuSLik (State (SuSLikEnv a b) r)
+  deriving (Functor, Applicative, Monad, MonadState (SuSLikEnv a b))
+
+runSuSLik :: SuSLik a b r -> (r, SuSLikEnv a b)
 runSuSLik (SuSLik s) = runState s envEmpty
 
-setIndPredName :: String -> String -> SuSLik ()
+setIndPredName :: a -> b -> SuSLik a b ()
 setIndPredName fnName = modify . envExtend fnName
 
-getIndPredName :: String -> SuSLik String
+getIndPredName :: (Show a, Eq a) => a -> SuSLik a b b
 getIndPredName fnName =
   fmap (envLookup fnName) get >>= \case
-    Nothing -> error $ "getIndPredName: cannot find " ++ fnName
+    Nothing -> error $ "getIndPredName: cannot find " ++ show fnName
     Just str -> pure str
+
+freshen :: String -> SuSLik a b String
+freshen str = do
+  currUniq <- uniq <$> get
+  let newStr = str <> "_" <> show currUniq
+  modify $ \e -> e { uniq = succ currUniq }
+  pure newStr
 

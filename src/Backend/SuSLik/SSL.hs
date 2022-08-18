@@ -69,6 +69,10 @@ data PFormula a
 
   | PUnion (PFormula a) (PFormula a)
 
+conjunction :: [PFormula a] -> PFormula a
+conjunction [] = PBool True
+conjunction xs = foldr1 PAnd xs
+
 data Heaplet a
   = PointsTo (a, Int) (HExpr a)
   | Block a Int
@@ -162,52 +166,52 @@ instance Emit a => Emit (PFormula a) where
 
   emit (PUnion x y) = emitBinOp "++" x y
 
-filterExample :: Spec String
-filterExample =
-  MkSpec
-    { specProcName = "filter"
-    , specParams = ["y" ::: LocS
-                   ,"ret" ::: LocS
-                   ,"v" ::: LocS
-                   ]
-    , specPre = MkAssertion (PBool True)
-                  (MkSFormula [("y", 0) :-> HExprVar "y0"
-                              ,HeapletApp (MkHApp "sll" [HExprVar "y0", HExprVar "s"])
-                              ,("ret", 0) :-> HExprVar "a"
-                              ,("v", 0) :-> HExprVar "vv"
-                              ])
-    , specPost = MkAssertion (PBool True)
-                  (MkSFormula [("y", 0) :-> HExprVar "y0"
-                              ,HeapletApp (MkHApp "base" [HExprVar "ret0", HExprVar "y0", HExprVar "s", HExprVar "vv"])
-                              ,("ret", 0) :-> HExprVar "ret0"
-                              ,("v", 0) :-> HExprVar "vv"
-                              ])
-    }
-
-sllExample :: IndPred String
-sllExample =
-  MkIndPred
-    { indPredName = "sll"
-    , indPredParams = ["x" ::: LocS
-                      ,"s" ::: SetS
-                      ]
-    , indPredAlts = [MkIndPredAlt
-                      { indPredAltCond = PEq (PVar "x") (PInt 0)
-                      , indPredAltAsn =
-                          MkAssertion (PEq (PVar "s") (PGivenSet []))
-                            $ MkSFormula [ ]
-                      }
-
-                    ,MkIndPredAlt
-                      { indPredAltCond = PNot (PEq (PVar "x") (PInt 0))
-                      , indPredAltAsn =
-                          MkAssertion (PEq (PVar "s") (PUnion (PGivenSet [PVar "v"]) (PVar "s1")))
-                            $ MkSFormula [Block "x" 2
-                                         ,("x", 0) :-> HExprVar "v"
-                                         ,("x", 1) :-> HExprVar "nxt"
-                                         ,HeapletApp (MkHApp "sll" [HExprVar "nxt", HExprVar "s1"])
-                                         ]
-                      }
-                    ]
-    }
+-- filterExample :: Spec String
+-- filterExample =
+--   MkSpec
+--     { specProcName = "filter"
+--     , specParams = ["y" ::: LocS
+--                    ,"ret" ::: LocS
+--                    ,"v" ::: LocS
+--                    ]
+--     , specPre = MkAssertion (PBool True)
+--                   (MkSFormula [("y", 0) :-> HExprVar "y0"
+--                               ,HeapletApp (MkHApp "sll" [HExprVar "y0", HExprVar "s"])
+--                               ,("ret", 0) :-> HExprVar "a"
+--                               ,("v", 0) :-> HExprVar "vv"
+--                               ])
+--     , specPost = MkAssertion (PBool True)
+--                   (MkSFormula [("y", 0) :-> HExprVar "y0"
+--                               ,HeapletApp (MkHApp "base" [HExprVar "ret0", HExprVar "y0", HExprVar "s", HExprVar "vv"])
+--                               ,("ret", 0) :-> HExprVar "ret0"
+--                               ,("v", 0) :-> HExprVar "vv"
+--                               ])
+--     }
+--
+-- sllExample :: IndPred String
+-- sllExample =
+--   MkIndPred
+--     { indPredName = "sll"
+--     , indPredParams = ["x" ::: LocS
+--                       ,"s" ::: SetS
+--                       ]
+--     , indPredAlts = [MkIndPredAlt
+--                       { indPredAltCond = PEq (PVar "x") (PInt 0)
+--                       , indPredAltAsn =
+--                           MkAssertion (PEq (PVar "s") (PGivenSet []))
+--                             $ MkSFormula [ ]
+--                       }
+--
+--                     ,MkIndPredAlt
+--                       { indPredAltCond = PNot (PEq (PVar "x") (PInt 0))
+--                       , indPredAltAsn =
+--                           MkAssertion (PEq (PVar "s") (PUnion (PGivenSet [PVar "v"]) (PVar "s1")))
+--                             $ MkSFormula [Block "x" 2
+--                                          ,("x", 0) :-> HExprVar "v"
+--                                          ,("x", 1) :-> HExprVar "nxt"
+--                                          ,HeapletApp (MkHApp "sll" [HExprVar "nxt", HExprVar "s1"])
+--                                          ]
+--                       }
+--                     ]
+--     }
 
