@@ -283,7 +283,7 @@
    ((dll : List >-> layout [x z])
     (
      ([x z] (C-Nil) → ((x = 0)))
-     ([x z] (C-Cons head tail) →
+     ([x z w] (C-Cons head tail) →
                        ((x :-> head) ((x + 1) :-> w)
                                      ((x + 2) :-> z)
                                      (dll [w x] tail)))))))
@@ -302,6 +302,9 @@
 
 
 (judgment-holds (apply-layout ,sll-ctx sll (C-Cons a (C-Cons b (C-Cons c (C-Nil)))) fs-assertion) fs-assertion)
+
+(judgment-holds (apply-layout ,dll-ctx dll (C-Cons a (C-Cons b (C-Cons c (C-Nil)))) fs-assertion) fs-assertion)
+
 
 #;(judgment-holds (layout-inst-fn ,sll-ctx [x] ,sll-layout (Cons a (Cons b (Nil))) fs-assertion) fs-assertion)
 
