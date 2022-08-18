@@ -13,29 +13,48 @@
   (fn-case ::= (pat → e))
   (fn-cases ::= fn-case (fn-case fn-cases))
   (layout-fn-def ::= ((L : τ >-> layout [ x ... ]) layout-cases))
-  (layout-case ::= (pat → fs-assertion))
+  (layout-case ::= ([x ...] pat → fs-assertion))
   (layout-cases ::= layout-case (layout-case layout-cases))
   (fs-heaplet κ ::= emp (p :-> y) (p = 0) (L [x ...] layout-arg))
   (fs-assertion ::= (fs-heaplet ...))
   (layout-arg ::= y constr-app)
-  (pat ::= x (C x ...))
+  (pat ::= C (C x ...))
   (p ::= x (x + n))
   (n ::= natural)
   (I ::= integer)
   (B ::= boolean)
   (base-val ::= integer boolean x)
   (params ::= [x ...])
-  (constr-app ::= (C e ...))
+  (constr-app ::= C (C e ...))
   (e ::= x I B (e_1 e_2 ...) (λ (a : τ) → e) (let x := e_1 in e_2) (e_1 e_2) builtin)
   (builtin ::= ite le eq add sub and or not (lower L))
   (D L a b f g h x y z i j k ::= variable-not-otherwise-mentioned)
   (C ::= (variable-prefix C-))
+
+  (fs-heaplet-applied ::= fs-heaplet (fs-heaplet ...))
+  (fs-assertion-applied ::= (fs-heaplet-applied ...))
+
+  (layout-case-hole ::= ([x ...] pat → fs-assertion-hole))
+  (fs-assertion-hole ::= hole (fs-assertion-hole fs-heaplet ...) (fs-heaplet ... fs-assertion-hole))
+
+  (flatten-assertion-applied ::= hole (flatten-assertion-applied fs-heaplet-applied ...) (fs-heaplet ... flatten-assertion-applied))
   #:binding-forms
   (λ (x : τ) → e #:refers-to x)
   (let x := e_1 in e_2 #:refers-to x)
-  (fn-def ((f_1 : τ) ((C x ...) := e #:refers-to (shadow x ...)) ...))
-  (layout-case (C y ...) → fs-assertion #:refers-to (shadow y ...))
-  (layout-fn-def ((L : τ >-> layout [ x ... ]) layout-cases #:refers-to (shadow x ...))))
+  (((f_1 : τ) ((C x ...) := e #:refers-to (shadow x ...)) ...))
+  ([x ...] (C y ...) → fs-assertion #:refers-to (shadow x ... y ...))
+  #;(((L : τ >-> layout [ x ... ]) layout-cases #:refers-to (shadow x ...))))
+
+#;(define-extended-language fun-SuSLik-layout-hole fun-SuSLik
+  (Ctx-layout-fn-def ::= ((L : τ >-> layout [ x ... ]) Ctx-layout-cases))
+  (Ctx-layout-case ::= ([x ...] pat → Ctx-fs-assertion))
+  (Ctx-layout-cases ::= layout-case (Ctx-layout-case layout-cases))
+  (Ctx-fs-heaplet Ctx-κ ::= emp (p :-> y) (p = 0) Ctx-layout-app)
+  (Ctx-layout-app ::= hole (L [x ...] y))
+  (Ctx-fs-assertion ::= (fs-heaplet ...))
+  #:binding-forms
+  ([x ...] (C y ...) → Ctx-fs-assertion #:refers-to (shadow x ... y ...))
+  (((L : τ >-> layout [ x ... ]) Ctx-layout-cases #:refers-to (shadow x ...))))
 
 (define-metafunction fun-SuSLik
   different : x y -> boolean
@@ -54,7 +73,7 @@
    (lookup (extend Γ (y : τ_2)) x τ)]
 
   [-------------------
-   (lookup (extend Γ L layout-fn-def) L (layout-freshen-free-vars layout-fn-def))]
+   (lookup (extend Γ L layout-fn-def) L layout-fn-def)]
 
   [(lookup Γ L layout-fn-def)
    (where #t (different L M))
@@ -123,16 +142,16 @@
 
   [(match-pat-con C pat)
    -------------------
-   (lookup-layout-case C (pat → fs-assertion) (pat → fs-assertion))] 
+   (lookup-layout-case C ([x ...] pat → fs-assertion) ([x ...] pat → fs-assertion))] 
 
   [(match-pat-con C pat)
    -------------------
-   (lookup-layout-case C ((pat → fs-assertion) layout-cases) (pat → fs-assertion))]
+   (lookup-layout-case C (([x ...] pat → fs-assertion) layout-cases) ([x ...] pat → fs-assertion))]
 
   [(lookup-layout-case C layout-cases layout-case)
    (pat-con-apart C pat)
    -------------------
-   (lookup-layout-case C ((pat → fs-assertion) layout-cases) layout-case)])
+   (lookup-layout-case C (([x ...] pat → fs-assertion) layout-cases) layout-case)])
 
 (define-judgment-form fun-SuSLik
   #:contract (lookup-layout-fn-case C layout-fn-def layout-case [x ...])
@@ -142,19 +161,229 @@
    -------------------
    (lookup-layout-fn-case C ((L : τ >-> layout [x ...]) layout-cases) layout-case [x ...])])
 
-#;(define (substitute-lists e xs ys)
-  (substitute e (zip xs ys)))
+(define-judgment-form fun-SuSLik
+  #:contract (lookup-layout-case-in-ctx Γ L C layout-case)
+  #:mode (lookup-layout-case-in-ctx I I I O)
 
-(define-metafunction fun-SuSLik
-  substitute-lists : (fs-assertion [x ...] [y ...]) -> fs-assertion
+  [(lookup Γ L layout-fn-def)
+   (lookup-layout-fn-case C layout-fn-def layout-case [x ...])
+   -------------------
+   (lookup-layout-case-in-ctx Γ L C layout-case)])
+
+#;(define-metafunction fun-SuSLik
+  substitute-lists : fs-assertion [x ...] [y ...] -> fs-assertion
   [(substitute-lists fs-assertion [x ...] [y ...])
    (substitute-lists fs-assertion (x y) ...)])
 
 #;(define-metafunction fun-SuSLik
-  freshen : x -> y
-  [(freshen x)
-   ,(gensym (term x))])
+  layout-case-subst : layout-case e -> layout-case
+  [(layout-case-subst ([x ...] (C y y_s ...) → fs-assertion_1) e)
+   ([x ...] (C y y_s ...) → (substitute fs-assertion_1 [y e]))])
 
+(define-metafunction fun-SuSLik
+  get-constr-name : constr-app -> C
+  [(get-constr-name (C e ...)) C]
+  [(get-constr-name C) C])
+
+#;(define reduce-layout-case
+  (reduction-relation
+   fun-SuSLik
+   #:domain layout-case
+   [--> (L [x ...] layout-arg)
+        (L [x ...] layout-arg)]))
+
+
+;(define reduce-layout-case
+;  (reduction-relation
+;   fun-SuSLik-layout-hole
+;   #:domain
+
+#;(define-metafunction fun-SuSLik
+  freshen-vars : ([x ...] fs-assertion) -> fs-assertion
+  [(freshen-vars ([x ...] fs-assertion))
+   (substitute-lists fs-assertion [x ...] [x ...])])
+
+(define-judgment-form fun-SuSLik
+  #:contract (freshen-vars [x ...] fs-assertion fs-assertion)
+  #:mode (freshen-vars I I O)
+
+  [------------------
+   (freshen-vars [x ...] fs-assertion (substitute fs-assertion ,@(map (λ(arg) (list arg (gensym arg))) (term [x ...]))))
+   ])
+
+(define-judgment-form fun-SuSLik
+  #:contract (get-assertion-vars fs-assertion [x ...])
+  #:mode (get-assertion-vars I O)
+
+  [-----------------
+   (get-assertion-vars (x :-> y) [x y])]
+
+  [-----------------
+   (get-assertion-vars ((x + n) :-> y) [x y])]
+
+  [-----------------
+   (get-assertion-vars (x = 0) [x])]
+
+  [-----------------
+   (get-assertion-vars (L [x ...] layout-arg) [x ...])])
+
+(define-judgment-form fun-SuSLik
+  #:contract (get-layout-case-vars layout-case [x ...])
+  #:mode (get-layout-case-vars I O)
+
+  [(get-assertion-vars fs-assertion [x ...])
+   ------------------
+   (get-layout-case-vars ([y ...] (C z ...) → fs-assertion) [x ... y ...])])
+
+(define-judgment-form fun-SuSLik
+  #:contract (get-layout-case-heap-vars layout-case [x ...])
+  #:mode (get-layout-case-heap-vars I O)
+
+  [(get-layout-case-vars ([y ...] (C z ...) → fs-assertion) [a ...])
+   ------------------
+   (get-layout-case-heap-vars ([y ...] (C z ...) → fs-assertion) ,(set->list (set-subtract (list->set (term [a ...])) (list->set (term [z ...])))))]
+  )
+
+(define-judgment-form fun-SuSLik
+  #:contract (layout-case-subst layout-case constr-app layout-case)
+  #:mode (layout-case-subst I I O)
+
+  [-------------------
+   (layout-case-subst ([x ...] (C y ...) → fs-assertion)
+                      (C e ...)
+                      ([x ...] (C y ...) → (substitute fs-assertion (y e) ...)))])
+
+(define-judgment-form fun-SuSLik
+  #:contract (freshen-given [x ...] fs-assertion fs-assertion)
+  #:mode (freshen-given I I O)
+
+  [-------------------
+   (freshen-given [x ...] fs-assertion (substitute fs-assertion ,@(map (λ(arg) (list arg (gensym arg))) (term (x ...)))))])
+
+(define (reduce-layout-apps Γ)
+  (reduction-relation
+   fun-SuSLik
+   #:domain fs-assertion-applied
+   
+   [--> (in-hole fs-assertion-hole (L [x ...] (C e ...)))
+        (in-hole fs-assertion-hole fs-assertion_r)
+
+        (judgment-holds (lookup-layout-case-in-ctx ,Γ L C layout-case))
+        (judgment-holds (layout-case-subst layout-case
+                                  (C e ...)
+                                  ([x_2 ...] (C y_2 ...) → fs-assertion_r0)))
+        (judgment-holds (freshen-given [x ...] fs-assertion_r0 fs-assertion_r))]))
+
+(define flatten-assertion-red
+  (reduction-relation
+   fun-SuSLik
+   #:domain fs-assertion-applied
+
+   [--> (in-hole flatten-assertion-applied (fs-heaplet_0 ... (fs-heaplet ...)))
+        (in-hole flatten-assertion-applied (fs-heaplet_0 ... fs-heaplet ...))]))
+
+(define-judgment-form fun-SuSLik
+  #:contract (flat-reduce-layout-apps Γ fs-assertion fs-assertion)
+  #:mode (flat-reduce-layout-apps I I O)
+
+  ((where fs-assertion-applied ,(car (apply-reduction-relation (reduce-layout-apps (term Γ)) (term fs-assertion))))
+   (where fs-assertion_r ,(car (apply-reduction-relation flatten-assertion-red (term fs-assertion-applied))))
+   ------------------
+   (flat-reduce-layout-apps Γ fs-assertion fs-assertion_r)))
+
+
+#;(define-judgment-form fun-SuSLik
+  #:contract (expand-layout-apps layout-case layout-case)
+  #:mode (expand-layout-apps ))
+
+
+#|
+(define-judgment-form fun-SuSLik
+  #:contract (reduce-layout-case Γ layout-case layout-case)
+  #:mode (reduce-layout-case I I O)
+
+  [------------------
+   (reduce-layout-case Γ ([x ...] (C y ...) → ()) ([x ...] (C y ...) → ()) )]
+
+  
+  [(reduce-layout-case Γ ([x ...] (C y ...) → (κ ...)) ([x ...] (C y ...) → (κ_r ...)))
+   ------------------
+   (reduce-layout-case Γ ([x ...] (C y ...) → (emp κ ...)) ([x ...] (C y ...) → (emp κ_r ...)))]
+
+  
+  [(reduce-layout-case Γ ([x ...] (C y ...) → (κ ...)) ([x ...] (C y ...) → (κ_r ...)))
+   ------------------
+   (reduce-layout-case Γ
+                       ([x ...] (C y ...) → ((p :-> b) κ ...))
+                       ([x ...] (C y ...) → ((p :-> b) κ_r ...)))]
+
+  
+  [(reduce-layout-case Γ ([x ...] (C y ...) → (κ ...)) ([x ...] (C y ...) → (κ_r ...)))
+   ------------------
+   (reduce-layout-case Γ
+                       ([x ...] (C y ...) → ((p = 0) κ ...))
+                       ([x ...] (C y ...) → ((p = 0) κ_r ...)))]
+
+  
+  [(reduce-layout-case Γ ([x ...] (C y ...) → (κ ...)) ([x ...] (C y ...) → (κ_r ...)))
+   -------------------
+   (reduce-layout-case Γ
+                       ([x ...] (C y ...) → ((L [z ...] a) κ ...))
+                       ([x ...] (C y ...) → ((L [z ...] a) κ_r ...)))]
+  
+  [(reduce-layout-case Γ ([x ...] (C y ...) → (κ ...)) ([x ...] (C y ...) → (κ_r ....)))
+   (lookup-layout-case-in-ctx Γ L (get-constr-name constr-app) layout-case)
+   (apply-layout-case Γ layout-case constr-app ([x ...] (C y ...) → κ_apply ...))
+   ------------------
+   (reduce-layout-case Γ
+                       ([x ...] (C y ...) → ((L [z ...] constr-app) κ ...))
+                       ([x ...] (C y ...) → (κ_apply ... κ ...)))]
+  )
+
+(define-judgment-form fun-SuSLik
+  #:contract (apply-layout-case Γ layout-case constr-app layout-case)
+  #:mode (apply-layout-case I I I O)
+
+  [------------------
+   (apply-layout-case Γ
+                      ([x ...] (C) → fs-assertion_body)
+                      (C)
+                      ([x ...] (C) → fs-assertion_body))]
+
+  [(reduce-layout-case Γ
+                       (layout-case-subst ([x ...] (C y_arg y ...) → fs-assertion_body)
+                                          e_arg)
+                       ([x ...] (C y_arg y ...) → fs-assertion_reduced0))
+   (get-layout-case-heap-vars ([x ...] (C y_arg y ...) → fs-assertion_body) [a ...])
+   (freshen-vars [a ...] fs-assertion_reduced0 fs-assertion_reduced)
+
+   (apply-layout-case Γ ([x ...] (C y ...) → fs-assertion_reduced) (C e_rest ...) ([x ...] (C y ...) → fs-assertion_final))
+   ------------------
+   (apply-layout-case Γ
+                      ([x ...] (C y_arg y ...) → fs-assertion_body)
+                      (C e_arg e_rest ...)
+                      ([x ...] (C y_arg y ...) → fs-assertion_final))
+   ])
+
+(define-judgment-form fun-SuSLik
+  #:contract (apply-layout Γ layout-fn-def constr-app layout-case)
+  #:mode (apply-layout I I I O)
+
+  [(lookup-layout-fn-case (get-constr-name constr-app) layout-fn-def layout-case [x ...])
+   (apply-layout-case Γ layout-case constr-app layout-case_final)
+   -------------------
+   (apply-layout Γ layout-fn-def constr-app layout-case_final)])
+
+|#
+
+
+
+;(define reduce-layout-app
+;  (reduction-relation
+;   fun-SuSLik
+;   (-->
+
+#|
 (define-judgment-form fun-SuSLik
   #:contract (get-pat-vars pat [x ...])
   #:mode (get-pat-vars I O)
@@ -397,6 +626,8 @@
    --------------------
    (layout-inst-fn Γ [x ...] layout-fn-def e fs-assertion)])
 
+|#
+
 (define (defs ds)
   (if (null? ds)
       (term ·)
@@ -408,8 +639,8 @@
   (term
    ((sll : List >-> layout [x])
     (
-     ((C-Nil) → (emp))
-     ((C-Cons head tail) →
+     ([x] (C-Nil) → (emp))
+     ([x] (C-Cons head tail) →
        ((x :-> head) ((x + 1) :-> nxt) (sll [nxt] tail)))))))
 
 (define sll-ctx (term (extend · sll ,sll-layout)))
@@ -418,27 +649,34 @@
   (term
    ((dll : List >-> layout [x z])
     (
-     ((C-Nil) → (emp))
-     ((C-Cons head tail) →
+     ([x z] (C-Nil) → (emp))
+     ([x z] (C-Cons head tail) →
                        ((x :-> head) ((x + 1) :-> w)
                                      ((x + 2) :-> z)
                                      (dll [w x] tail)))))))
 
 (define dll-ctx (term (extend · dll ,dll-layout)))
 
-(caching-enabled? #f) ; To freshen FVs in layout functions properly
+;(caching-enabled? #f) ; To freshen FVs in layout functions properly
 
 
 
-(current-traced-metafunctions '(reduce-layout-inst))
+#;(current-traced-metafunctions '(reduce-layout-inst))
 #;(current-traced-metafunctions '(layout-pat-match))
 
+#;(current-traced-metafunctions '(apply-layout-case reduce-layout-case))
+#;(current-traced-metafunctions '(layout-case-subst))
+#;(current-traced-metafunctions '(apply-layout-case reduce-layout-case))
+
 #;(judgment-holds (layout-inst-fn ,sll-ctx [x] ,sll-layout (Cons a (Cons b c)) fs-assertion) fs-assertion)
+
+
+#;(judgment-holds (apply-layout ,sll-ctx ,sll-layout (C-Cons a b) fs-assertion) fs-assertion)
 
 #;(judgment-holds (layout-inst-fn ,sll-ctx [x] ,sll-layout (Cons a (Cons b (Nil))) fs-assertion) fs-assertion)
 
 
-(judgment-holds (layout-inst-fn ,sll-ctx [x] ,sll-layout (C-Cons a (C-Cons b (C-Cons c d))) fs-assertion) fs-assertion)
+#;(judgment-holds (layout-inst-fn ,sll-ctx [x] ,sll-layout (C-Cons a (C-Cons b (C-Cons c d))) fs-assertion) fs-assertion)
 
 #;(judgment-holds (layout-inst-fn ,sll-ctx [x] ,sll-layout (Cons a b) fs-assertion) fs-assertion)
 
