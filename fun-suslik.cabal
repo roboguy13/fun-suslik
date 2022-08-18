@@ -28,11 +28,13 @@ executable fun-suslik
 
     -- Modules included in this executable, other than Main.
     other-modules:
-      Nucleus.Expr,
-      EGraph.EGraph,
-      EGraph.Rewrite,
-      Backend.DOT,
-      Representation.Parts
+      Backend.Emit
+      Backend.SuSLik.Layout
+      Backend.SuSLik.Monad
+      Backend.SuSLik.SSL
+      Backend.SuSLik.SuSLik
+      Syntax.Expr
+
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:

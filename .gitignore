@@ -8,3 +8,4 @@ dist-newstyle
 *.log
 *.pdf
 *.out
+*~
