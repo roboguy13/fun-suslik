@@ -237,6 +237,9 @@
 
   [--------------------
    (hereditary-base-value? (C) #t)]
+
+  [--------------------
+   (hereditary-base-value? x #t)] ; TODO: Is this correct?
   
   [(hereditary-base-value? (C x_s ...) boolean_1)
    (hereditary-base-value? x boolean_2)
@@ -257,7 +260,7 @@
    [--> (in-hole fs-assertion-hole (L [x ...] (C e ...)))
         (in-hole fs-assertion-hole fs-assertion_r)
 
-        (judgment-holds (hereditary-base-value? (C e ...) #t))
+        #;(judgment-holds (hereditary-base-value? (C e ...) #t))
         (judgment-holds (lookup-layout-case-in-ctx ,Γ L C layout-case))
         (judgment-holds (layout-case-subst layout-case
                                   (C e ...)
@@ -290,7 +293,7 @@
   [(lookup-layout-case-in-ctx Γ L C ([x ...] (C y ...) → fs-assertion_0))
    (layout-case-subst ([x ...] (C y ...) → fs-assertion_0) (C e ...) [x ...] ([x_2 ...] (C y_2 ...) → fs-assertion_r0))
    (flat-reduce-layout-apps Γ fs-assertion_r0 fs-assertion_r)
-   (hereditary-base-value? (C e ...) #t)
+   #;(hereditary-base-value? (C e ...) #t)
    ------------------
    (apply-layout Γ L (C e ...) fs-assertion_r)])
 
@@ -357,9 +360,11 @@
 
 (judgment-holds (apply-layout ,sll-ctx sll (C-Cons 1 (C-Cons 2 (C-Cons 3 (C-Nil)))) fs-assertion) fs-assertion)
 
+(judgment-holds (apply-layout ,sll-ctx sll (C-Cons a (C-Cons b (C-Cons c (C-Nil)))) fs-assertion) fs-assertion)
+
 (judgment-holds (apply-layout ,dll-ctx dll (C-Cons 4 (C-Cons 5 (C-Cons 6 (C-Nil)))) fs-assertion) fs-assertion)
 
-(judgment-holds (apply-layout ,sll-ctx sll (C-Cons a (C-Cons b (C-Cons (+ 1 1) (C-Nil)))) fs-assertion) fs-assertion)
+#;(judgment-holds (apply-layout ,sll-ctx sll (C-Cons a (C-Cons b (C-Cons (+ 1 1) (C-Nil)))) fs-assertion) fs-assertion)
 
 
 
