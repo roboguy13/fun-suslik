@@ -9,9 +9,10 @@
   (τ ::= Int Bool (τ → τ) D)
   (Γ ::= · (extend Γ (x : τ)) (extend Γ L layout-fn-def))
   ;(Σ ::= · (extend Σ layout-fn-def))
-  (fn-def ::= ((f : τ) fn-cases))
-  (fn-case ::= (pat → e))
-  (fn-cases ::= fn-case (fn-case fn-cases))
+  (fn-def ::= ((f : τ) (f x ... := e)))
+  (match-expr ::= (match e match-cases))
+  (match-case ::= (pat → e))
+  (match-cases ::= match-case (match-case match-cases))
   (layout-fn-def ::= ((L : τ >-> layout [ x ... ]) layout-cases))
   (layout-case ::= ([x ...] pat → fs-assertion))
   (layout-cases ::= layout-case (layout-case layout-cases))
@@ -25,11 +26,10 @@
   (B ::= boolean)
   (pointed-to ::= base-val x)
   (base-val ::= integer boolean)
-  (lowered ::= base-val (lower L base-val))
   (params ::= [x ...])
   (constr-app ::= C (C e ...))
-  (e ::= x I B (e_1 e_2 ...) (λ (a : τ) → e) (let x := e_1 in e_2) (e_1 e_2) builtin)
-  (builtin ::= ite <= == + - && || not (lower L e))
+  (e ::= x I B match-expr (e_1 e_2 ...) (λ (a : τ) → e) (let x := e_1 in e_2) (e_1 e_2) builtin)
+  (builtin ::= ite <= == + - && || not (lower L e) (lift L e))
   (D L a b f g h x y z i j k ::= variable-not-otherwise-mentioned)
   (C ::= (variable-prefix C-))
 
@@ -41,11 +41,16 @@
 
   (flatten-assertion-applied ::= hole (flatten-assertion-applied fs-heaplet-applied ...) (fs-heaplet ... flatten-assertion-applied))
 
-  (e-lower ::= hole
-           (e-lower e ...)
-           (lower L e-lower)
+  (value ::= base-val C (C value ...))
+
+  (lowered ::= value (lower L value))
+  (lifted ::= value (lift L value))
+  (instantiate-e ::= hole
+           (instantiate-e e ...)
+           (lower L instantiate-e)
            #;(C lowered ... e-lower e ...)
-           (f lowered ... e-lower e ...))
+           (lower L (f lifted ... instantiate-e e ...))
+           #;(lower L (match lifted match-cases)))
 
   (suslik-predicate ::=
                     (inductive f (y ...) (pred-branch ...)))
@@ -72,7 +77,7 @@
   #:binding-forms
   (λ (x : τ) → e #:refers-to x)
   (let x := e_1 in e_2 #:refers-to x)
-  (((f_1 : τ) ((C x ...) := e #:refers-to (shadow x ...)) ...))
+  (((f_1 : τ) (f x ... := e #:refers-to (shadow x ...)) ...))
   ([x ...] (C y ...) → fs-assertion #:refers-to (shadow x ... y ...))
   (inductive f (y ...) (pred-branch ...) #:refers-to (shadow y ...)))
 
@@ -197,6 +202,8 @@
    (lookup-layout-case-in-ctx Γ L C layout-case)])
 
 
+; TODO: Do this multiple times. Maybe this would be best to do as a reduction relation,
+;       then we can use apply-reduction-relation*
 (define-judgment-form fun-SuSLik
   #:contract (layout-case-subst layout-case constr-app [e ...] layout-case)
   #:mode (layout-case-subst I I I O)
@@ -300,15 +307,25 @@
 ;;;;;;;
 
 
-
 ;;;;;;; Transformations in the functional language
 
-(define push-lower-inward
+#;(define (push-lower-inward Γ)
   (reduction-relation
    fun-SuSLik
 
-   [--> (in-hole e-lower (f (C e ...)))
-        (in-hole e-lower (f ,@(map (λ(arg) (term (lower L ,arg))) (term (e ...)))))]))
+   #;[--> (in-hole e-lower (f (C e ...)))
+        (in-hole e-lower (f ,@(map (λ(arg) (term (lower L ,arg))) (term (e ...)))))]
+
+   [--> (in-hole e-lower (lower L (f (lift L e) ...)))
+        ]))
+
+
+(define (lower-case-lift Γ)
+  (reduction-relation
+   fun-SuSLik
+
+   [--> (in-hole instantiate-e (lower L_1 (match (lift L_2 e) match-cases)))
+        (in-hole instantiate-e (lower L_1 (match (lift L_2 e) match-cases)))]))
 
 
 ;;;;;;;
@@ -348,6 +365,20 @@
 (define dll-ctx (term (extend · dll ,dll-layout)))
 
 
+(define tree-layout
+  (term
+   ((tree : Tree >-> layout [x])
+    (
+     ([x] (C-Leaf) → ((x = 0)))
+     ([x nxtLeft nxtRight] (C-Bin item left right) →
+          ((x :-> item)
+           ((x + 1) :-> nxtLeft)
+           ((x + 2) :-> nxtRight)
+           (tree [nxtLeft] left)
+           (tree [nxtRight] right)))))))
+
+(define tree-ctx (term (extend · tree ,tree-layout)))
+
 #;(current-traced-metafunctions '(reduce-layout-inst))
 #;(current-traced-metafunctions '(layout-pat-match))
 
@@ -358,11 +389,16 @@
 #;(judgment-holds (layout-inst-fn ,sll-ctx [x] ,sll-layout (Cons a (Cons b c)) fs-assertion) fs-assertion)
 
 
+
+
 (judgment-holds (apply-layout ,sll-ctx sll (C-Cons 1 (C-Cons 2 (C-Cons 3 (C-Nil)))) fs-assertion) fs-assertion)
 
 (judgment-holds (apply-layout ,sll-ctx sll (C-Cons a (C-Cons b (C-Cons c (C-Nil)))) fs-assertion) fs-assertion)
 
-(judgment-holds (apply-layout ,dll-ctx dll (C-Cons 4 (C-Cons 5 (C-Cons 6 (C-Nil)))) fs-assertion) fs-assertion)
+(judgment-holds (apply-layout ,dll-ctx dll (C-Cons 4 (C-Cons 5 (C-Cons 6 e))) fs-assertion) fs-assertion)
+
+
+
 
 #;(judgment-holds (apply-layout ,sll-ctx sll (C-Cons a (C-Cons b (C-Cons (+ 1 1) (C-Nil)))) fs-assertion) fs-assertion)
 
