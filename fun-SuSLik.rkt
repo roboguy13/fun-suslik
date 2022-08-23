@@ -9,14 +9,16 @@
   (τ ::= Int Bool (τ → τ) D)
   (Γ ::= · (extend Γ (x : τ)) (extend Γ L layout-fn-def))
   ;(Σ ::= · (extend Σ layout-fn-def))
-  (fn-def ::= ((f : τ) (f x ... := e)))
+  (fn-def ::= ((f : τ) ((pat → e) ...)))
   (match-expr ::= (match e match-cases))
   (match-case ::= (pat → e))
   (match-cases ::= match-case (match-case match-cases))
   (layout-fn-def ::= ((L : τ >-> layout [ x ... ]) layout-cases))
   (layout-case ::= ([x ...] pat → fs-assertion))
   (layout-cases ::= layout-case (layout-case layout-cases))
-  (fs-heaplet κ ::= emp (p :-> pointed-to) (p = 0) (L [x ...] layout-arg))
+  (fs-heaplet κ ::= emp (p :-> pointed-to) (p = 0) layout-app)
+  (fs-heaplet-val ::= emp (p :-> pointed-to) (p = 0) (L [x ...] pointed-to))
+  (layout-app ::= (L [x ...] layout-arg))
   (fs-assertion ::= (fs-heaplet ...))
   (layout-arg ::= y constr-app (lower L e))
   (pat ::= C (C x ...))
@@ -36,10 +38,16 @@
   (fs-heaplet-applied ::= fs-heaplet (fs-heaplet-applied ...))
   (fs-assertion-applied ::= (fs-heaplet-applied ...))
 
-  (layout-case-hole ::= ([x ...] pat → fs-assertion-hole))
-  (fs-assertion-hole ::= hole (fs-assertion-hole fs-heaplet ...) (fs-heaplet ... fs-assertion-hole))
+  (fs-heaplet-val-applied ::= fs-heaplet-val (fs-heaplet-val-applied ...))
 
-  (flatten-assertion-applied ::= hole (flatten-assertion-applied fs-heaplet-applied ...) (fs-heaplet ... flatten-assertion-applied))
+  (layout-case-hole ::= ([x ...] pat → fs-assertion-hole))
+  (fs-assertion-hole ::= hole #;(fs-heaplet fs-assertion-hole fs-heaplet ...)
+                     (fs-heaplet-val-applied ... fs-assertion-hole fs-heaplet-applied ...)
+                     #;(fs-heaplet ... fs-assertion-hole))
+
+  (flatten-assertion-applied ::= hole #;(fs-heaplet-applied flatten-assertion-applied fs-heaplet-applied ...)
+                             (fs-heaplet ... flatten-assertion-applied fs-heaplet-applied ...)
+                             #;(fs-heaplet-val-applied ... flatten-assertion-applied))
 
   (value ::= base-val C (C value ...))
 
@@ -202,8 +210,6 @@
    (lookup-layout-case-in-ctx Γ L C layout-case)])
 
 
-; TODO: Do this multiple times. Maybe this would be best to do as a reduction relation,
-;       then we can use apply-reduction-relation*
 (define-judgment-form fun-SuSLik
   #:contract (layout-case-subst layout-case constr-app [e ...] layout-case)
   #:mode (layout-case-subst I I I O)
@@ -216,6 +222,9 @@
                                #;(substitute (substitute fs-assertion [x z] ...) [y e] ...)
                                (substitute (substitute fs-assertion ,@(zip (term (x ...)) (term (z ...)))) [y e] ...)
                                ))])
+
+#;(define-judgment-form fun-SuSLik
+  #:contract (layout-case-subst* layout-case constr-app))
 
 (define-judgment-form fun-SuSLik
   #:contract (value? e boolean)
@@ -280,8 +289,8 @@
    fun-SuSLik
    #:domain fs-assertion-applied
 
-   [--> (in-hole flatten-assertion-applied (fs-heaplet_0 ... (fs-heaplet ...)))
-        (in-hole flatten-assertion-applied (fs-heaplet_0 ... fs-heaplet ...))]))
+   [--> (in-hole flatten-assertion-applied (fs-heaplet_0 ... (fs-heaplet ...) fs-heaplet-applied ...))
+        (in-hole flatten-assertion-applied (fs-heaplet_0 ... fs-heaplet ... fs-heaplet-applied ...))]))
 
 
 (define-judgment-form fun-SuSLik
@@ -339,6 +348,15 @@
 
 (define List-ty (defs `[,(term (Nil : List)) ,(term (Cons : (Int → (List → List))))]))
 
+(define D-layout
+  (term
+   ((DL : D >-> layout [x])
+    (
+     ([x] (C-D1 a) → ((x :-> a)))
+     ([x] (C-D2 a b) → ((x :-> a) ((x + 1) :-> b)))))))
+
+(define D-ctx (term (extend · DL ,D-layout)))
+
 (define sll-layout
   (term
    ((sll : List >-> layout [x])
@@ -364,6 +382,13 @@
 
 (define dll-ctx (term (extend · dll ,dll-layout)))
 
+
+(define D-to-list
+  (term
+   ((DToList : (D → List))
+    (
+    ((C-D1 a) → (C-Cons a (C-Nil)))
+    ((C-D2 a b) → (C-Cons a (C-Cons b (C-Nil))))))))
 
 (define tree-layout
   (term
@@ -397,6 +422,15 @@
 
 (judgment-holds (apply-layout ,dll-ctx dll (C-Cons 4 (C-Cons 5 (C-Cons 6 e))) fs-assertion) fs-assertion)
 
+#;(judgment-holds (layout-case-subst ([x nxtLeft nxtRight] (C-Bin item left right) →
+          ((x :-> item)
+           ((x + 1) :-> nxtLeft)
+           ((x + 2) :-> nxtRight)
+           (tree [nxtLeft] left)
+           (tree [nxtRight] right))) (C-Bin 1 (C-Leaf) (C-Leaf)) [x nxtLeft nxtRight] layout-case) layout-case)
+
+
+(judgment-holds (apply-layout ,tree-ctx tree (C-Bin 1 (C-Leaf) (C-Leaf)) fs-assertion) fs-assertion)
 
 
 
