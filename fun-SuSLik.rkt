@@ -39,7 +39,8 @@
              (< pointed-to pointed-to))
   (e ::= x I B (e_1 e_2 ...) (λ (a : τ) → e) (let x := e_1 in e_2) (e_1 e_2) builtin)
   (builtin ::= ite <= == + - && || not lower-app (lift [x ...] L e))
-  (D L a b f g h x y z i j k ::= variable-not-otherwise-mentioned)
+  (D a b f g h x y z i j k ::= variable-not-otherwise-mentioned)
+  (L ::= (variable-prefix L-))
   (C ::= (variable-prefix C-))
 
   (fs-heaplet-applied ::= fs-heaplet (fs-heaplet-applied ...))
@@ -404,37 +405,37 @@
 
 (define D-layout
   (term
-   ((DL : D >-> layout [x])
+   ((L-D : D >-> layout [x])
     (
      ([x] (C-D1 a) → ((x :-> a)))
      ([x] (C-D2 a b) → ((x :-> a) ((x + 1) :-> b)))))))
 
-(define D-ctx (term (extend · DL ,D-layout)))
+(define D-ctx (term (extend · L-D ,D-layout)))
 
 (define sll-layout
   (term
-   ((sll : List >-> layout [x])
+   ((L-sll : List >-> layout [x])
     (
      ([x] (C-Nil) → ((x = 0)))
      ([x nxt] (C-Cons head tail) →
        ((x :-> head)
         ((x + 1) :-> nxt)
-        (sll [nxt] tail)))))))
+        (L-sll [nxt] tail)))))))
 
-(define sll-ctx (term (extend · sll ,sll-layout)))
+(define sll-ctx (term (extend · L-sll ,sll-layout)))
 
 (define dll-layout
   (term
-   ((dll : List >-> layout [x z])
+   ((L-dll : List >-> layout [x z])
     (
      ([x z] (C-Nil) → ((x = 0) (z = 0)))
      ([x z w] (C-Cons head tail) →
               ((x :-> head)
                ((x + 1) :-> w)
                ((x + 2) :-> z)
-               (dll [w x] tail)))))))
+               (L-dll [w x] tail)))))))
 
-(define dll-ctx (term (extend · dll ,dll-layout)))
+(define dll-ctx (term (extend · L-dll ,dll-layout)))
 
 
 (define D-to-list
@@ -446,17 +447,17 @@
 
 (define tree-layout
   (term
-   ((tree : Tree >-> layout [x])
+   ((L-tree : Tree >-> layout [x])
     (
      ([x] (C-Leaf) → ((x = 0)))
      ([x nxtLeft nxtRight] (C-Bin item left right) →
           ((x :-> item)
            ((x + 1) :-> nxtLeft)
            ((x + 2) :-> nxtRight)
-           (tree [nxtLeft] left)
-           (tree [nxtRight] right)))))))
+           (L-tree [nxtLeft] left)
+           (L-tree [nxtRight] right)))))))
 
-(define tree-ctx (term (extend · tree ,tree-layout)))
+(define tree-ctx (term (extend · L-tree ,tree-layout)))
 
 #;(current-traced-metafunctions '(reduce-layout-inst))
 #;(current-traced-metafunctions '(layout-pat-match))
@@ -469,19 +470,19 @@
 
 
 
-(judgment-holds (apply-layout ,sll-ctx sll [x] (C-Nil) fs-assertion) fs-assertion)
+(judgment-holds (apply-layout ,sll-ctx L-sll [x] (C-Nil) fs-assertion) fs-assertion)
 
-(judgment-holds (apply-layout ,dll-ctx dll [x z] (C-Nil) fs-assertion) fs-assertion)
+(judgment-holds (apply-layout ,dll-ctx L-dll [x z] (C-Nil) fs-assertion) fs-assertion)
 
-(judgment-holds (apply-layout ,sll-ctx sll [x] (C-Cons 1 (C-Cons 2 (C-Cons 3 (C-Nil)))) fs-assertion) fs-assertion)
+(judgment-holds (apply-layout ,sll-ctx L-sll [x] (C-Cons 1 (C-Cons 2 (C-Cons 3 (C-Nil)))) fs-assertion) fs-assertion)
 
-(judgment-holds (apply-layout ,sll-ctx sll [x] (C-Cons a (C-Cons b (C-Cons c (C-Nil)))) fs-assertion) fs-assertion)
+(judgment-holds (apply-layout ,sll-ctx L-sll [x] (C-Cons a (C-Cons b (C-Cons c (C-Nil)))) fs-assertion) fs-assertion)
 
-(judgment-holds (apply-layout ,dll-ctx dll [x z] (C-Cons 4 (C-Cons 5 (C-Cons 6 e))) fs-assertion) fs-assertion)
+(judgment-holds (apply-layout ,dll-ctx L-dll [x z] (C-Cons 4 (C-Cons 5 (C-Cons 6 e))) fs-assertion) fs-assertion)
 
 
-(judgment-holds (apply-layout ,tree-ctx tree [x] (C-Bin 1 (C-Leaf) (C-Leaf)) fs-assertion) fs-assertion)
-(judgment-holds (apply-layout ,tree-ctx tree [x] (C-Bin 1 (C-Bin 2 a b) (C-Bin 3 c (C-Leaf))) fs-assertion) fs-assertion)
+(judgment-holds (apply-layout ,tree-ctx L-tree [x] (C-Bin 1 (C-Leaf) (C-Leaf)) fs-assertion) fs-assertion)
+(judgment-holds (apply-layout ,tree-ctx L-tree [x] (C-Bin 1 (C-Bin 2 a b) (C-Bin 3 c (C-Leaf))) fs-assertion) fs-assertion)
 
 
 #;(judgment-holds (apply-layout ,sll-ctx sll (C-Cons a (C-Cons b (C-Cons (+ 1 1) (C-Nil)))) fs-assertion) fs-assertion)
