@@ -9,7 +9,8 @@
   (τ ::= Int Bool (τ → τ) D)
   (Γ ::= · (extend Γ (x : τ)) (extend Γ L layout-fn-def))
   ;(Σ ::= · (extend Σ layout-fn-def))
-  (fn-def ::= ((f : τ) ((pat guard → e) ...)))
+  (fn-def ::= ((f : τ) (fn-case ...)))
+  (fn-case ::= (pat guard → e))
   (guard ::= (bool-expr ...))
   #;(match-expr ::= (match e match-cases))
   (match-case ::= (pat → e))
@@ -42,6 +43,7 @@
   (D a b f g h x y z i j k ::= variable-not-otherwise-mentioned)
   (L ::= (variable-prefix L-))
   (C ::= (variable-prefix C-))
+  (pred-name ::= (variable-prefix pred_))
 
   (fs-heaplet-applied ::= fs-heaplet (fs-heaplet-applied ...))
   (fs-assertion-applied ::= (fs-heaplet-applied ...))
@@ -69,7 +71,7 @@
            #;(lower L (match lifted match-cases)))
 
   (suslik-predicate ::=
-                    (inductive f (y ...) (pred-branch ...)))
+                    (inductive pred-name (y ...) (pred-branch ...)))
   (pred-branch ::= ((pure-part) ⇒ suslik-assertion))
   (suslik-heaplet ::= emp (p :-> pointed-to) (func f x ...) (L x ...))
   (suslik-assertion ::= (pure-part (suslik-heaplet ...)))
@@ -93,9 +95,9 @@
   #:binding-forms
   (λ (x : τ) → e #:refers-to x)
   (let x := e_1 in e_2 #:refers-to x)
-  (((f_1 : τ) (f x ... := e #:refers-to (shadow x ...)) ...))
+  (((f_1 : τ) ((C x ...) guard → e #:refers-to (shadow x ...)) ...))
   ([x ...] (C y ...) → fs-assertion #:refers-to (shadow x ... y ...))
-  (inductive f (y ...) (pred-branch ...) #:refers-to (shadow y ...)))
+  (inductive pred-name (y ...) (pred-branch ...) #:refers-to (shadow y ...)))
 
 (define-metafunction fun-SuSLik
   different : x y -> boolean
@@ -369,6 +371,45 @@
    (case-condition Γ L [x ...] pat
                    (&& e_nonzero-cond ... e_zero-cond ...)
                    #;,(foldr (λ (arg acc) (term (&& ,arg ,acc))) (term true) (append (term [e_nonzero-cond ...]) (term [e_zero-cond ...]))))])
+
+(define-judgment-form fun-SuSLik
+  #:contract (subst-layout-name L L_2 fs-assertion fs-assertion)
+  #:mode (subst-layout-name I I I O)
+
+  [-----------------
+   (subst-layout-name L L_2 fs-assertion (substitute fs-assertion (L L_2)))])
+
+(define-metafunction fun-SuSLik
+  get-pred-name : x -> y
+  ((get-pred-name x)
+   ,(string->symbol (string-append "L-pred_base_" (symbol->string (term x))))))
+
+(define-metafunction fun-SuSLik
+  get-inner-pred-name : x -> y
+  ((get-inner-pred-name x)
+   ,(string->symbol (string-append "L-pred_inner_" (symbol->string (term x))))))
+
+(define-judgment-form fun-SuSLik
+  #:contract (gen-match-branch Γ L [x ...] f fn-case fs-assertion)
+  #:mode (gen-match-branch I I I I I O)
+
+  [(apply-layout Γ L [x ...] pat fs-assertion)
+   -----------------
+   (gen-match-branch Γ L [x ...] f (pat [] → e) (substitute fs-assertion [L (get-pred-name f)]))
+   ])
+
+#;(define-judgment-form fun-SuSLik
+  #:contract (gen-match-predicate Γ L [x ...] fn-def predicate)
+  #:mode (gen-match-predicate I I I I O)
+
+  [#;(gen-guard-predicate Γ )
+   (apply-layout Γ L [x ...])
+   ------------------
+   (gen-match-predicate Γ L [x ...]
+                        ((f : τ)
+                         ((pat guard → e) ...))
+                        predicate)]
+   )
 
 
 ;;;;;;; Transformations in the functional language
