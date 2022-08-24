@@ -9,8 +9,9 @@
   (τ ::= Int Bool (τ → τ) D)
   (Γ ::= · (extend Γ (x : τ)) (extend Γ L layout-fn-def))
   ;(Σ ::= · (extend Σ layout-fn-def))
-  (fn-def ::= ((f : τ) ((pat → e) ...)))
-  (match-expr ::= (match e match-cases))
+  (fn-def ::= ((f : τ) ((pat guard → e) ...)))
+  (guard ::= (bool-expr ...))
+  #;(match-expr ::= (match e match-cases))
   (match-case ::= (pat → e))
   (match-cases ::= match-case (match-case match-cases))
   (layout-fn-def ::= ((L : τ >-> layout [ x ... ]) layout-cases))
@@ -26,12 +27,17 @@
   (p ::= x (x + n))
   (n ::= natural)
   (I ::= integer)
-  (B ::= boolean)
+  (B ::= false true)
   (pointed-to ::= base-val x)
-  (base-val ::= integer boolean)
+  (base-val ::= integer B)
   (params ::= [x ...])
   (constr-app ::= C (C e ...))
-  (e ::= x I B match-expr (e_1 e_2 ...) (λ (a : τ) → e) (let x := e_1 in e_2) (e_1 e_2) builtin)
+  (bool-expr ::= B x
+             (&& boolean-expr ...) (|| boolean-expr ...) (not boolean-expr)
+             (== pointed-to pointed-to)
+             (<= pointed-to pointed-to)
+             (< pointed-to pointed-to))
+  (e ::= x I B (e_1 e_2 ...) (λ (a : τ) → e) (let x := e_1 in e_2) (e_1 e_2) builtin)
   (builtin ::= ite <= == + - && || not lower-app (lift [x ...] L e))
   (D L a b f g h x y z i j k ::= variable-not-otherwise-mentioned)
   (C ::= (variable-prefix C-))
@@ -73,7 +79,7 @@
             (int-expr + int-expr)
             (int-expr - int-expr)
             (int-expr * int-expr))
-  (bool-expr ::=
+  #;(bool-expr ::=
              x
              boolean
              (and bool-expr bool-expr)
@@ -123,7 +129,7 @@
    (has-type Γ number Int)]
 
   [-------------------
-   (has-type Γ boolean Bool)]
+   (has-type Γ B Bool)]
 
   [(lookup Γ x τ)
    -------------------
@@ -351,6 +357,7 @@
   #:contract (case-condition Γ L [x ...] pat e)
   #:mode (case-condition I I I I O)
 
+  ; TODO: Change this to check based on heap satisfaction
   [(apply-layout Γ L [x ...] pat fs-assertion_0)
    (nonzero-vars fs-assertion_0 [x_nonzero-initial ...])
    (where [x_nonzero ...] ,(remove-duplicates (term [x_nonzero-initial ...])))
@@ -359,7 +366,8 @@
    (where [e_nonzero-cond ...] ,(map (λ (v) (term (not (,v == 0)))) (term [x_nonzero ...])))
    ------------------
    (case-condition Γ L [x ...] pat
-                   ,(foldr (λ (arg acc) (term (&& ,arg ,acc))) (term true) (append (term [e_nonzero-cond ...]) (term [e_zero-cond ...]))))])
+                   (&& e_nonzero-cond ... e_zero-cond ...)
+                   #;,(foldr (λ (arg acc) (term (&& ,arg ,acc))) (term true) (append (term [e_nonzero-cond ...]) (term [e_zero-cond ...]))))])
 
 
 ;;;;;;; Transformations in the functional language
@@ -419,7 +427,7 @@
   (term
    ((dll : List >-> layout [x z])
     (
-     ([x z] (C-Nil) → ((x = 0)))
+     ([x z] (C-Nil) → ((x = 0) (z = 0)))
      ([x z w] (C-Cons head tail) →
               ((x :-> head)
                ((x + 1) :-> w)
@@ -433,8 +441,8 @@
   (term
    ((DToList : (D → List))
     (
-    ((C-D1 a) → (C-Cons a (C-Nil)))
-    ((C-D2 a b) → (C-Cons a (C-Cons b (C-Nil))))))))
+    ((C-D1 a) [] → (C-Cons a (C-Nil)))
+    ((C-D2 a b) [] → (C-Cons a (C-Cons b (C-Nil))))))))
 
 (define tree-layout
   (term
@@ -461,6 +469,9 @@
 
 
 
+(judgment-holds (apply-layout ,sll-ctx sll [x] (C-Nil) fs-assertion) fs-assertion)
+
+(judgment-holds (apply-layout ,dll-ctx dll [x z] (C-Nil) fs-assertion) fs-assertion)
 
 (judgment-holds (apply-layout ,sll-ctx sll [x] (C-Cons 1 (C-Cons 2 (C-Cons 3 (C-Nil)))) fs-assertion) fs-assertion)
 
