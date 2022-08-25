@@ -10,16 +10,18 @@
   (Γ ::= · (extend Γ (x : τ)) (extend Γ L layout-fn-def))
   ;(Σ ::= · (extend Σ layout-fn-def))
   (fn-def ::= ((f : τ) (fn-case ...)))
-  (fn-case ::= (pat guard → e))
-  (guard ::= (bool-expr ...))
+  (fn-case ::= (pat guarded-expr guarded-expr ...))
+  #;(guard ::= (bool-expr ...))
+  (guarded-expr ::= [bool-expr → e])
   #;(match-expr ::= (match e match-cases))
   (match-case ::= (pat → e))
   (match-cases ::= match-case (match-case match-cases))
   (layout-fn-def ::= ((L : τ >-> layout [ x ... ]) layout-cases))
   (layout-case ::= ([x ...] pat → fs-assertion))
   (layout-cases ::= layout-case (layout-case layout-cases))
-  (fs-heaplet κ ::= emp (p :-> pointed-to) (p = 0) layout-app)
-  (fs-heaplet-val ::= emp (p :-> pointed-to) (p = 0) (L [x ...] pointed-to))
+  (fs-heaplet κ ::= emp (p :-> pointed-to) (p = equals-val) layout-app)
+  (fs-heaplet-val ::= emp (p :-> pointed-to) (p = equals-val) (L [x ...] pointed-to))
+  (equals-val ::= 0 x)
   (layout-app ::= (L [x ...] layout-arg))
   (fs-assertion ::= (fs-heaplet ...))
   (lower-app (lower [x ...] L e))
@@ -33,17 +35,21 @@
   (base-val ::= integer B)
   (params ::= [x ...])
   (constr-app ::= C (C e ...))
+  (compose-arg ::= x ?)
+  (compose-app ::=
+               (f compose-arg ...)
+               (lower [] L (C compose-arg ...)))
   (bool-expr ::= B x
-             (&& boolean-expr ...) (|| boolean-expr ...) (not boolean-expr)
+             (&& bool-expr ...) (|| bool-expr ...) (not bool-expr)
              (== pointed-to pointed-to)
              (<= pointed-to pointed-to)
              (< pointed-to pointed-to))
   (e ::= x I B (e_1 e_2 ...) (λ (a : τ) → e) (let x := e_1 in e_2) (e_1 e_2) builtin)
-  (builtin ::= ite <= == + - && || not lower-app (lift [x ...] L e))
+  (builtin ::= ite < <= == + - && || not lower-app (lift [x ...] L e))
   (D a b f g h x y z i j k ::= variable-not-otherwise-mentioned)
   (L ::= (variable-prefix L-))
   (C ::= (variable-prefix C-))
-  (pred-name ::= (variable-prefix pred_))
+  (pred-name ::= (variable-prefix pred-))
 
   (fs-heaplet-applied ::= fs-heaplet (fs-heaplet-applied ...))
   (fs-assertion-applied ::= (fs-heaplet-applied ...))
@@ -71,10 +77,12 @@
            #;(lower L (match lifted match-cases)))
 
   (suslik-predicate ::=
-                    (inductive pred-name (y ...) (pred-branch ...)))
-  (pred-branch ::= ((pure-part) ⇒ suslik-assertion))
+                    (inductive pred-name (y ...) pred-branch ...))
+  (pred-branch ::= (pure-part ⇒ suslik-assertion))
   (suslik-heaplet ::= emp (p :-> pointed-to) (func f x ...) (L x ...))
+  (suslik-heaplets ::= (suslik-heaplet ...))
   (suslik-assertion ::= (pure-part (suslik-heaplet ...)))
+  (suslik-assertions ::= (suslik-assertion ...))
   (pure-part ::= bool-expr)
   (int-expr ::=
             x
@@ -233,6 +241,67 @@
                                (substitute (substitute fs-assertion ,@(zip (term (x ...)) (term (z ...)))) [y e] ...)
                                ))])
 
+; Turn (L [x y ...] a) into (x = a).
+; This is for use in get-arg-assertion.
+(define layout-app->eq
+  (reduction-relation
+   fun-SuSLik
+   #:domain fs-assertion
+   #:codomain fs-assertion
+
+   (--> (in-hole fs-assertion-hole (L [x y ...] a))
+        (in-hole fs-assertion-hole (x = a)))))
+   
+
+; Find the fs-assertion associated to the (pattern) arrgument to a fun-SuSLik function. This will
+; be used in the generated SuSLik to effectively "destructure" the "argument" parameter of the
+; inductive predicate.
+(define-judgment-form fun-SuSLik
+  #:contract (get-arg-assertion Γ L [x ...] pat fs-assertion)
+  #:mode (get-arg-assertion I I I I O)
+
+  [(lookup-layout-case-in-ctx Γ L C layout-case)
+   (layout-case-subst layout-case (C e ...) [x ...] ([y ...] (C z ...) → fs-assertion))
+   (where fs-assertion_r ,(car (apply-reduction-relation* layout-app->eq (term fs-assertion))))
+   -------------------
+   (get-arg-assertion Γ L [x ...] (C e ...) fs-assertion_r)])
+
+; For something related, see https://github.com/roboguy13/suslik/wiki/Ideas-on-predicate-composition#a-syntactic-transformation-for-predicate-composition
+; Precondition: Each list of compose-args contains exactly one '?
+(define-judgment-form fun-SuSLik
+  #:contract (fs-compose Γ L [x ...] compose-app L [y ...] compose-app fs-assertion)
+  #:mode (fs-compose I I I I I I I O)
+
+  [(where x_shared ,(gensym 'shared))
+   (where e_1 (substitute compose-app_1 [? x_shared]))
+   ;(where e_2 (substitute compose-app_2 [? x_shared]))
+   (where e_2 compose-app_2)
+   (lower-expr Γ x_0 e_1 (fs-heaplet_0 ...))
+   (where (fs-heaplet_1 ...) ,(car (apply-reduction-relation layout-app->eq (term (fs-heaplet_0 ...)))))
+   (lower-expr Γ x_shared e_2 (fs-heaplet_2 ...))
+   ;(lower-expr Γ x_0 compose-app
+   ;(apply-layout Γ L_1 [x_0 x ...] (substitute [C compose-arg_1 ...] [? x_shared]) (fs-heaplets_1 ...))
+   ;(apply-layout Γ L_2 [y_0 y ...] (substitute [
+   -------------------
+   (fs-compose Γ
+               L_1 [x_0 x ...] compose-app_1
+               L_2 [y_0 y ...] compose-app_2
+               (fs-heaplet_1 ... fs-heaplet_2 ...))
+   ])
+
+; Either apply (expand) a layout application or turn a function application into
+; its corresponding layout application form (without expanding it)
+(define-judgment-form fun-SuSLik
+  #:contract (lower-expr Γ x compose-app fs-assertion)
+  #:mode (lower-expr I I I O)
+
+  [(apply-layout Γ L [x] (C e ...) fs-assertion)
+   -------------------
+   (lower-expr Γ x (lower [] L (C e ...)) fs-assertion)]
+
+  [-------------------
+   (lower-expr Γ x (f e ...) (((get-pred-name f) [x] e ...)))])
+
 #;(define-judgment-form fun-SuSLik
   #:contract (layout-case-subst* layout-case constr-app))
 
@@ -360,7 +429,7 @@
   #:contract (case-condition Γ L [x ...] pat e)
   #:mode (case-condition I I I I O)
 
-  ; TODO: Change this to check based on heap satisfaction
+  ; TODO: Change this to check based on heap satisfaction?
   [(apply-layout Γ L [x ...] pat fs-assertion_0)
    (nonzero-vars fs-assertion_0 [x_nonzero-initial ...])
    (where [x_nonzero ...] ,(remove-duplicates (term [x_nonzero-initial ...])))
@@ -389,13 +458,98 @@
   ((get-inner-pred-name x)
    ,(string->symbol (string-append "L-pred_inner_" (symbol->string (term x))))))
 
+; (L (x ...) e) ... --> (L x ...)
+(define to-suslik-layout-apps
+  (reduction-relation
+   fun-SuSLik
+   #:domain fs-assertion-applied
+   #:codomain (suslik-heaplet ...)
+   
+   [--> (in-hole fs-assertion-hole (L [x ...] e ...))
+        (in-hole fs-assertion-hole (L x ...))]))
+
+
+#;(define (lower->suslik-layout-app Γ)
+  (reduction-relation
+   fun-SuSLik
+   #:domain e
+   #:codomain (suslik-heaplet ...)
+   
+   [--> (in-hole fs-assertion-hole (lower [x ...] L pat))
+        (in-hole fs-assertion-hole fs-assertion)
+
+        (judgment-holds (flat-reduce-layout-apps Γ (L [x ...] pat) fs-assertion))]))
+
 (define-judgment-form fun-SuSLik
-  #:contract (gen-match-branch Γ L [x ...] f fn-case fs-assertion)
-  #:mode (gen-match-branch I I I I I O)
+  #:contract (lower->suslik-layout-app Γ e fs-assertion)
+  #:mode (lower->suslik-layout-app I I O)
+
+  [(flat-reduce-layout-apps Γ ((L [x ...] pat)) fs-assertion)
+   ---------------
+   (lower->suslik-layout-app Γ (lower [x ...] L pat) fs-assertion)])
+
+(define (to-and xs)
+  (let ((len (length xs)))
+    (if (eq? len 0)
+        (term true)
+        (if (eq? len 1)
+            (car xs)
+            (term (&& ,@xs))))))
+
+
+
+(define-judgment-form fun-SuSLik
+  #:contract (gen-cond-branch Γ L [x ...] pat guarded-expr pred-branch)
+  #:mode (gen-cond-branch I I I I I O)
 
   [(apply-layout Γ L [x ...] pat fs-assertion)
+   (where (suslik-heaplet ...) ,(car (apply-reduction-relation* to-suslik-layout-apps (term fs-assertion))))
+   (where (suslik-heaplet_e ...) ,(car (apply-reduction-relation* lower->suslik-layout-app (term e))))
    -----------------
-   (gen-match-branch Γ L [x ...] f (pat [] → e) (substitute fs-assertion [L (get-pred-name f)]))
+   (gen-cond-branch Γ L [x ...] pat (bool-expr → e) (bool-expr ⇒ (true (suslik-heaplet ... suslik-heaplet_e ...))) #;(true fs-assertion) #;(true (substitute fs-assertion [L (get-pred-name f)])))
+   ]
+
+  #;[(apply-layout Γ L [x ...] pat fs-assertion)
+   -----------------
+   (gen-match-branch Γ L [x ...] f (pat [bool-expr_0 bool-expr ...] → e) (substitute fs-assertion [L (get-inner-pred-name f)]))])
+
+(define-judgment-form fun-SuSLik
+  #:contract (gen-cond-branch* Γ L [x ...] pat (guarded-expr ...) (pred-branch ...))
+  #:mode (gen-cond-branch* I I I I I O)
+
+  [----------------
+   (gen-cond-branch* Γ L [x ...] pat [] [])
+   ]
+
+  [(gen-cond-branch Γ L [x ...] pat (bool-expr → e) pred-branch)
+   (gen-cond-branch* Γ L [x ...] pat (guarded-expr ...) (pred-branch_r ...))
+   ----------------
+   (gen-cond-branch* Γ L [x ...] pat ((bool-expr → e) guarded-expr ...) (pred-branch pred-branch_r ...))
+   ])
+
+(define-judgment-form fun-SuSLik
+  #:contract (gen-cond-branch-inductive Γ L [x ...] pred-name (pat guarded-expr ...) suslik-predicate)
+  #:mode (gen-cond-branch-inductive I I I I I O)
+
+  [(gen-cond-branch* Γ L [x ...] pat (guarded-expr ...) (pred-branch ...))
+   ------------------
+   (gen-cond-branch-inductive Γ L [x ...] pred-name (pat guarded-expr ...)
+                               (inductive pred-name [x ...] pred-branch ...))
+   ])
+
+(define (get-result-arg xs)
+  (last xs))
+
+(define-judgment-form fun-SuSLik
+  ;#:contract (gen-match-branch Γ L [x ...] pred-name pat guarded-expr pred-branch)
+  #:mode (gen-match-branch I I I I I I O)
+
+  [(case-condition Γ L [x ...] pat e)
+   (apply-layout Γ L [x ...] pat fs-assertion)
+   (where L_new ,(gensym (term L)))
+   -------------------
+   (gen-match-branch Γ L [x ...] pred-name pat guarded-expr
+                     (e ⇒ (true (substitute guarded-expr (L L_new)))))
    ])
 
 #;(define-judgment-form fun-SuSLik
@@ -478,13 +632,22 @@
 
 (define dll-ctx (term (extend · L-dll ,dll-layout)))
 
+(define filter-lt-7
+  (term
+   ((filterLt7 : (List → List))
+    (
+     ((C-Nil) [true → (C-Nil)])
+     ((C-Cons head tail)
+      [(< a 7) → (C-Cons head (filterLt7 tail))]
+      [(not (< a 7)) → (filterLt7 tail)])))))
+
 
 (define D-to-list
   (term
    ((DToList : (D → List))
     (
-    ((C-D1 a) [] → (C-Cons a (C-Nil)))
-    ((C-D2 a b) [] → (C-Cons a (C-Cons b (C-Nil))))))))
+    ((C-D1 a) [true → (C-Cons a (C-Nil))])
+    ((C-D2 a b) [true → (C-Cons a (C-Cons b (C-Nil)))])))))
 
 (define tree-layout
   (term
@@ -524,6 +687,9 @@
 
 (judgment-holds (apply-layout ,tree-ctx L-tree [x] (C-Bin 1 (C-Leaf) (C-Leaf)) fs-assertion) fs-assertion)
 (judgment-holds (apply-layout ,tree-ctx L-tree [x] (C-Bin 1 (C-Bin 2 a b) (C-Bin 3 c (C-Leaf))) fs-assertion) fs-assertion)
+(redex-match fun-SuSLik fn-def filter-lt-7)
+(judgment-holds (apply-layout ,sll-ctx L-sll [x] (C-Cons a b) fs-assertion) fs-assertion)
+(judgment-holds (apply-layout ,dll-ctx L-dll [x] (C-Cons a b) fs-assertion) fs-assertion)
 
 
 #;(judgment-holds (apply-layout ,sll-ctx sll (C-Cons a (C-Cons b (C-Cons (+ 1 1) (C-Nil)))) fs-assertion) fs-assertion)
