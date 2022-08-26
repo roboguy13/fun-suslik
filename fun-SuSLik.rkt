@@ -83,7 +83,7 @@
   (suslik-predicate ::=
                     (inductive pred-name (y ...) pred-branch ...))
   (pred-branch ::= (pure-part ⇒ suslik-assertion))
-  (suslik-heaplet ::= emp (p :-> pointed-to) (func f x ...) (L x ...) (x = equals-val))
+  (suslik-heaplet ::= emp (p :-> pointed-to) (func f x ...) (L x ...) (L [x ...] y ...) (x = equals-val))
   (suslik-heaplets ::= (suslik-heaplet ...))
   (suslik-assertion ::= (pure-part (suslik-heaplet ...)))
   (suslik-assertions ::= (suslik-assertion ...))
@@ -574,14 +574,14 @@
   #:mode (get-result-arg I O)
 
   [----------------
-   (get-result-arg (L [x ... z] e) z)])
+   (get-result-arg (L [z x ...] e) z)])
 
 (define-judgment-form fun-SuSLik
   #:contract (add-result-arg layout-app x layout-app)
   #:mode (add-result-arg I I O)
 
   [------------------
-   (add-result-arg (L [x ...] e) z (L [x ... z] e))])
+   (add-result-arg (L [x ...] e) z (L [z x ...] e))])
 
 (define (add-result-arg-red L r)
   (reduction-relation
@@ -590,7 +590,7 @@
    #:codomain fs-assertion
 
    (--> (in-hole fs-assertion-hole (L [x ...] e))
-        (in-hole fs-assertion-hole (L [x ... r] e))
+        (in-hole fs-assertion-hole (L [r x ...] e))
         (where #t ,(eq? L (term L)))
         
         #;(judgment-holds (add-result-arg (L [x ...] e) r fs-assertion)))))
@@ -600,15 +600,16 @@
   #:mode (gen-match-branch I I I I I I O)
 
   [(case-condition Γ L [x y ...] pat e_cond)
-   ;(apply-layout Γ L [x y ...] pat fs-assertion_layout)
+   (where x_pat ,(gensym (term arg)))
+   (apply-layout Γ L [x_pat] pat fs-assertion_pat)
    ;(where L_new ,(gensym (term L)))
-   (where x_res ,(gensym (term res)))
    (fs-compose* Γ x e fs-assertion_1)
-   (where suslik-heaplets ,(car (apply-reduction-relation* fs-assertion->suslik (term fs-assertion_1))))
+   (where (suslik-heaplet_1 ...) ,(car (apply-reduction-relation* fs-assertion->suslik (term fs-assertion_1))))
+   (where (suslik-heaplet_pat ...) ,(car (apply-reduction-relation* fs-assertion->suslik (term fs-assertion_pat))))
    #;(where fs-assertion_2 ,(car (apply-reduction-relation (add-result-arg-red (term L) (term x_res)) (term fs-assertion_1))))
    -------------------
    (gen-match-branch Γ L [x y ...] pred-name pat (true → e)
-                     (e_cond ⇒ (true suslik-heaplets #;(substitute fs-assertion_1 (L L_new)))))
+                     (e_cond ⇒ (true (suslik-heaplet_pat ... suslik-heaplet_1 ...) #;(substitute fs-assertion_1 (L L_new)))))
    ])
 
 (define-judgment-form fun-SuSLik
@@ -815,6 +816,32 @@
 (judgment-holds (apply-layout ,dll-ctx L-dll [x] (C-Cons a b) fs-assertion) fs-assertion)
 
 (judgment-holds (gen-match-pred ,all-ctx L-tree [x] L-pred-f ,left-list any) any)
+
+
+#;(inductive
+    L-pred-f
+    (x)
+    ((&& (== x 0)) ⇒ (true ((x = 0) (x = 0))))
+    ((&& (not (== x 0)))
+     ⇒
+     (true
+      ((x :-> a)
+       ((x + 1) :-> nxtLeft«391»)
+       ((x + 2) :-> nxtRight«392»)
+       (L-tree (nxtLeft«391») left)
+       (L-tree nxtRight«392» right)
+       (x :-> a)
+       ((x + 1) :-> nxt«407»)
+       (nxt«407» = shared954743)
+       (L-pred_base_left-list shared954743 left)))))
+
+
+
+
+
+
+
+
 
 #;
 ((inductive L-pred-f (x)

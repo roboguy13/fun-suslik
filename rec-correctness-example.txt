@@ -1,0 +1,112 @@
+=== Soundness ===
+
+forall e, P, Q, [[e]] = (P, Q) -> 
+       forall arg, [arg] |= P -> [e(arg)] |= Q 
+
+
+- data Tree := Leaf | Bin Int Tree Tree
+  data List := Nil | Cons Int List
+
+  L_Tree : Tree >-> layout[x]
+  L_Tree Leaf := emp
+  L_Tree (Bin v left right) :=
+    x :-> v, (x+1) :-> leftPtr, (x+2) :-> rightPtr,
+    L_Tree[leftPtr] left,
+    L_Tree[rightPtr] right
+
+  L_List : List >-> layout[x]
+  L_List Nil := emp
+  L_List (Cons head tail) := x :-> a, (x+1) :-> nxt, L_List[nxt] tail
+
+  leftList : Tree -> List
+  leftList Leaf := Nil
+  leftList (Bin v left right) := Cons v (f left)
+
+  arg : Tree
+  arg = Bin 1 (Bin 2 Leaf Leaf) (Bin 10 Leaf Leaf)
+
+  [[lower[x]_{L_List} . leftList . lift[y]_{L_Tree}]] =
+    ({x,y} { tree(x) ** y :-> 0 }
+          ,{ y :-> r ** leftList_base(x, r) }
+          )
+
+  [lower[x]_{L_Tree}](arg)] =
+    (x :-> 1 ** (x+1) :-> left ** (x+2) :-> right **
+     left :-> 2 ** (left+1) :-> 0 ** (left+2) :-> 0 **
+     right :-> 10 ** (right+1) :-> 0 ** (right+2) :-> 0)
+
+
+  [lower[r]_{L_Tree}(e(arg))]
+    =
+  [lower[r]_{L_Tree}(Cons 1 (Cons 2 Nil))]
+    =
+    (r :-> 1 ** (r+1) :-> nxt ** nxt :-> 1 ** (nxt+1) :-> 0)
+
+
+  * The question is:
+      [lower[x]_{L_Tree}(arg)] |= P -> [lower[y]_{L_Tree}(e(arg))] |= Q
+
+      [lower[r]_{L_Tree}(Bin 1 (Bin 2 Leaf Leaf) (Bin 10 Leaf Leaf))]
+        |= { tree(x) ** y :-> 0 }
+          ->
+           (r :-> 1 ** (r+1) :-> nxt ** nxt :-> 1 ** (nxt+1) :-> 0)
+             |= { y :-> r ** leftList_base(x, r) }
+
+      The antecedent is:
+        (x :-> 1 ** (x+1) :-> left ** (x+2) :-> right **
+         left :-> 2 ** (left+1) :-> 0 ** (left+2) :-> 0 **
+         right :-> 10 ** (right+1) :-> 0 ** (right+2) :-> 0)
+        |= { tree(x) ** y :-> 0 }
+
+        which should be true.
+
+      So we check the consequent:
+       (r :-> 1 ** (r+1) :-> nxt ** nxt :-> 1 ** (nxt+1) :-> 0)
+         |= { y :-> r ** leftList_base(x, r) }
+
+       Should we concatenate [arg] with [e(arg)] when checking this?
+       If so, this should be true.
+
+       Note that, even though this is a recursive function, since we
+       have a specific value for the argument we do not need to use induction.
+      
+
+=== Completeness ===
+   
+
+forall arg : T, |- e(arg) -> [arg] |= P
+
+Again using the above example: Since leftList(arg) is well-typed,
+
+
+  [lower[x]_{L_Tree}](arg)] =
+    (x :-> 1 ** (x+1) :-> left ** (x+2) :-> right **
+     left :-> 2 ** (left+1) :-> 0 ** (left+2) :-> 0 **
+     right :-> 10 ** (right+1) :-> 0 ** (right+2) :-> 0)
+
+      |=
+        { tree(x) ** y :-> 0 }
+
+
+  By unfolding tree twice, we should find this to be true.
+
+
+=== Inductive predicates ===
+
+predicate leftList_base(loc x, loc y) {
+| x == 0 => { y == 0 ; emp }
+| not (x == 0) => { [x, 3] ** [y, 2] **
+    x :-> v ** (x+1) :-> left ** (x+2) :-> right ** 
+    y :-> v ** (y+1) :-> nxt **
+    leftList_base(left, nxt)
+  }
+}
+
+predicate tree(loc x) {
+| x == 0 => { emp }
+| not (x == 0) => { [x, 3] ** x :-> v ** (x+1) :-> left ** (x+2) :-> right
+    ** tree(left)
+    ** tree(right)
+  }
+}
+
