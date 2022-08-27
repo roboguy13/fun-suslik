@@ -47,7 +47,7 @@ filterLt7 Nil
   | True = Nil
 filterLt7 (Cons x xs)
   | x < 7       = Cons x (filterLt7 xs)
-  | not (x < 7) = filterLt 7 xs
+  | not (x < 7) = filterLt7 xs
 \end{lstlisting}
 
 \section{Introduction}
