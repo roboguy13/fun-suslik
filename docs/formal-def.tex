@@ -44,10 +44,10 @@ With type syntax, algebraic data type syntax and layout syntax given below in Se
 \begin{lstlisting}
 filterLt7 : List -> List
 filterLt7 Nil
-  | True = Nil
+  | True := Nil
 filterLt7 (Cons x xs)
-  | x < 7       = Cons x (filterLt7 xs)
-  | not (x < 7) = filterLt7 xs
+  | x < 7       := Cons x (filterLt7 xs)
+  | not (x < 7) := filterLt7 xs
 \end{lstlisting}
 
 \section{Introduction}
