@@ -7,6 +7,41 @@
 
 \begin{document}
 
+\section{Syntax for Simple Expressions}
+
+\begin{grammar}
+  <fn-sig> ::= "f" ":" $\tau$
+
+  <fn-body> ::= $\overline{\textnormal{fn-case}}$
+
+  <fn-case> ::= "f" $\overline{\textnormal{pattern} \overline{" | " \textnormal{b} " := " \textnormal{e}}}$
+
+  <fn-inst> ::= "f" ":=" "lower" "L"$_1$ $\circ$ "g" $\circ$ "lift" "L"$_2$
+
+  <pattern> ::= <constr> | "(" <constr> $\overline{\textnormal{var}}$ ")"
+
+  <b> ::= "True" | "False" | <bool> | <b> "&&" <b> | <b> "||" <b> | "not" <b> | <e> "<=" <e>
+    | <e> "==" <e>
+
+  <e> ::= <int> | <b> | <e> "+" <e> | <e> "*" <e> | <e> "-" <e> | "f" <e> | <constr> | "(" <constr> $\overline{\textnormal{e}}$ ")"
+
+  <int> ::= $\cdots$ | -2 | -1 | 0 | 1 | 2 | $\cdots$
+\end{grammar}
+
+\noindent
+With algebraic data type definitions and layout definitions given below in Section~\ref{sec:FSDef}.
+
+\subsection{Example: filter}
+
+\begin{lstlisting}
+filterLt7 : List -> List
+filterLt7 Nil
+  | True = Nil
+filterLt7 (Cons x xs)
+  | x < 7       = Cons x (filterLt7 xs)
+  | not (x < 7) = filterLt 7 xs
+\end{lstlisting}
+
 \section{Introduction}
 
 In this document, we give a translation from fun-SuSLik to SuSLik. First, we define the syntax and
@@ -1140,9 +1175,14 @@ sllFilterLt := lift filterLt
 
 We will abbreviate $\lowerS{L_1} \circ f \circ \liftS{L_2}$ by $f_{L_1,L_2}$.
 
+So, if $f : A \ra B$ and we have $L_1 : A \monic \layout{\Delta_1}$ and $L_2 : B \monic \layout{\Delta_2}$, then
+we have $f_{L_1,L_2} : L_1 \ra L_2$.
+\\
+
 \textbf{TODO}: Do we need to explicitly keep track of the inductive predicate environment in these theorems?
 
-\begin{theorem} Completeness. \textbf{TODO}: Is this actually completeness?\\
+\begin{theorem} Completeness. %\textbf{TODO}: Is this actually completeness?
+  \\
   $\forall f : A \ra B, L_1 : A \monic \layout{\Delta_1}, L_2 : B \monic \layout{\Delta_2}.\\
   ~~~\forall P, Q.\\
   ~~~\Fsem{f_{L_1,L_2}} = (P, Q) \Ra \forall x : A. \vdash f(x) : B \Ra \Hsem{\Sigma}{(f_{L_1,L_2}(\lowerS{L_1}(x)))} \models Q$
