@@ -28,7 +28,7 @@ is done in a nanopass compiler or other kinds of multi-pass compilers).
 
   <pattern> ::= <constr> | "(" <constr> $\overline{\textnormal{var}}$ ")"
 
-  <b> ::= "True" | "False" | <bool> | <b> "&&" <b> | <b> "||" <b> | "not" <b> | <e> "<=" <e>
+  <b> ::= "True" | "False" | <b> "&&" <b> | <b> "||" <b> | "not" <b> | <e> "<=" <e> | <e> "<" <e>
     | <e> "==" <e>
 
   <e> ::= <int> | <b> | <e> "+" <e> | <e> "*" <e> | <e> "-" <e> | "f" <e> | <constr> | "(" <constr> $\overline{\textnormal{e}}$ ")"
