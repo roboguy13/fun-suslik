@@ -9,6 +9,14 @@
 
 \section{Syntax for Simple Expressions}
 
+A syntax for a simplified language where expressions cannot contain pattern matches or branches. These
+two constructs must be done at the top-level of a function definition. Also, for the time being, each
+function takes exactly one argument.
+
+Relatively speaking, these things seem to be easier to translate into SuSLik. Once this translation
+is working, we can translate more complex expressions into this simpler expression language (such as
+is done in a nanopass compiler or other kinds of multi-pass compilers).
+
 \begin{grammar}
   <fn-sig> ::= "f" ":" $\tau$
 
@@ -29,7 +37,7 @@
 \end{grammar}
 
 \noindent
-With algebraic data type definitions and layout definitions given below in Section~\ref{sec:FSDef}.
+With type syntax, algebraic data type syntax and layout syntax given below in Section~\ref{sec:FSDef}.
 
 \subsection{Example: filter}
 
