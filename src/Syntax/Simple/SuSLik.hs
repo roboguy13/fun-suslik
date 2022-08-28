@@ -24,26 +24,27 @@ data SuSLikParam =
 -- NOTE: For now, does not support pure part
 data SuSLikBranch =
   MkSuSLikBranch
-  { suslikBranchCond :: SuSLikExpr
+  { suslikBranchCond :: SuSLikExpr SuSLikName
   , suslikBranchRhs :: [SuSLikHeaplet]
   }
   deriving (Show)
 
-data SuSLikExpr where
-  IntS :: Int -> SuSLikExpr
-  BoolS :: Bool -> SuSLikExpr
+data SuSLikExpr a where
+  VarS :: a -> SuSLikExpr a
+  IntS :: Int -> SuSLikExpr a
+  BoolS :: Bool -> SuSLikExpr a
 
-  AndS :: SuSLikExpr -> SuSLikExpr -> SuSLikExpr
-  OrS :: SuSLikExpr -> SuSLikExpr -> SuSLikExpr
-  NotS :: SuSLikExpr -> SuSLikExpr
+  AndS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
+  OrS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
+  NotS :: SuSLikExpr a -> SuSLikExpr a
 
-  LtS :: SuSLikExpr -> SuSLikExpr -> SuSLikExpr
-  LeS :: SuSLikExpr -> SuSLikExpr -> SuSLikExpr
-  EqualS :: SuSLikExpr -> SuSLikExpr -> SuSLikExpr
+  LtS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
+  LeS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
+  EqualS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
 
-  AddS :: SuSLikExpr -> SuSLikExpr -> SuSLikExpr
-  SubS :: SuSLikExpr -> SuSLikExpr -> SuSLikExpr
-  MulS :: SuSLikExpr -> SuSLikExpr -> SuSLikExpr
+  AddS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
+  SubS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
+  MulS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
   deriving (Show)
 
 data SuSLikType = IntType | LocType | BoolType | SetType
