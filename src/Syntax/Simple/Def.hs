@@ -4,6 +4,7 @@ module Syntax.Simple.Def
 import           Syntax.Simple.Expr
 import           Syntax.Simple.SuSLik
 import           Syntax.Name
+import           Syntax.Ppr
 
 data Def =
   MkDef

@@ -23,6 +23,8 @@ import           Bound.Scope
 
 import           Control.Monad.State
 
+import           Syntax.Ppr
+
 -- TODO: Store unique IDs in the two name types?
 
 newtype SuSLikName = MkSuSLikName { getSuSLikName :: String }
@@ -32,6 +34,12 @@ data FsName where
   MkFsName :: String -> FsName
   FromSuSLikName :: SuSLikName -> FsName
   deriving (Eq, Ord, Show)
+
+instance Ppr SuSLikName where
+  ppr = genString
+
+instance Ppr FsName where
+  ppr = genString
 
 data HeapEnv b = MkHeapEnv [SuSLikName]
 

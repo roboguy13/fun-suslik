@@ -15,6 +15,7 @@ import           Control.Applicative
 import           Control.Arrow (first)
 
 import           Syntax.Name
+import           Syntax.Ppr
 
 import           Bound
 
@@ -54,6 +55,24 @@ data Expr a where
     Expr a -> -- | f
     Expr a
   deriving (Show)
+
+pprBinOp :: (Ppr a, Ppr b) => String -> a -> b -> String
+pprBinOp op x y = "(" <> ppr x <> " " <> op <> " " <> ppr y <> ")"
+
+instance Ppr a => Ppr (Expr a) where
+  ppr (Var v) = ppr v
+  ppr (IntLit i) = show i
+  ppr (BoolLit b) = show b
+  ppr (And x y) = pprBinOp "&&" x y
+  ppr (Or x y) = pprBinOp "||" x y
+  ppr (Not x) = "not (" <> ppr x <> ")"
+  ppr (Add x y) = pprBinOp "+" x y
+  ppr (Sub x y) = pprBinOp "-" x y
+  ppr (Mul x y) = pprBinOp "*" x y
+  ppr (Equal x y) = pprBinOp "==" x y
+  ppr (Le x y) = pprBinOp "<=" x y
+  ppr (Lt x y) = pprBinOp "<" x y
+  -- TODO: Finish
 
 type ClosedExpr = Expr Void
 
@@ -106,6 +125,20 @@ data Heaplet a b where
 
 data Loc a = Here a | a :+ Int
   deriving (Show, Functor)
+
+instance (Ppr a, Ppr b) => Ppr (Heaplet a b) where
+  ppr (PointsTo x y) = ppr x <> " :-> " <> ppr y
+
+  -- TODO: Is this correct?
+  ppr (HeapletApply f suslikArgs fsArg) =
+    f <> "(" <> intercalate ", " (map ppr suslikArgs) <> ")"
+
+instance Ppr a => Ppr (Loc a) where
+  ppr (Here x) = ppr x
+  ppr (x :+ i) = "(" <> ppr x <> "+" <> show i <> ")"
+
+instance (Ppr a, Ppr b) => Ppr [Heaplet a b] where
+  ppr xs = intercalate " ** " (map ppr xs)
 
 type Heaplet' = Heaplet SuSLikName FsName
 type ExprHeaplet = Heaplet SuSLikName (Expr FsName)
