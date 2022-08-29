@@ -117,6 +117,15 @@ data Layout =
   }
   deriving (Show)
 
+paramIndexToName :: Layout -> ParamIndex -> SuSLikName
+paramIndexToName layout (MkParamIndex ix) = layoutSuSLikParams layout !! ix
+
+nameToParamIndex :: Layout -> SuSLikName -> ParamIndex
+nameToParamIndex layout name =
+  case name `elemIndex` layoutSuSLikParams layout of
+    Nothing -> error $ "nameToParamIndex: Cannot find the following name in parameter list: " ++ show name
+    Just ix -> MkParamIndex ix
+
 lookupLayout :: [Layout] -> String -> Layout
 lookupLayout layoutDefs name =
   case find ((== name) . layoutName) layoutDefs of
