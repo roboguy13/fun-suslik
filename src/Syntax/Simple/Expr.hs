@@ -117,6 +117,17 @@ data Layout =
   }
   deriving (Show)
 
+mkLayout :: String -> String -> [SuSLikName] -> [(Pattern FsName, LayoutBranch FsName SuSLikName)] -> Layout
+mkLayout name adtName suslikParams branches =
+  MkLayout
+    { layoutName = name
+    , layoutAdtName = adtName
+    , layoutSuSLikParams = suslikParams
+    , layoutBranches = map go branches
+    }
+  where
+    go (pat, branch) = (pat, abstract (fmap MkParamIndex . (`elemIndex` suslikParams)) branch)
+
 paramIndexToName :: Layout -> ParamIndex -> SuSLikName
 paramIndexToName layout (MkParamIndex ix) = layoutSuSLikParams layout !! ix
 
