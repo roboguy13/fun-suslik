@@ -2,6 +2,9 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Syntax.Simple.Expr
   where
@@ -18,6 +21,8 @@ import           Syntax.Name
 import           Syntax.Ppr
 
 import           Bound
+
+import           Syntax.Simple.Heaplet
 
 type ConstrName = String
 
@@ -100,12 +105,15 @@ data AdtBranch =
   }
   deriving (Show)
 
+newtype ParamIndex = MkParamIndex Int
+  deriving (Show, Eq, Ord, Enum)
+
 data Layout =
   MkLayout
   { layoutName :: String
   , layoutAdtName :: String
   , layoutSuSLikParams :: [SuSLikName]
-  , layoutBranches :: [(Pattern FsName, LayoutBranch SuSLikName FsName)]
+  , layoutBranches :: [(Pattern FsName, Scope ParamIndex (LayoutBranch FsName) SuSLikName)]
   }
   deriving (Show)
 
@@ -114,17 +122,6 @@ lookupLayout layoutDefs name =
   case find ((== name) . layoutName) layoutDefs of
     Nothing -> error $ "lookupLayout: Cannot find layout definition " ++ name
     Just def -> def
-
-type LayoutBranch a b = [Heaplet a b]
-type LayoutBranch' = LayoutBranch SuSLikName FsName
-
-data Heaplet a b where
-  PointsTo :: Loc a -> b -> Heaplet a b
-  HeapletApply :: String -> [a] -> b -> Heaplet a b
-  deriving (Show)
-
-data Loc a = Here a | a :+ Int
-  deriving (Show, Functor)
 
 instance (Ppr a, Ppr b) => Ppr (Heaplet a b) where
   ppr (PointsTo x y) = ppr x <> " :-> " <> ppr y
@@ -140,8 +137,8 @@ instance Ppr a => Ppr (Loc a) where
 instance (Ppr a, Ppr b) => Ppr [Heaplet a b] where
   ppr xs = intercalate " ** " (map ppr xs)
 
-type Heaplet' = Heaplet SuSLikName FsName
-type ExprHeaplet = Heaplet SuSLikName (Expr FsName)
+type Heaplet' = Heaplet FsName SuSLikName
+type ExprHeaplet = Heaplet (Expr FsName) SuSLikName
 
 type SuSLikHeaplet = Heaplet SuSLikName SuSLikName
 
@@ -174,21 +171,21 @@ performSubst subst curr =
     Just new -> new
     Nothing -> substInject curr
 
-applyPatSubstHeaplet :: PatSubst -> Heaplet a FsName -> Heaplet a (Expr FsName)
+applyPatSubstHeaplet :: PatSubst -> Heaplet FsName a -> Heaplet (Expr FsName) a
 applyPatSubstHeaplet subst (PointsTo ptr tgt) =
   PointsTo ptr (performSubst subst tgt)
 
 applyPatSubstHeaplet subst (HeapletApply f suslikArgs fsArg) =
   HeapletApply f suslikArgs (performSubst subst fsArg)
 
-applySuSLikSubstHeaplet :: SuSLikSubst -> Heaplet SuSLikName b -> Heaplet SuSLikName b
+applySuSLikSubstHeaplet :: SuSLikSubst -> Heaplet b SuSLikName -> Heaplet b SuSLikName
 applySuSLikSubstHeaplet subst (PointsTo ptr tgt) =
   PointsTo (fmap (performSubst subst) ptr) tgt
 
 applySuSLikSubstHeaplet subst (HeapletApply f suslikArgs fsArg) =
   HeapletApply f (map (performSubst subst) suslikArgs) fsArg
 
-applyLayout :: Layout -> [SuSLikName] -> ConstrName -> [Expr FsName] -> LayoutBranch SuSLikName (Expr FsName)
+applyLayout :: Layout -> [SuSLikName] -> ConstrName -> [Expr FsName] -> LayoutBranch (Expr FsName) SuSLikName
 applyLayout layout suslikArgs cName fsArg =
   case mapMaybe (matchBranch cName fsArg) (layoutBranches layout) of
     [] -> error "applyLayout: Constructor does not match pattern"
@@ -197,14 +194,29 @@ applyLayout layout suslikArgs cName fsArg =
       in
       map (applySuSLikSubstHeaplet suslikSubst . applyPatSubstHeaplet subst) branch
 
+freshenNotIn :: (Named a, Eq a) => [a] -> a -> NameSupply a
+freshenNotIn boundVars v
+  | v `elem` boundVars = pure v
+  | otherwise = freshen v
+
+-- -- TODO: This needs to use simultaneous (uniform) substitutions
+-- freshenFVs :: (Named a, Eq a) =>
+--   [a] -> LayoutBranch a b -> NameSupply (LayoutBranch a b)
+-- freshenFVs boundVars = mapM go
+--   where
+--     go (PointsTo x y) = do
+--       x' <- mapM (freshenNotIn boundVars) x
+--       pure $ PointsTo x' y
+--     go (HeapletApply f suslikArgs fsArg) = undefined
+
 -- | Apply layout definition enough times to eliminate constructor
 -- applications in argument.
-applyLayoutMany :: [Layout] -> Layout -> [SuSLikName] -> ConstrName -> [Expr FsName] -> NameSupply (LayoutBranch SuSLikName (Expr FsName))
+applyLayoutMany :: [Layout] -> Layout -> [SuSLikName] -> ConstrName -> [Expr FsName] -> NameSupply (LayoutBranch (Expr FsName) SuSLikName)
 applyLayoutMany layoutDefs layout0 suslikArgs0 cName0 fsArg0 =
   fmap concat $ mapM go (applyLayout layout0 suslikArgs0 cName0 fsArg0)
   where
-    go :: Heaplet SuSLikName (Expr FsName) ->
-          NameSupply [Heaplet SuSLikName (Expr FsName)]
+    go :: Heaplet (Expr FsName) SuSLikName ->
+          NameSupply [Heaplet (Expr FsName) SuSLikName]
     go (HeapletApply f suslikArgs (ConstrApply cName fsArg)) = do
       let nextLayout = lookupLayout layoutDefs f
       suslikArgs_fresh <- mapM freshen suslikArgs
@@ -212,7 +224,7 @@ applyLayoutMany layoutDefs layout0 suslikArgs0 cName0 fsArg0 =
       applyLayoutMany layoutDefs nextLayout suslikArgs_fresh cName fsArg
     go heaplet = pure [heaplet]
 
-applyLayoutMany' :: [Layout] -> Layout -> [SuSLikName] -> ConstrName -> [Expr FsName] -> LayoutBranch SuSLikName (Expr FsName)
+applyLayoutMany' :: [Layout] -> Layout -> [SuSLikName] -> ConstrName -> [Expr FsName] -> LayoutBranch (Expr FsName) SuSLikName
 applyLayoutMany' layoutDefs layout suslikArgs cName fsArg =
   runNameSupply $ applyLayoutMany layoutDefs layout suslikArgs cName fsArg
 
