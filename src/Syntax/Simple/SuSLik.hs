@@ -3,7 +3,7 @@
 module Syntax.Simple.SuSLik
   where
 
-import           Syntax.Simple.Expr
+-- import           Syntax.Simple.Expr
 import           Syntax.Simple.Heaplet
 import           Syntax.Name
 
@@ -17,16 +17,19 @@ data InductivePred =
 
 data SuSLikParam =
   MkSuSLikParam
-  { suslikParamName :: SuSLikName
+  { suslikParamName :: String
   , suslikParamType :: SuSLikType
   }
   deriving (Show)
 
+locParam :: String -> SuSLikParam
+locParam n = MkSuSLikParam n LocType
+
 -- NOTE: For now, does not support pure part
 data SuSLikBranch =
   MkSuSLikBranch
-  { suslikBranchCond :: SuSLikExpr SuSLikName
-  , suslikBranchRhs :: [Heaplet SuSLikName]
+  { suslikBranchCond :: SuSLikExpr String
+  , suslikBranchRhs :: [Heaplet String]
   }
   deriving (Show)
 

@@ -5,6 +5,7 @@
 {-# LANGUAGE DeriveFoldable, DeriveTraversable #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Syntax.Simple.Expr
   where
@@ -19,13 +20,15 @@ import           Control.Arrow (first, second)
 
 import           Syntax.Name
 import           Syntax.Ppr
+import           Syntax.FreshGen
+import           Syntax.Simple.SuSLik
 
 import           Bound
 import           Bound.Scope
 
 import           Syntax.Simple.Heaplet
 
-import           ListT (fromFoldable)
+import           Data.Either
 
 
 data Pattern a = MkPattern ConstrName [FsName]
@@ -47,6 +50,10 @@ data Pattern a = MkPattern ConstrName [FsName]
 --   -- TODO: Finish
 
 type ClosedExpr = Expr Void
+
+isVar :: Expr a -> Bool
+isVar (Var x) = True
+isVar _ = False
 
 data Type where
   IntType :: Type
@@ -177,4 +184,70 @@ hasConstrApp Emp = False
 hasConstrApp (PointsTo _ _ rest) = hasConstrApp rest
 hasConstrApp (HeapletApply _ _ (ConstrApply {}) rest) = True
 hasConstrApp (HeapletApply _ _ _ rest) = hasConstrApp rest
+
+-- -- | Connect with (potentially) an intermediate variable
+-- connect :: 
+
+-- | Turn "L[x...] (f y...)" into "lower L [x...] (f y...)" then reduce using
+-- the Haskell 'lower'
+toLowers :: [Layout] -> Assertion' FsName -> FreshGen (Assertion' FsName)
+toLowers defs = go
+  where
+    go :: Assertion' FsName -> FreshGen (Assertion' FsName)
+    go Emp = pure Emp
+    go (PointsTo x y rest) = PointsTo x y <$> (go rest)
+    go (HeapletApply layoutName suslikParams e rest) = do
+      lower defs (lookupLayout defs layoutName) (map getVar suslikParams) e >>= \case
+        Left {} -> error "toLowers"
+        Right asn -> fmap (asn <>) (go rest)
+
+lower :: [Layout] -> Layout -> [SuSLikName] -> Expr FsName -> FreshGen (Either (SuSLikExpr FsName) (Assertion' FsName))
+lower defs layout suslikArgs = go 0
+  where
+    go :: Int -> Expr FsName -> FreshGen (Either (SuSLikExpr FsName) (Assertion' FsName))
+    go level (Var v) = pure $ Left (VarS v)
+    go level (IntLit i) = pure $ Left (IntS i)
+    go level (BoolLit b) = pure $ Left (BoolS b)
+    go level (And x y) = lowerBinOp level "&&" AndS x y
+    go level (Or x y) = lowerBinOp level "||" OrS x y
+    go level (Not x) = do
+      x_E <- go level x
+      case x_E of
+        (Left x') -> pure $ Left $ NotS x'
+        _ -> error "lower: Expected expression argument to 'not'"
+
+    go level (Lt x y) = lowerBinOp level "<" LtS x y
+    go level (Le x y) = lowerBinOp level "<=" LeS x y
+    go level (Equal x y) = lowerBinOp level "==" EqualS x y
+    go level (Add x y) = lowerBinOp level "+" AddS x y
+    go level (Sub x y) = lowerBinOp level "-" SubS x y
+    go level (Mul x y) = lowerBinOp level "*" MulS x y
+
+    go level (ConstrApply cName args)
+      -- | all isVar args = HeapletApply 
+      | otherwise = do
+      let suslikParams = suslikArgs --layoutSuSLikParams layout
+          suslikParam = head suslikParams -- TODO: Use all the parameters for this
+
+      loweredArgs <- mapM (go level) args
+      let level' = maximum $ fmap maximum $ fmap (fmap maxUniq) $ rights loweredArgs
+      let asn = applyLayout (succ level) layout suslikParams cName args
+
+      Right <$> toLowers defs asn
+
+      -- pure $ Right $ toLowers defs asn
+
+      -- pure $ Right $ applyLayout
+
+    go level (Apply f arg) = pure . Right $ HeapletApply f (map Var suslikArgs) arg Emp
+
+    lowerBinOp ::
+      Int -> String -> (SuSLikExpr FsName -> SuSLikExpr FsName -> SuSLikExpr FsName)
+      -> Expr FsName -> Expr FsName -> FreshGen (Either (SuSLikExpr FsName) (Assertion' FsName))
+    lowerBinOp level name f x y = do
+      x_E <- go level x
+      y_E <- go level y
+      case (x_E, y_E) of
+        (Left x', Left y') -> pure $ Left $ f x' y'
+        _ -> error $ "lowerBinOp: Expected expression argument to " ++ name
 

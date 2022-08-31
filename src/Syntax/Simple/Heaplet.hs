@@ -42,7 +42,7 @@ data Expr a where
 
   ConstrApply :: ConstrName -> [Expr a] -> Expr a
 
-  Lower :: String -> Expr a -> Expr a
+  Lower :: String -> [SuSLikName] -> Expr a -> Expr a
 
     -- | Represents @lower L_1 . f . lift L_2@
   LiftLowerFn ::
@@ -82,7 +82,8 @@ instance Ppr a => Ppr (Expr a) where
   ppr (ConstrApply cName args) =
     "(" ++ cName ++ " " ++ unwords (map ppr args) ++ ")"
 
-  ppr (Lower str e) = "(" ++ "lower" ++ unwords [str, ppr e] ++ ")"
+  ppr (Lower str suslikArgs e) =
+    "(" ++ "lower" ++ "[" ++ intercalate ", " (map ppr suslikArgs) ++ "] " ++ unwords [str, ppr e] ++ ")"
   ppr (LiftLowerFn lName1 lName2 f) =
     "(" ++ unwords ["lower", lName1, ".", ppr f, ".", "lift", lName2] ++ ")"
 
@@ -96,7 +97,7 @@ data Assertion a where
   Emp :: Assertion a
   PointsTo :: Loc a -> a -> Assertion a -> Assertion a
   HeapletApply :: LayoutName -> [a] -> a -> Assertion a -> Assertion a
-  deriving (Functor, Show)
+  deriving (Functor, Show, Foldable)
 
 instance Ppr a => Ppr (Assertion a) where
   ppr Emp = "emp"
@@ -208,7 +209,7 @@ instance Monad Expr where
 
   ConstrApply cName args >>= f = ConstrApply cName (map (>>= f) args)
 
-  Lower str x >>= f = Lower str (x >>= f)
+  Lower str suslikArgs x >>= f = Lower str suslikArgs (x >>= f)
 
   LiftLowerFn l1 l2 x >>= f = LiftLowerFn l1 l2 (x >>= f)
 

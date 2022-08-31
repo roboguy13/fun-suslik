@@ -14,6 +14,7 @@ module Syntax.Name
   ,boundVar
   ,freeVar
   ,toNames
+  ,maxUniq
   -- ,fsName
   -- ,suslikName
   )
@@ -37,6 +38,8 @@ import           Bound.Scope
 
 import           Control.Monad.State
 
+import           Data.Maybe
+
 import           Syntax.Ppr
 
 -- TODO: Store unique IDs in the two name types?
@@ -51,6 +54,7 @@ import           Syntax.Ppr
 data Name_ a where
   MkName :: a -> Name_ a
   MkFree :: Int -> a -> Name_ a
+  MkInternal :: Int -> Name_ a
   deriving (Show, Eq, Ord)
 
 type Name = Name_ String
@@ -58,13 +62,20 @@ type Name = Name_ String
 type SuSLikName = Name
 type FsName = Name
 
+maxUniq :: (Functor f, Foldable f) => f (Name_ a) -> Int
+maxUniq = fromMaybe 0 . maximum . fmap getNameIndex
+
 shiftName :: Name_ a -> Name_ a
-shiftName n@(MkName {}) = n
 shiftName (MkFree i x) = MkFree (succ i) x
+shiftName n = n
+
+getNameIndex :: Name_ a -> Maybe Int
+getNameIndex (MkFree i _) = Just i
+getNameIndex _ = Nothing
 
 setNameIndex :: Int -> Name_ a -> Name_ a
-setNameIndex _ n@(MkName {}) = n
 setNameIndex i (MkFree _ x) = MkFree i x
+setNameIndex _ n = n
 
 boundVar :: a -> Name_ a
 boundVar = MkName
@@ -84,8 +95,9 @@ newtype ParamIndex = MkParamIndex Int
   deriving (Show, Eq, Ord, Enum)
 
 instance Ppr a => Ppr (Name_ a) where
-  ppr (MkName n) = ppr n
-  ppr (MkFree i n) = ppr n <> show i
+  ppr (MkName n) = "_" <> ppr n
+  ppr (MkFree i n) = "_" <> ppr n <> show i
+  ppr (MkInternal i) = "v" <> show i
   -- SuSLikNm :: SuSLikName -> Name
   -- FsNm :: FsName -> Name
   -- deriving (Show)
