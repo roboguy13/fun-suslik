@@ -4,6 +4,7 @@ module Syntax.Simple.SuSLik
   where
 
 import           Syntax.Simple.Expr
+import           Syntax.Simple.Heaplet
 import           Syntax.Name
 
 data InductivePred =
@@ -25,8 +26,13 @@ data SuSLikParam =
 data SuSLikBranch =
   MkSuSLikBranch
   { suslikBranchCond :: SuSLikExpr SuSLikName
-  , suslikBranchRhs :: [SuSLikHeaplet]
+  , suslikBranchRhs :: [Heaplet SuSLikName]
   }
+  deriving (Show)
+
+data Heaplet a where
+  PointsTo :: Loc a -> a -> Heaplet a
+  HeapletApply :: String -> [a] -> Heaplet a
   deriving (Show)
 
 data SuSLikExpr a where

@@ -1,7 +1,10 @@
+{-# LANGUAGE OverloadedLists #-}
+
 module Syntax.Simple.Def
   where
 
 import           Syntax.Simple.Expr
+import           Syntax.Simple.Heaplet
 import           Syntax.Simple.SuSLik
 import           Syntax.Name
 import           Syntax.Ppr
@@ -29,7 +32,7 @@ data GuardedExpr =
   deriving (Show)
 
 toSuSLikExpr :: Expr FsName -> SuSLikExpr SuSLikName
-toSuSLikExpr (Var v) = VarS $ toSuSLikName v
+toSuSLikExpr (Var v) = VarS v
 toSuSLikExpr (BoolLit b) = BoolS b
 toSuSLikExpr (And x y) = AndS (toSuSLikExpr x) (toSuSLikExpr y)
 toSuSLikExpr (Or x y) = OrS (toSuSLikExpr x) (toSuSLikExpr y)
@@ -52,19 +55,18 @@ genDefBranchPreds layoutDefs topLevelName branch = undefined
 
 sllLayout :: Layout
 sllLayout =
-  MkLayout
-  { layoutName = "sll"
-  , layoutAdtName = "List"
-  , layoutSuSLikParams = [suslikName "x"]
-  , layoutBranches = [ (MkPattern "Nil" [], [])
-                     , (MkPattern "Cons" [fsName "head", fsName "tail"]
-                       ,[PointsTo (Here $ suslikName "x") (fsName "head")
-                        ,PointsTo (suslikName "x" :+ 1) (fsName "nxt")
-                        ,HeapletApply "sll" [suslikName "nxt"] (fsName "tail")
-                        ]
-                       )
-                     ]
-  }
+  mkLayout
+    "sll"
+    "List"
+    [suslikName "x"]
+    [ (MkPattern "Nil" [], [])
+                       , (MkPattern "Cons" [fsName "head", fsName "tail"]
+                         ,[ExprPointsTo (Here $ Var $ suslikName "x") (Var (fsName "head"))
+                          ,ExprPointsTo (Var (suslikName "x") :+ 1) (Var (fsName "nxt"))
+                          ,ExprHeapletApply "sll" [Var $ suslikName "nxt"] (Var (fsName "tail"))
+                          ]
+                         )
+                       ]
 
 test1 :: Def
 test1 =
