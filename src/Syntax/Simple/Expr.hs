@@ -30,6 +30,8 @@ import           Syntax.Simple.Heaplet
 
 import           Data.Either
 
+import           GHC.Stack
+
 
 data Pattern a = MkPattern ConstrName [FsName]
   deriving (Show)
@@ -152,7 +154,7 @@ applyLayout level layout suslikArgs cName fsArgs =
       in
       applyLayoutAssertion suslikSubst fsSubst (fmap (fmap (setNameIndex level)) asn)
 
-getVar :: Expr a -> a
+getVar :: HasCallStack => Expr a -> a
 getVar (Var v) = v
 getVar _ = error "getVar"
 
@@ -201,6 +203,22 @@ toLowers defs = go
         Left {} -> error "toLowers"
         Right asn -> fmap (asn <>) (go rest)
 
+toSuSLikExpr :: Ppr a => Expr a -> SuSLikExpr a
+toSuSLikExpr (Var v) = VarS v
+toSuSLikExpr (IntLit i) = IntS i
+toSuSLikExpr (BoolLit b) = BoolS b
+toSuSLikExpr (And x y) = AndS (toSuSLikExpr x) (toSuSLikExpr y)
+toSuSLikExpr (Or x y) = OrS (toSuSLikExpr x) (toSuSLikExpr y)
+toSuSLikExpr (Not x) = NotS (toSuSLikExpr x)
+
+toSuSLikExpr (Lt x y) = LtS (toSuSLikExpr x) (toSuSLikExpr y)
+toSuSLikExpr (Le x y) = LeS (toSuSLikExpr x) (toSuSLikExpr y)
+toSuSLikExpr (Equal x y) = EqualS (toSuSLikExpr x) (toSuSLikExpr y)
+toSuSLikExpr (Add x y) = AddS (toSuSLikExpr x) (toSuSLikExpr y)
+toSuSLikExpr (Sub x y) = SubS (toSuSLikExpr x) (toSuSLikExpr y)
+toSuSLikExpr (Mul x y) = MulS (toSuSLikExpr x) (toSuSLikExpr y)
+toSuSLikExpr e = error $ "toSuSLikExpr: " ++ ppr e
+
 lower :: [Layout] -> Layout -> [SuSLikName] -> Expr FsName -> FreshGen (Either (SuSLikExpr FsName) (Assertion' FsName))
 lower defs layout suslikArgs = go 0
   where
@@ -223,11 +241,9 @@ lower defs layout suslikArgs = go 0
     go level (Sub x y) = lowerBinOp level "-" SubS x y
     go level (Mul x y) = lowerBinOp level "*" MulS x y
 
-    go level (ConstrApply cName args)
-      -- | all isVar args = HeapletApply 
-      | otherwise = do
+    go level (ConstrApply cName args) = do
       let suslikParams = suslikArgs --layoutSuSLikParams layout
-          suslikParam = head suslikParams -- TODO: Use all the parameters for this
+          -- suslikParam = head suslikParams -- TODO: Use all the parameters for this
 
       loweredArgs <- mapM (go level) args
       let level' = maximum $ fmap maximum $ fmap (fmap maxUniq) $ rights loweredArgs

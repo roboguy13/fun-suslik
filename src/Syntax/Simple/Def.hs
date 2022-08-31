@@ -35,18 +35,18 @@ data GuardedExpr =
   }
   deriving (Show)
 
-toSuSLikExpr :: Expr FsName -> SuSLikExpr SuSLikName
-toSuSLikExpr (Var v) = VarS v
-toSuSLikExpr (BoolLit b) = BoolS b
-toSuSLikExpr (And x y) = AndS (toSuSLikExpr x) (toSuSLikExpr y)
-toSuSLikExpr (Or x y) = OrS (toSuSLikExpr x) (toSuSLikExpr y)
-toSuSLikExpr (Not x) = NotS (toSuSLikExpr x)
-toSuSLikExpr (Add x y) = AndS (toSuSLikExpr x) (toSuSLikExpr y)
-toSuSLikExpr (Sub x y) = SubS (toSuSLikExpr x) (toSuSLikExpr y)
-toSuSLikExpr (Mul x y) = MulS (toSuSLikExpr x) (toSuSLikExpr y)
-toSuSLikExpr (Equal x y) = EqualS (toSuSLikExpr x) (toSuSLikExpr y)
-toSuSLikExpr (Lt x y) = LtS (toSuSLikExpr x) (toSuSLikExpr y)
-toSuSLikExpr (Le x y) = LeS (toSuSLikExpr x) (toSuSLikExpr y)
+-- toSuSLikExpr :: Expr FsName -> SuSLikExpr SuSLikName
+-- toSuSLikExpr (Var v) = VarS v
+-- toSuSLikExpr (BoolLit b) = BoolS b
+-- toSuSLikExpr (And x y) = AndS (toSuSLikExpr x) (toSuSLikExpr y)
+-- toSuSLikExpr (Or x y) = OrS (toSuSLikExpr x) (toSuSLikExpr y)
+-- toSuSLikExpr (Not x) = NotS (toSuSLikExpr x)
+-- toSuSLikExpr (Add x y) = AndS (toSuSLikExpr x) (toSuSLikExpr y)
+-- toSuSLikExpr (Sub x y) = SubS (toSuSLikExpr x) (toSuSLikExpr y)
+-- toSuSLikExpr (Mul x y) = MulS (toSuSLikExpr x) (toSuSLikExpr y)
+-- toSuSLikExpr (Equal x y) = EqualS (toSuSLikExpr x) (toSuSLikExpr y)
+-- toSuSLikExpr (Lt x y) = LtS (toSuSLikExpr x) (toSuSLikExpr y)
+-- toSuSLikExpr (Le x y) = LeS (toSuSLikExpr x) (toSuSLikExpr y)
 
 genBranchName :: String -> Int -> String
 genBranchName str i = str <> show i
@@ -64,9 +64,9 @@ genBaseCond suslikParams0 asn =
 nameToString :: Name_ String -> String
 nameToString = ppr
 
-toHeaplets :: Assertion' a -> [Heaplet a]
+toHeaplets :: Ppr a => Assertion' a -> [Heaplet a]
 toHeaplets Emp = []
-toHeaplets (PointsTo x y rest) = PointsToS (fmap getVar x) (getVar y) : toHeaplets rest
+toHeaplets (PointsTo x y rest) = PointsToS (fmap getVar x) (toSuSLikExpr y) : toHeaplets rest
 toHeaplets (HeapletApply str suslikArgs _ rest) =
   HeapletApplyS str (map getVar suslikArgs) : toHeaplets rest
 
@@ -126,11 +126,19 @@ test1 :: Def
 test1 =
   MkDef
   { defName = "filterLt7"
-  , defType = undefined
+  , defType = Syntax.Simple.Expr.IntType -- Placeholder
   , defBranches =
       [MkDefBranch (MkPattern "Nil" [])
           [MkGuardedExpr (BoolLit True)
             (ConstrApply "Nil" [])
+          ]
+      ,MkDefBranch (MkPattern "Cons" [MkName "head", MkName "tail"])
+          [MkGuardedExpr (Lt (Var (MkName "head")) (IntLit 7))
+            (ConstrApply "Cons" [Var (MkName "head")
+                                ,Apply "filterLt7" (Var (MkName "tail"))
+                                ])
+          ,MkGuardedExpr (Not (Lt (Var (MkName "head")) (IntLit 7)))
+            (Apply "filterLt7" (Var (MkName "tail")))
           ]
       ]
   }
