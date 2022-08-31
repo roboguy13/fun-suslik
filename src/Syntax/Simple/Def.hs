@@ -80,3 +80,11 @@ test1 =
       ]
   }
 
+testLower1 :: Assertion' FsName
+testLower1 =
+  applyLayout 0 sllLayout [MkName "z"]
+    "Cons" [Var $ MkName "a",
+      ConstrApply "Cons" [Var $ MkName "b",
+        ConstrApply "Cons" [Var $ MkName "c", Var $ MkName "d"]]]
+
+

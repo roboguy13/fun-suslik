@@ -159,13 +159,22 @@ getLayoutsSubstFn :: [Layout] -> Int -> (LayoutName -> [Expr FsName] -> Expr FsN
 getLayoutsSubstFn layouts level lName suslikArgs fsArg =
   foldr (<|>) Nothing $ map (\layout -> getLayoutSubstFn level layout lName suslikArgs fsArg) layouts
 
-unfoldLayoutDefs :: Int -> [Layout] -> Assertion' FsName -> Assertion' FsName
-unfoldLayoutDefs level defs asn =
+unfoldLayoutDefsAt :: Int -> [Layout] -> Assertion' FsName -> Assertion' FsName
+unfoldLayoutDefsAt level defs asn =
   substLayoutAssertion level (getLayoutsSubstFn defs) asn
 
--- | Apply layout definition enough times to eliminate constructor
--- applications in argument.
-applyLayoutMany :: [Layout] -> Layout -> [SuSLikName] -> ConstrName -> [Expr FsName] -> Assertion' FsName
-applyLayoutMany layoutDefs layout0 suslikArgs0 cName0 fsArgs0 = do
-  undefined
+-- | Unfold layout definitions until there are no more constructor
+-- applications in a layout application
+unfoldLayoutDefs :: [Layout] -> Assertion' FsName -> Assertion' FsName
+unfoldLayoutDefs defs = go 1
+  where
+    go level x
+      | not (hasConstrApp x) = x
+      | otherwise            = go (succ level) (unfoldLayoutDefsAt level defs x)
+
+hasConstrApp :: Assertion' FsName -> Bool
+hasConstrApp Emp = False
+hasConstrApp (PointsTo _ _ rest) = hasConstrApp rest
+hasConstrApp (HeapletApply _ _ (ConstrApply {}) rest) = True
+hasConstrApp (HeapletApply _ _ _ rest) = hasConstrApp rest
 
