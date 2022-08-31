@@ -9,13 +9,14 @@ module Syntax.Simple.Heaplet
   where
 
 import           Syntax.Name
+import           Syntax.Ppr
 
 import           Text.Show.Deriving
 import           Data.Functor.Classes
 import           Data.Functor.Compose
 
 import           Control.Monad
-import           ListT hiding (traverse)
+import           Data.List
 
 import           GHC.Exts
 
@@ -60,6 +61,31 @@ data Expr a where
   -- LayoutCaseLambda :: Scope 
   deriving (Functor, Foldable, Traversable)
 
+instance Ppr a => Ppr (Expr a) where
+  ppr (Var v) = ppr v
+  ppr (IntLit i) = show i
+  ppr (BoolLit b) = show b
+
+  ppr (And x y) = pprBinOp "&&" x y
+  ppr (Or x y) = pprBinOp "||" x y
+  ppr (Not x) = "(not " ++ ppr x ++ ")"
+
+  ppr (Add x y) = pprBinOp "+" x y
+  ppr (Sub x y) = pprBinOp "-" x y
+  ppr (Mul x y) = pprBinOp "*" x y
+
+  ppr (Equal x y) = pprBinOp "==" x y
+  ppr (Le x y) = pprBinOp "<=" x y
+  ppr (Lt x y) = pprBinOp "<" x y
+
+  ppr (Apply f e) = "(" ++ f ++ " " ++ ppr e ++ ")"
+  ppr (ConstrApply cName args) =
+    "(" ++ cName ++ " " ++ unwords (map ppr args) ++ ")"
+
+  ppr (Lower str e) = "(" ++ "lower" ++ unwords [str, ppr e] ++ ")"
+  ppr (LiftLowerFn lName1 lName2 f) =
+    "(" ++ unwords ["lower", lName1, ".", ppr f, ".", "lift", lName2] ++ ")"
+
 fsName, suslikName :: String -> Name
 fsName = MkName
 suslikName = MkName
@@ -71,6 +97,15 @@ data Assertion a where
   PointsTo :: Loc a -> a -> Assertion a -> Assertion a
   HeapletApply :: LayoutName -> [a] -> a -> Assertion a -> Assertion a
   deriving (Functor, Show)
+
+instance Ppr a => Ppr (Assertion a) where
+  ppr Emp = "emp"
+  ppr (PointsTo x y rest) = unwords [ppr x, ":->", ppr y] ++ ", " ++ ppr rest
+  ppr (HeapletApply lName suslikArgs fsArg rest) =
+    unwords
+      [lName ++ "[" ++ intercalate "," (map ppr suslikArgs) ++ "]"
+      ,ppr fsArg
+      ] ++ ", " ++ ppr rest
 
 type Assertion' a = Assertion (Expr a)
 
@@ -198,6 +233,10 @@ instance Monad Expr where
 
 data Loc a = Here a | a :+ Int
   deriving (Show, Functor, Foldable, Traversable)
+
+instance Ppr a => Ppr (Loc a) where
+  ppr (Here x) = ppr x
+  ppr (x :+ i) = "(" ++ ppr x ++ "+" ++ show i ++ ")"
 
 instance Applicative Loc where
   pure = Here

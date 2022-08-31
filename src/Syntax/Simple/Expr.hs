@@ -31,23 +31,20 @@ import           ListT (fromFoldable)
 data Pattern a = MkPattern ConstrName [FsName]
   deriving (Show)
 
-pprBinOp :: (Ppr a, Ppr b) => String -> a -> b -> String
-pprBinOp op x y = "(" <> ppr x <> " " <> op <> " " <> ppr y <> ")"
-
-instance Ppr a => Ppr (Expr a) where
-  ppr (Var v) = ppr v
-  ppr (IntLit i) = show i
-  ppr (BoolLit b) = show b
-  ppr (And x y) = pprBinOp "&&" x y
-  ppr (Or x y) = pprBinOp "||" x y
-  ppr (Not x) = "not (" <> ppr x <> ")"
-  ppr (Add x y) = pprBinOp "+" x y
-  ppr (Sub x y) = pprBinOp "-" x y
-  ppr (Mul x y) = pprBinOp "*" x y
-  ppr (Equal x y) = pprBinOp "==" x y
-  ppr (Le x y) = pprBinOp "<=" x y
-  ppr (Lt x y) = pprBinOp "<" x y
-  -- TODO: Finish
+-- instance Ppr a => Ppr (Expr a) where
+--   ppr (Var v) = ppr v
+--   ppr (IntLit i) = show i
+--   ppr (BoolLit b) = show b
+--   ppr (And x y) = pprBinOp "&&" x y
+--   ppr (Or x y) = pprBinOp "||" x y
+--   ppr (Not x) = "not (" <> ppr x <> ")"
+--   ppr (Add x y) = pprBinOp "+" x y
+--   ppr (Sub x y) = pprBinOp "-" x y
+--   ppr (Mul x y) = pprBinOp "*" x y
+--   ppr (Equal x y) = pprBinOp "==" x y
+--   ppr (Le x y) = pprBinOp "<=" x y
+--   ppr (Lt x y) = pprBinOp "<" x y
+--   -- TODO: Finish
 
 type ClosedExpr = Expr Void
 

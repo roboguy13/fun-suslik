@@ -5,7 +5,7 @@ module Syntax.Simple.Def
 
 import           Syntax.Simple.Expr
 import           Syntax.Simple.Heaplet
-import           Syntax.Simple.SuSLik hiding (PointsTo, HeapletApply)
+import           Syntax.Simple.SuSLik
 import           Syntax.Name
 import           Syntax.Ppr
 

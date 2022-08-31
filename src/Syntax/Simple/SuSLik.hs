@@ -31,8 +31,8 @@ data SuSLikBranch =
   deriving (Show)
 
 data Heaplet a where
-  PointsTo :: Loc a -> a -> Heaplet a
-  HeapletApply :: String -> [a] -> Heaplet a
+  PointsToS :: Loc a -> a -> Heaplet a
+  HeapletApplyS :: String -> [a] -> Heaplet a
   deriving (Show)
 
 data SuSLikExpr a where
