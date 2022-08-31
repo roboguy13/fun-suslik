@@ -5,7 +5,7 @@ module Syntax.Simple.Def
 
 import           Syntax.Simple.Expr
 import           Syntax.Simple.Heaplet
-import           Syntax.Simple.SuSLik
+import           Syntax.Simple.SuSLik hiding (PointsTo, HeapletApply)
 import           Syntax.Name
 import           Syntax.Ppr
 
@@ -59,12 +59,11 @@ sllLayout =
     "sll"
     "List"
     [suslikName "x"]
-    [ (MkPattern "Nil" [], [])
+    [ (MkPattern "Nil" [], Emp)
                        , (MkPattern "Cons" [fsName "head", fsName "tail"]
-                         ,[ExprPointsTo (Here $ Var $ suslikName "x") (Var (fsName "head"))
-                          ,ExprPointsTo (Var (suslikName "x") :+ 1) (Var (fsName "nxt"))
-                          ,ExprHeapletApply "sll" [Var $ suslikName "nxt"] (Var (fsName "tail"))
-                          ]
+                         ,(PointsTo (Here $ Var $ suslikName "x") (Var (fsName "head"))
+                          (PointsTo (Var (suslikName "x") :+ 1) (Var (freeVar "nxt"))
+                          (HeapletApply "sll" [Var $ freeVar "nxt"] (Var (fsName "tail")) Emp)))
                          )
                        ]
 

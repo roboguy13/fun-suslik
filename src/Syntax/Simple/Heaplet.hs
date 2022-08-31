@@ -70,7 +70,7 @@ data Assertion a where
   Emp :: Assertion a
   PointsTo :: Loc a -> a -> Assertion a -> Assertion a
   HeapletApply :: LayoutName -> [a] -> a -> Assertion a -> Assertion a
-  deriving (Functor)
+  deriving (Functor, Show)
 
 type Assertion' a = Assertion (Expr a)
 
@@ -95,13 +95,13 @@ maybeToEndo f x =
     Nothing -> x
     Just y -> y
 
-substLayoutAssertion :: (LayoutName -> [a] -> a -> Maybe (Assertion a)) -> Assertion a -> Assertion a
-substLayoutAssertion _f Emp = Emp
-substLayoutAssertion f (PointsTo x y rest) = PointsTo x y (substLayoutAssertion f rest)
-substLayoutAssertion f (HeapletApply lName suslikArgs e rest) =
-  case f lName suslikArgs e of
-    Nothing -> HeapletApply lName suslikArgs e (substLayoutAssertion f rest)
-    Just r -> r <> substLayoutAssertion f rest
+substLayoutAssertion :: Int -> (Int -> LayoutName -> [Expr FsName] -> Expr FsName -> Maybe (Assertion' FsName)) -> Assertion' FsName -> Assertion' FsName
+substLayoutAssertion _level _f Emp = Emp
+substLayoutAssertion level f (PointsTo x y rest) = PointsTo x y (substLayoutAssertion level f rest)
+substLayoutAssertion level f (HeapletApply lName suslikArgs e rest) =
+  case f level lName suslikArgs e of
+    Nothing -> HeapletApply lName suslikArgs e (substLayoutAssertion level f rest)
+    Just r -> r <> substLayoutAssertion (succ level) f rest
 
 applyLayoutAssertion :: Eq a => [(a, a)] -> [(a, Expr a)] -> Assertion (Expr a) -> Assertion (Expr a)
 applyLayoutAssertion suslikSubst fsSubst asn =

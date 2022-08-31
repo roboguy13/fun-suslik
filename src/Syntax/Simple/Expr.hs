@@ -96,14 +96,24 @@ mkLayout name adtName suslikParams branches =
     -- go :: LayoutBranch FsName -> Scope ParamIndex LayoutBranch SuSLikName
     -- go branch = abstract (fmap MkParamIndex . (`elemIndex` suslikParams)) branch
 
-abstractLayoutBranch :: [SuSLikName] -> [FsName] -> Assertion' FsName -> ScopeLayoutBranchE FsName
-abstractLayoutBranch suslikNames fsNames branch =
-  abstract (fmap MkParamIndex . (`elemIndex` (suslikNames ++ fsNames))) branch
-
 -- paramIndexToName :: Layout -> [FsName] -> ParamIndex -> SuSLikName
 -- paramIndexToName layout fsArgs (MkParamIndex ix) =
 --   -- TODO: Does this necessarily work?
 --   (layoutSuSLikParams layout ++ fsArgs) !! ix
+
+matchPattern :: Pattern FsName -> ConstrName -> [Expr FsName] -> Maybe PatSubst
+matchPattern (MkPattern cName params) cName' args = do
+  guard (cName == cName')
+  pure (zip params args)
+
+matchBranch :: ConstrName -> [Expr FsName] -> (Pattern FsName, Assertion' FsName) -> Maybe (PatSubst, Assertion' FsName)
+matchBranch cName args (pat, branch) = do
+  subst <- matchPattern pat cName args
+  pure (subst, branch)
+
+getMatchingBranch :: Layout -> ConstrName -> [Expr FsName] -> Maybe (PatSubst, Assertion' FsName)
+getMatchingBranch layout cName fsArgs =
+  foldr (<|>) Nothing (map (matchBranch cName fsArgs) (layoutBranches layout))
 
 lookupParamIndex :: Layout -> [Expr FsName] -> ParamIndex -> Expr FsName
 lookupParamIndex layout fsArgs (MkParamIndex ix0) =
@@ -129,119 +139,36 @@ type Subst a b = [(a, b)]
 type PatSubst = Subst FsName (Expr FsName)
 type SuSLikSubst = Subst SuSLikName SuSLikName
 
--- type ScopeLayoutBranch = Scope ParamIndex LayoutBranchE
-
-class SubstInjection a b where
-  substInject :: a -> b
-
-instance SubstInjection a (Expr a) where
-  substInject = Var
-
-instance SubstInjection Name Name where substInject = id
--- instance SubstInjection FsName FsName where substInject = id
--- instance SubstInjection SuSLikName SuSLikName where substInject = id
-
-matchPattern :: Pattern FsName -> ConstrName -> [Expr FsName] -> Maybe PatSubst
-matchPattern (MkPattern cName params) cName' args = do
-  guard (cName == cName')
-  pure (zip params args)
-
-matchBranch :: ConstrName -> [Expr FsName] -> (Pattern FsName, Assertion' FsName) -> Maybe (PatSubst, Assertion' FsName)
-matchBranch cName args (pat, branch) = do
-  subst <- matchPattern pat cName args
-  pure (subst, branch)
-
--- performSubst :: (Eq a, SubstInjection a b) => Subst a b -> a -> b
--- performSubst subst curr =
---   case lookup curr subst of
---     Just new -> new
---     Nothing -> substInject curr
---
--- applyPatSubstHeaplet :: PatSubst -> Heaplet FsName a -> Heaplet (Expr FsName) a
--- applyPatSubstHeaplet subst (PointsTo ptr tgt) =
---   PointsTo ptr (performSubst subst tgt)
---
--- applyPatSubstHeaplet subst (HeapletApply f suslikArgs fsArg) =
---   HeapletApply f suslikArgs (performSubst subst fsArg)
---
--- applySuSLikSubstHeaplet :: SuSLikSubst -> Heaplet b SuSLikName -> Heaplet b SuSLikName
--- applySuSLikSubstHeaplet subst (PointsTo ptr tgt) =
---   PointsTo (fmap (performSubst subst) ptr) tgt
---
--- applySuSLikSubstHeaplet subst (HeapletApply f suslikArgs fsArg) =
---   HeapletApply f (map (performSubst subst) suslikArgs) fsArg
-
-applyLayout :: Layout -> [Expr SuSLikName] -> ConstrName -> [Expr FsName] -> Assertion' FsName
-applyLayout layout suslikArgs cName fsArgs =
-  -- case mapScope id (second $ matchBranch cName fsArg) (layoutBranches layout) of
-  case mapMaybe (matchBranch cName fsArgs) (layoutBranches layout) of
-    [] -> error "applyLayout: Constructor does not match pattern"
-    ((subst, branch):_) ->
-      let --suslikSubst = zip (layoutSuSLikParams layout) suslikArgs
-          branch' = abstractLayoutBranch (layoutSuSLikParams layout) (map fst subst) branch
+applyLayout :: Int -> Layout -> [SuSLikName] -> ConstrName -> [Expr FsName] -> Assertion' FsName
+applyLayout level layout suslikArgs cName fsArgs =
+  case getMatchingBranch layout cName fsArgs of
+    Nothing -> error $ "applyLayout: Cannot find branch for constructor " ++ cName
+    Just (fsSubst, asn) ->
+      let suslikSubst = zip (layoutSuSLikParams layout) suslikArgs
       in
-      -- branch'
-      instantiate (MkLayoutBranch . (:[]) . lookupParamIndex layout (suslikArgs ++ fsArgs)) branch'
+      applyLayoutAssertion suslikSubst fsSubst (fmap (fmap (setNameIndex level)) asn)
 
-      -- instantiate (layoutBranchSingle . lookupParamIndex layout fsArgs) branch'
+getVar :: Expr a -> a
+getVar (Var v) = v
+getVar _ = error "getVar"
 
-      -- mapScope id (applySuSLikSubstHeaplet suslikSubst . applyPatSubstHeaplet subst) branch
-      -- map (applySuSLikSubstHeaplet suslikSubst . applyPatSubstHeaplet subst) branch
+getLayoutSubstFn :: Int -> Layout -> (LayoutName -> [Expr FsName] -> Expr FsName -> Maybe (Assertion' FsName))
+getLayoutSubstFn level layout lName suslikArgs (ConstrApply cName xs) = do
+  guard (layoutName layout == lName)
+  Just $ applyLayout level layout (map getVar suslikArgs) cName xs
+getLayoutSubstFn _ _ _ _ _ = Nothing
 
--- freshenNotIn :: (Named a, Eq a) => [a] -> a -> NameSupply a
--- freshenNotIn boundVars v
---   | v `elem` boundVars = pure v
---   | otherwise = freshen v
+getLayoutsSubstFn :: [Layout] -> Int -> (LayoutName -> [Expr FsName] -> Expr FsName -> Maybe (Assertion' FsName))
+getLayoutsSubstFn layouts level lName suslikArgs fsArg =
+  foldr (<|>) Nothing $ map (\layout -> getLayoutSubstFn level layout lName suslikArgs fsArg) layouts
 
--- -- TODO: This needs to use simultaneous (uniform) substitutions
--- freshenFVs :: (Named a, Eq a) =>
---   [a] -> LayoutBranch a b -> NameSupply (LayoutBranch a b)
--- freshenFVs boundVars = mapM go
---   where
---     go (PointsTo x y) = do
---       x' <- mapM (freshenNotIn boundVars) x
---       pure $ PointsTo x' y
---     go (HeapletApply f suslikArgs fsArg) = undefined
+unfoldLayoutDefs :: Int -> [Layout] -> Assertion' FsName -> Assertion' FsName
+unfoldLayoutDefs level defs asn =
+  substLayoutAssertion level (getLayoutsSubstFn defs) asn
 
 -- | Apply layout definition enough times to eliminate constructor
 -- applications in argument.
-applyLayoutMany :: [Layout] -> Layout -> [Expr SuSLikName] -> ConstrName -> [Expr FsName] -> Assertion' FsName --Scope ParamIndex Expr SuSLikName
+applyLayoutMany :: [Layout] -> Layout -> [SuSLikName] -> ConstrName -> [Expr FsName] -> Assertion' FsName
 applyLayoutMany layoutDefs layout0 suslikArgs0 cName0 fsArgs0 = do
-  -- let MkLayoutBranch zs = applyLayout layout0 suslikArgs0 cName0 fsArg0
-
-  -- let MkLayoutBranch zs = fromScope $ applyLayout layout0 suslikArgs0 cName0 fsArg0
-  let z = applyLayout layout0 suslikArgs0 cName0 fsArgs0
-
-  -- let r = map go zs
-
-  -- let r = _ =<< z
   undefined
-
-  -- MkLayoutBranch $ concatMap getLayoutBranch r
-  -- fmap concat $ mapM go zs
-  -- fmap concat $ mapM go (applyLayout layout0 suslikArgs0 cName0 fsArg0)
-  where
-    -- go' :: LayoutBranch a
-
-    go :: Expr FsName -> Assertion' FsName
-    go (ExprHeapletApply f suslikArgs (ConstrApply cName fsArgs)) = do
-      let nextLayout = lookupLayout layoutDefs f
-      undefined
-      -- applyLayoutMany layoutDefs nextLayout suslikArgs cName fsArgs
-    go heaplet = layoutBranchSingle heaplet
-
-  --   -- go :: Heaplet (Expr FsName) SuSLikName ->
-  --   --       [Heaplet (Expr FsName) SuSLikName]
-  --   go (ExprHeapletApply f suslikArgs (ConstrApply cName fsArg)) = do
-  --     let nextLayout = lookupLayout layoutDefs f
-  --     undefined
-  --     -- suslikArgs_fresh <- mapM freshen suslikArgs
-  --       -- TODO: This might introduce captured variables
-  --     -- applyLayoutMany layoutDefs nextLayout suslikArgs_fresh cName fsArg
-  --   go heaplet = undefined --pure [heaplet]
-
--- applyLayoutMany' :: [Layout] -> Layout -> [SuSLikName] -> ConstrName -> [Expr FsName] -> Expr SuSLikName
--- applyLayoutMany' layoutDefs layout suslikArgs cName fsArg =
---   undefined
---   --runNameSupply $ applyLayoutMany layoutDefs layout suslikArgs cName fsArg
 
