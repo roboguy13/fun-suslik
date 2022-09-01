@@ -1,5 +1,6 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DeriveFunctor #-}
 
 module Syntax.Simple.SuSLik
   where
@@ -62,7 +63,7 @@ instance Ppr SuSLikBranch where
 data Heaplet a where
   PointsToS :: Loc a -> SuSLikExpr a -> Heaplet a
   HeapletApplyS :: String -> [a] -> Heaplet a
-  deriving (Show)
+  deriving (Show, Functor)
 
 instance Ppr a => Ppr (Heaplet a) where
   ppr (PointsToS x y) = unwords [ppr x, ":->", ppr y]
@@ -88,7 +89,7 @@ data SuSLikExpr a where
   AddS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
   SubS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
   MulS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
-  deriving (Show)
+  deriving (Show, Functor)
 
 instance Ppr a => Ppr (SuSLikExpr a) where
   ppr (VarS v) = ppr v

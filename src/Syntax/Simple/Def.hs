@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Syntax.Simple.Def
   where
@@ -12,6 +13,8 @@ import           Syntax.Ppr
 
 import           Data.Foldable
 import qualified Data.Set as Set
+
+import           GHC.Stack
 
 data Def =
   MkDef
@@ -64,17 +67,34 @@ genBaseCond suslikParams0 asn =
 nameToString :: Name_ String -> String
 nameToString = ppr
 
-toHeaplets :: Ppr a => Assertion' a -> [Heaplet a]
-toHeaplets Emp = []
-toHeaplets (PointsTo x y rest) = PointsToS (fmap getVar x) (toSuSLikExpr y) : toHeaplets rest
+connect :: forall a. (HasCallStack, Ppr a) => Expr a -> (SuSLikExpr String -> FreshGen [Heaplet String]) -> FreshGen [Heaplet String]
+connect (Apply f e) k =
+  connect e $ \suslikE -> do
+    newVar <- getFresh :: FreshGen (Name_ a)
+    heaplets <- k (VarS (ppr newVar))
+    pure $ heaplets ++ [HeapletApplyS f [ppr newVar]]
+connect e k =
+  case toSuSLikExpr e of
+    Just s -> k (fmap ppr s)
+    Nothing -> error $ "connect: " ++ ppr e
+
+toHeaplets :: Assertion' String -> FreshGen [Heaplet String]
+toHeaplets Emp = pure []
+  -- TODO: Use connect
+toHeaplets (PointsTo x y rest) = do
+  here <- connect y $ \suslikY -> pure [PointsToS (fmap getVar x) suslikY]
+  fmap (here ++) (toHeaplets rest)
 toHeaplets (HeapletApply str suslikArgs _ rest) =
-  HeapletApplyS str (map getVar suslikArgs) : toHeaplets rest
+  fmap (HeapletApplyS str (map getVar suslikArgs) :) (toHeaplets rest)
+
+toHeaplets' :: Ppr a => Assertion' a -> [Heaplet String]
+toHeaplets' = snd . runFreshGen . toHeaplets . fmap (fmap ppr)
 
 genPatternHeaplets :: [Layout] -> Layout -> Pattern FsName -> [Heaplet String]
 genPatternHeaplets layoutDefs layout (MkPattern cName args) =
     -- TODO: Avoid capture here between the SuSLik parameters and the FS
     -- variables
-  toHeaplets $ fmap (fmap nameToString) $ applyLayout 0 layout (layoutSuSLikParams layout) cName $ map Var args
+  toHeaplets' $ fmap (fmap nameToString) $ applyLayout 0 layout (layoutSuSLikParams layout) cName $ map Var args
 
 branchArgs :: [SuSLikName] -> Pattern FsName -> [SuSLikName]
 branchArgs suslikParams (MkPattern _ patParams) = suslikParams ++ patParams
@@ -95,22 +115,31 @@ genCondBranch defs recName newName pat suslikArgs cond asn0 =
   let asn = asn0 --replaceRecCall recName newName pat asn0
   in
   MkSuSLikBranch
-  { suslikBranchCond = toSuSLikExpr cond
-  , suslikBranchRhs = toHeaplets asn
+  { suslikBranchCond = toSuSLikExpr_unsafe cond
+  , suslikBranchRhs = fmap (fmap fsName) $ toHeaplets' asn
   }
+
+retString :: String
+retString = "r"
+
+retParam :: SuSLikParam
+retParam = locParam retString
+
+retName :: SuSLikName
+retName = suslikName retString
 
 genCondPred :: [Layout] -> Layout -> String -> String -> DefBranch -> [SuSLikName] -> InductivePred
 genCondPred defs layout recName newName (MkDefBranch pat exprs) suslikArgs =
   MkInductivePred
   { inductivePredName = newName
-  , inductivePredParams = map (locParam . ppr) $ branchArgs suslikArgs pat
+  , inductivePredParams = retParam : map (locParam . ppr) (branchArgs suslikArgs pat)
   , inductivePredBranches = map go exprs
   }
   where
     go guarded =
-      genCondBranch defs recName newName pat suslikArgs
+      genCondBranch defs recName newName pat [retName] -- TODO: Support more parameters --suslikArgs
         (guardedCond guarded)
-        (lower' defs layout suslikArgs (guardedBody guarded))
+        (lower' defs layout [retName] (guardedBody guarded))
 
 genBaseBranch :: [Layout] -> Layout -> String -> Pattern FsName -> [SuSLikName] -> String -> DefBranch -> SuSLikBranch
 genBaseBranch layoutDefs layout recName pat suslikParams branchPredName branch =
@@ -120,9 +149,9 @@ genBaseBranch layoutDefs layout recName pat suslikParams branchPredName branch =
     suslikBranch =
       MkSuSLikBranch
       { suslikBranchCond = genBaseCond suslikParams patAsn
-      , suslikBranchRhs = toHeaplets patAsn <>
+      , suslikBranchRhs = fmap (fmap fsName) (toHeaplets' patAsn) <>
           case defBranchGuardeds branch of
-            [MkGuardedExpr (BoolLit True) body] -> toHeaplets $ lower' layoutDefs layout suslikParams body
+            [MkGuardedExpr (BoolLit True) body] -> fmap (fmap fsName) $ toHeaplets' $ lower' layoutDefs layout suslikParams body
             _ -> []
       }
   in
@@ -152,7 +181,7 @@ genDefPreds defs layout fnDef =
       basePred =
         MkInductivePred
         { inductivePredName = defName fnDef
-        , inductivePredParams = map (locParam . nameToString) suslikParams
+        , inductivePredParams = retParam : map (locParam . nameToString) suslikParams
         , inductivePredBranches = baseBranches
         }
   in
@@ -172,7 +201,7 @@ sllLayout =
     [ (MkPattern "Nil" [], Emp)
                        , (MkPattern "Cons" [fsName "head", fsName "tail"]
                          ,(PointsTo (Here $ Var $ suslikName "x") (Var (fsName "head"))
-                          (PointsTo (Var (suslikName "x") :+ 1) (Var (freeVar "nxt"))
+                          (PointsTo (Var (suslikName "x") :+ 1) (Var (suslikName "tail"))
                           (HeapletApply "sll" [Var $ freeVar "nxt"] (Var (fsName "tail")) Emp)))
                          )
                        ]

@@ -207,21 +207,27 @@ toLowers defs = go
         Left {} -> error "toLowers"
         Right asn -> fmap (asn <>) (go rest)
 
-toSuSLikExpr :: Ppr a => Expr a -> SuSLikExpr a
-toSuSLikExpr (Var v) = VarS v
-toSuSLikExpr (IntLit i) = IntS i
-toSuSLikExpr (BoolLit b) = BoolS b
-toSuSLikExpr (And x y) = AndS (toSuSLikExpr x) (toSuSLikExpr y)
-toSuSLikExpr (Or x y) = OrS (toSuSLikExpr x) (toSuSLikExpr y)
-toSuSLikExpr (Not x) = NotS (toSuSLikExpr x)
+toSuSLikExpr :: Expr a -> Maybe (SuSLikExpr a)
+toSuSLikExpr (Var v) = Just $ VarS v
+toSuSLikExpr (IntLit i) = Just $ IntS i
+toSuSLikExpr (BoolLit b) = Just $ BoolS b
+toSuSLikExpr (And x y) = liftA2 AndS (toSuSLikExpr x) (toSuSLikExpr y)
+toSuSLikExpr (Or x y) = liftA2 OrS (toSuSLikExpr x) (toSuSLikExpr y)
+toSuSLikExpr (Not x) = fmap NotS (toSuSLikExpr x)
 
-toSuSLikExpr (Lt x y) = LtS (toSuSLikExpr x) (toSuSLikExpr y)
-toSuSLikExpr (Le x y) = LeS (toSuSLikExpr x) (toSuSLikExpr y)
-toSuSLikExpr (Equal x y) = EqualS (toSuSLikExpr x) (toSuSLikExpr y)
-toSuSLikExpr (Add x y) = AddS (toSuSLikExpr x) (toSuSLikExpr y)
-toSuSLikExpr (Sub x y) = SubS (toSuSLikExpr x) (toSuSLikExpr y)
-toSuSLikExpr (Mul x y) = MulS (toSuSLikExpr x) (toSuSLikExpr y)
-toSuSLikExpr e = error $ "toSuSLikExpr: " ++ ppr e
+toSuSLikExpr (Lt x y) = liftA2 LtS (toSuSLikExpr x) (toSuSLikExpr y)
+toSuSLikExpr (Le x y) = liftA2 LeS (toSuSLikExpr x) (toSuSLikExpr y)
+toSuSLikExpr (Equal x y) = liftA2 EqualS (toSuSLikExpr x) (toSuSLikExpr y)
+toSuSLikExpr (Add x y) = liftA2 AddS (toSuSLikExpr x) (toSuSLikExpr y)
+toSuSLikExpr (Sub x y) = liftA2 SubS (toSuSLikExpr x) (toSuSLikExpr y)
+toSuSLikExpr (Mul x y) = liftA2 MulS (toSuSLikExpr x) (toSuSLikExpr y)
+toSuSLikExpr e = Nothing
+
+toSuSLikExpr_unsafe :: (HasCallStack, Ppr a) => Expr a -> SuSLikExpr a
+toSuSLikExpr_unsafe e =
+  case toSuSLikExpr e of
+    Just s -> s
+    Nothing -> error $ "toSuSLikExpr_unsafe: " ++ ppr e
 
 lower' :: [Layout] -> Layout -> [SuSLikName] -> Expr FsName -> Assertion' FsName
 lower' defs layout suslikArgs e =
@@ -265,6 +271,7 @@ lower defs layout suslikArgs = go 0
 
       -- pure $ Right $ applyLayout
 
+    -- go level (Apply f (Apply g arg)) = undefined
     go level (Apply f arg) = pure . Right $ HeapletApply f (map Var suslikArgs) arg Emp
 
     lowerBinOp ::
