@@ -23,7 +23,7 @@ data InductivePred =
 instance Ppr InductivePred where
   ppr (MkInductivePred name params branches) =
     unlines'
-    ["inductive " <> name <> "(" <> intercalate ", " (map ppr params) <> ") {"
+    ["predicate " <> name <> "(" <> intercalate ", " (map ppr params) <> ") {"
     ,unlines' (map (\x -> "| " ++ ppr x) branches)
     ,"}"
     ]
