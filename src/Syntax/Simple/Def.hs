@@ -184,10 +184,10 @@ genSig layout def =
       suslikParamsS = map (VarS . ppr) suslikParams
   in
   MkSuSLikSig
-  { suslikSigName = defName def
+  { suslikSigName = defName def <> "_proc"
   , suslikSigParams = retParam : map (locParam . nameToString) suslikParams
-  , suslikSigPre = [PointsToS (Here retString) (IntS 0), HeapletApplyS (layoutName layout) suslikParamsS]
-  , suslikSigPost = [HeapletApplyS (defName def) (VarS retString : suslikParamsS)]
+  , suslikSigPre = [PointsToS (Here (ppr retName)) (IntS 0), HeapletApplyS (layoutName layout) suslikParamsS]
+  , suslikSigPost = [PointsToS (Here (ppr retName)) (VarS retString), HeapletApplyS (defName def) (VarS retString : suslikParamsS)]
   }
 
 
