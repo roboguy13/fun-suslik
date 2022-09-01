@@ -61,9 +61,15 @@ data GuardedExpr =
 genBranchName :: String -> String -> String
 genBranchName str c = str <> "__" <> c
 
+pointsLhsNames :: Ppr a => Assertion' a -> [a]
+pointsLhsNames Emp = []
+pointsLhsNames (PointsTo x _ rest) = map getVar (toList x) ++ pointsLhsNames rest
+pointsLhsNames (HeapletApply _ _ _ rest) = pointsLhsNames rest
+
 genPatCond :: [SuSLikName] -> Assertion' FsName -> SuSLikExpr SuSLikName
 genPatCond suslikParams0 asn =
-    foldr AndS (BoolS True) $ map go suslikParams0
+    -- trace ("\nasn names = " ++ show (map ppr (pointsLhsNames asn))) $
+    foldr AndS (BoolS True) $ map go (suslikParams0 `intersect` pointsLhsNames asn)
   where
     names = Set.toList . Set.fromList . concat . fmap toList $ toList asn
     go param =
