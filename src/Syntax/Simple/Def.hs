@@ -178,8 +178,18 @@ genDefPreds defs layout fnDef =
   [basePred]
   -- basePred : condPreds
 
-genDefBranchPreds :: [Layout] -> String -> DefBranch -> [InductivePred]
-genDefBranchPreds layoutDefs topLevelName branch = undefined
+genSig :: Layout -> Def -> SuSLikSig
+genSig layout def =
+  let suslikParams = layoutSuSLikParams layout
+      suslikParamsS = map (VarS . ppr) suslikParams
+  in
+  MkSuSLikSig
+  { suslikSigName = defName def
+  , suslikSigParams = retParam : map (locParam . nameToString) suslikParams
+  , suslikSigPre = [PointsToS (Here retString) (IntS 0), HeapletApplyS (layoutName layout) suslikParamsS]
+  , suslikSigPost = [HeapletApplyS (defName def) (VarS retString : suslikParamsS)]
+  }
+
 
 ---- Tests ----
 

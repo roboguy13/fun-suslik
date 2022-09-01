@@ -30,6 +30,22 @@ instance Ppr InductivePred where
 
 unlines' = intercalate "\n"
 
+data SuSLikSig =
+  MkSuSLikSig
+  { suslikSigName :: String
+  , suslikSigParams :: [SuSLikParam]
+  , suslikSigPre :: [Heaplet String]
+  , suslikSigPost :: [Heaplet String]
+  }
+
+instance Ppr SuSLikSig where
+  ppr (MkSuSLikSig name params pre post) =
+    unlines
+    ["void " <> name <> "(" <> intercalate ", " (map ppr params) <> ")"
+    ,"  { " <> ppr pre <> " }"
+    ,"  { " <> ppr post <> " }"
+    ]
+
 data SuSLikParam =
   MkSuSLikParam
   { suslikParamName :: String
