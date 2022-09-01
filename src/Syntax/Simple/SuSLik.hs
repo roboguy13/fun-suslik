@@ -91,6 +91,11 @@ data SuSLikExpr a where
   MulS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
   deriving (Show, Functor)
 
+mkAndS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
+mkAndS (BoolS True) y = y
+mkAndS x (BoolS True) = x
+mkAndS x y = AndS x y
+
 instance Ppr a => Ppr (SuSLikExpr a) where
   ppr (VarS v) = ppr v
   ppr (IntS i) = show i

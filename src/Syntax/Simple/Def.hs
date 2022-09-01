@@ -69,7 +69,8 @@ pointsLhsNames (HeapletApply _ _ _ rest) = pointsLhsNames rest
 genPatCond :: [SuSLikName] -> Assertion' FsName -> SuSLikExpr SuSLikName
 genPatCond suslikParams0 asn =
     -- trace ("\nasn names = " ++ show (map ppr (pointsLhsNames asn))) $
-    foldr AndS (BoolS True) $ map go (suslikParams0 `intersect` pointsLhsNames asn)
+    -- trace ("\nsuslikParams = " ++ unwords (map ppr suslikParams0)) $
+    foldr mkAndS (BoolS True) $ map go suslikParams0 --(suslikParams0 `intersect` pointsLhsNames asn)
   where
     names = Set.toList . Set.fromList . concat . fmap toList $ toList asn
     go param =
@@ -141,20 +142,18 @@ getBranches def =
       $ map (defBranchPattern &&& defBranchGuardeds) (defBranches def)
 
 -- | Turn a guarded pattern match into a SuSLik Boolean expression
-getCond :: [Layout] -> Layout -> (Pattern FsName, Expr FsName) -> SuSLikExpr FsName
-getCond defs layout (pat, cond) =
-  AndS (genPatCond (getPatternVars pat) (genPatternHeaplets defs layout pat))
-       (toSuSLikExpr_unsafe cond)
+getCond :: [Layout] -> Layout -> [SuSLikName] -> (Pattern FsName, Expr FsName) -> SuSLikExpr FsName
+getCond defs layout suslikParams (pat, cond) =
+  mkAndS (genPatCond suslikParams (genPatternHeaplets defs layout pat))
+         (toSuSLikExpr_unsafe cond)
 
-genBranch :: [Layout] -> Layout -> ((Pattern FsName, Expr FsName), Expr FsName) -> SuSLikBranch
-genBranch defs layout (guardedPat@(pat, _), rhs) =
+genBranch :: [Layout] -> Layout -> [SuSLikName] -> ((Pattern FsName, Expr FsName), Expr FsName) -> SuSLikBranch
+genBranch defs layout suslikParams (guardedPat@(pat, _), rhs) =
   let patHeaplets = toHeaplets' $ removeAppsLayout (genPatternHeaplets defs layout pat)
       lowered = lower' defs layout [retName] rhs
   in
-    -- trace ("\nlowered = " ++ ppr lowered) $
-    -- trace ("\nrhs = " ++ ppr rhs) $
   MkSuSLikBranch
-  { suslikBranchCond = getCond defs layout guardedPat
+  { suslikBranchCond = getCond defs layout suslikParams guardedPat
   , suslikBranchRhs = patHeaplets <> toHeaplets' lowered
   }
 
@@ -173,7 +172,7 @@ genDefPreds defs layout fnDef =
         MkInductivePred
         { inductivePredName = defName fnDef
         , inductivePredParams = retParam : map (locParam . nameToString) suslikParams
-        , inductivePredBranches = map (genBranch defs layout) branches
+        , inductivePredBranches = map (genBranch defs layout suslikParams) branches
         }
   in
   [basePred]
