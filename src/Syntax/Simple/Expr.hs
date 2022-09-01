@@ -154,6 +154,10 @@ applyLayout level layout suslikArgs cName fsArgs =
       in
       applyLayoutAssertion suslikSubst fsSubst (fmap (fmap (setNameIndex level)) asn)
 
+applyLayoutPattern :: Layout -> [SuSLikName] -> Pattern FsName -> Assertion' FsName
+applyLayoutPattern layout suslikArgs (MkPattern cName args) =
+    applyLayout 0 layout suslikArgs cName (map Var args)
+
 getVar :: HasCallStack => Expr a -> a
 getVar (Var v) = v
 getVar _ = error "getVar"
@@ -219,6 +223,12 @@ toSuSLikExpr (Sub x y) = SubS (toSuSLikExpr x) (toSuSLikExpr y)
 toSuSLikExpr (Mul x y) = MulS (toSuSLikExpr x) (toSuSLikExpr y)
 toSuSLikExpr e = error $ "toSuSLikExpr: " ++ ppr e
 
+lower' :: [Layout] -> Layout -> [SuSLikName] -> Expr FsName -> Assertion' FsName
+lower' defs layout suslikArgs e =
+  case runFreshGen (lower defs layout suslikArgs e) of
+    (_, Right x) -> x
+    _ -> error "lower'"
+
 lower :: [Layout] -> Layout -> [SuSLikName] -> Expr FsName -> FreshGen (Either (SuSLikExpr FsName) (Assertion' FsName))
 lower defs layout suslikArgs = go 0
   where
@@ -231,7 +241,7 @@ lower defs layout suslikArgs = go 0
     go level (Not x) = do
       x_E <- go level x
       case x_E of
-        (Left x') -> pure $ Left $ NotS x'
+        Left x' -> pure $ Left $ NotS x'
         _ -> error "lower: Expected expression argument to 'not'"
 
     go level (Lt x y) = lowerBinOp level "<" LtS x y

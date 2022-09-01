@@ -19,6 +19,16 @@ data InductivePred =
   }
   deriving (Show)
 
+instance Ppr InductivePred where
+  ppr (MkInductivePred name params branches) =
+    unlines'
+    ["inductive " <> name <> "(" <> intercalate ", " (map ppr params) <> ") {"
+    ,unlines' (map (\x -> "| " ++ ppr x) branches)
+    ,"}"
+    ]
+
+unlines' = intercalate "\n"
+
 data SuSLikParam =
   MkSuSLikParam
   { suslikParamName :: String
@@ -26,16 +36,28 @@ data SuSLikParam =
   }
   deriving (Show)
 
+instance Ppr SuSLikParam where
+  ppr (MkSuSLikParam name ty) = unwords [ppr ty, ppr name]
+
+instance Ppr SuSLikType where
+  ppr IntType = "int"
+  ppr BoolType = "bool"
+  ppr SetType = "set"
+  ppr LocType = "loc"
+
 locParam :: String -> SuSLikParam
 locParam n = MkSuSLikParam n LocType
 
 -- NOTE: For now, does not support pure part
 data SuSLikBranch =
   MkSuSLikBranch
-  { suslikBranchCond :: SuSLikExpr String
-  , suslikBranchRhs :: [Heaplet String]
+  { suslikBranchCond :: SuSLikExpr SuSLikName
+  , suslikBranchRhs :: [Heaplet SuSLikName]
   }
   deriving (Show)
+
+instance Ppr SuSLikBranch where
+  ppr (MkSuSLikBranch cond rhs) = unwords [ppr cond, "=>", "{", ppr rhs, "}"]
 
 data Heaplet a where
   PointsToS :: Loc a -> SuSLikExpr a -> Heaplet a

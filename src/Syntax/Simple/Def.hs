@@ -49,9 +49,9 @@ data GuardedExpr =
 -- toSuSLikExpr (Le x y) = LeS (toSuSLikExpr x) (toSuSLikExpr y)
 
 genBranchName :: String -> Int -> String
-genBranchName str i = str <> show i
+genBranchName str i = str <> "__" <> show i
 
-genBaseCond :: [String] -> Assertion' String -> SuSLikExpr String
+genBaseCond :: [SuSLikName] -> Assertion' FsName -> SuSLikExpr SuSLikName
 genBaseCond suslikParams0 asn =
     foldr AndS (BoolS True) $ map go suslikParams0
   where
@@ -76,23 +76,78 @@ genPatternHeaplets layoutDefs layout (MkPattern cName args) =
     -- variables
   toHeaplets $ fmap (fmap nameToString) $ applyLayout 0 layout (layoutSuSLikParams layout) cName $ map Var args
 
-genBaseBranch :: [Layout] -> Pattern FsName -> [String] -> Assertion' String -> (SuSLikBranch, Maybe InductivePred)
-genBaseBranch layoutDefs pat suslikParams branchAsn =
+branchArgs :: [SuSLikName] -> Pattern FsName -> [SuSLikName]
+branchArgs suslikParams (MkPattern _ patParams) = suslikParams ++ patParams
+
+replaceRecCall :: String -> String -> Pattern FsName -> Assertion' FsName -> Assertion' FsName
+replaceRecCall recName newName pat Emp = Emp
+replaceRecCall recName newName pat (PointsTo x y rest) =
+  PointsTo x y $ replaceRecCall recName newName pat rest
+replaceRecCall recName newName pat (HeapletApply fName suslikParams e rest)
+  | fName == recName =
+      HeapletApply newName (map Var (branchArgs (map getVar suslikParams) pat)) e
+        (replaceRecCall recName newName pat rest)
+  | otherwise =
+      HeapletApply fName suslikParams e (replaceRecCall recName newName pat rest)
+
+genCondBranch :: [Layout] -> String -> String -> Pattern FsName -> [SuSLikName] -> Expr FsName -> Assertion' FsName -> SuSLikBranch
+genCondBranch defs recName newName pat suslikArgs cond asn0 =
+  let asn = asn0 --replaceRecCall recName newName pat asn0
+  in
+  MkSuSLikBranch
+  { suslikBranchCond = toSuSLikExpr cond
+  , suslikBranchRhs = toHeaplets asn
+  }
+
+genCondPred :: [Layout] -> Layout -> String -> String -> DefBranch -> [SuSLikName] -> InductivePred
+genCondPred defs layout recName newName (MkDefBranch pat exprs) suslikArgs =
+  MkInductivePred
+  { inductivePredName = newName
+  , inductivePredParams = map (locParam . ppr) $ branchArgs suslikArgs pat
+  , inductivePredBranches = map go exprs
+  }
+  where
+    go guarded =
+      genCondBranch defs recName newName pat suslikArgs
+        (guardedCond guarded)
+        (lower' defs layout suslikArgs (guardedBody guarded))
+
+genBaseBranch :: [Layout] -> Layout -> String -> Pattern FsName -> [SuSLikName] -> String -> DefBranch -> SuSLikBranch
+genBaseBranch layoutDefs layout recName pat suslikParams branchPredName branch =
   let
+    patAsn = applyLayoutPattern layout suslikParams pat
+
     suslikBranch =
       MkSuSLikBranch
-      { suslikBranchCond = genBaseCond suslikParams branchAsn
+      { suslikBranchCond = genBaseCond suslikParams patAsn
+      , suslikBranchRhs = toHeaplets patAsn <>
+          case defBranchGuardeds branch of
+            [MkGuardedExpr (BoolLit True) body] -> toHeaplets $ lower' layoutDefs layout suslikParams body
+            _ -> []
       }
   in
-  undefined
+  suslikBranch
+
+nontrivialBranch :: DefBranch -> Bool
+nontrivialBranch branch =
+  case defBranchGuardeds branch of
+    [MkGuardedExpr (BoolLit True) _] -> False
+    _ -> True
 
 genDefPreds :: [Layout] -> Layout -> Def -> [InductivePred]
-genDefPreds layoutDefs layout fnDef =
+genDefPreds defs layout fnDef =
   let branchNames = map (genBranchName (defName fnDef)) [1..length (defBranches fnDef)]
+      branchesWithNames = zip branchNames $ defBranches fnDef
 
       suslikParams = layoutSuSLikParams layout
 
-      baseBranches = undefined
+      baseBranches =
+        map (\(name, branch) -> genBaseBranch defs layout (defName fnDef) (defBranchPattern branch) (layoutSuSLikParams layout) name branch) branchesWithNames
+
+      condPreds =
+        map (\(name, branch) -> genCondPred defs layout (defName fnDef) name branch []) $ filter (nontrivialBranch . snd) branchesWithNames
+
+      -- condBranches =
 
       basePred =
         MkInductivePred
@@ -101,7 +156,7 @@ genDefPreds layoutDefs layout fnDef =
         , inductivePredBranches = baseBranches
         }
   in
-  undefined
+  basePred : condPreds
 
 genDefBranchPreds :: [Layout] -> String -> DefBranch -> [InductivePred]
 genDefBranchPreds layoutDefs topLevelName branch = undefined
