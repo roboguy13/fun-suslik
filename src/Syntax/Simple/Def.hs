@@ -23,6 +23,8 @@ import           GHC.Stack
 
 import Debug.Trace
 
+-- findMaxIndex :: 
+
 data Def =
   MkDef
   { defName :: String
@@ -116,7 +118,7 @@ toHeaplets (HeapletApply str suslikArgs fsArg rest) = do
 toHeaplets' :: Ppr a => Assertion' (Name_ a) -> [Heaplet (Name_ a)]
 toHeaplets' = snd . runFreshGen . toHeaplets
 
-genPatternHeaplets :: [Layout] -> Layout -> Pattern FsName -> Assertion' FsName
+genPatternHeaplets :: HasCallStack => [Layout] -> Layout -> Pattern FsName -> Assertion' FsName
 genPatternHeaplets layoutDefs layout (MkPattern cName args) =
     -- TODO: Avoid capture here between the SuSLik parameters and the FS
     -- variables
@@ -147,19 +149,19 @@ getCond defs layout suslikParams (pat, cond) =
   mkAndS (genPatCond suslikParams (genPatternHeaplets defs layout pat))
          (toSuSLikExpr_unsafe cond)
 
-genBranch :: [Layout] -> Layout -> [SuSLikName] -> ((Pattern FsName, Expr FsName), Expr FsName) -> SuSLikBranch
-genBranch defs layout suslikParams (guardedPat@(pat, _), rhs) =
-  let patHeaplets = toHeaplets' $ removeAppsLayout (genPatternHeaplets defs layout pat)
-      lowered = lower' defs layout [retName] rhs
+genBranch :: [Layout] -> Layout -> Layout -> [SuSLikName] -> ((Pattern FsName, Expr FsName), Expr FsName) -> SuSLikBranch
+genBranch defs inputLayout outputLayout suslikParams (guardedPat@(pat, _), rhs) =
+  let patHeaplets = toHeaplets' $ removeAppsLayout (genPatternHeaplets defs inputLayout pat)
+      lowered = lower' defs outputLayout [retName] rhs
   in
   MkSuSLikBranch
-  { suslikBranchCond = getCond defs layout suslikParams guardedPat
+  { suslikBranchCond = getCond defs inputLayout suslikParams guardedPat
   , suslikBranchRhs = patHeaplets <> toHeaplets' lowered
   }
 
-genDefPreds :: [Layout] -> Layout -> Def -> [InductivePred]
-genDefPreds defs layout fnDef =
-  let suslikParams = layoutSuSLikParams layout
+genDefPreds :: [Layout] -> Layout -> Layout -> Def -> [InductivePred]
+genDefPreds defs inputLayout outputLayout fnDef =
+  let suslikParams = layoutSuSLikParams inputLayout
 
       branches = getBranches fnDef
 
@@ -172,7 +174,7 @@ genDefPreds defs layout fnDef =
         MkInductivePred
         { inductivePredName = defName fnDef
         , inductivePredParams = retParam : map (locParam . nameToString) suslikParams
-        , inductivePredBranches = map (genBranch defs layout suslikParams) branches
+        , inductivePredBranches = map (genBranch defs inputLayout outputLayout suslikParams) branches
         }
   in
   [basePred]
@@ -200,12 +202,27 @@ sllLayout =
     "List"
     [suslikName "x"]
     [ (MkPattern "Nil" [], Emp)
-                       , (MkPattern "Cons" [fsName "head", fsName "tail"]
-                         ,(PointsTo (Here $ Var $ suslikName "x") (Var (fsName "head"))
-                          (PointsTo (Var (suslikName "x") :+ 1) (Var (suslikName "tail"))
-                          (HeapletApply "sll" [Var $ freeVar "nxt"] (Var (fsName "tail")) Emp)))
-                         )
-                       ]
+    , (MkPattern "Cons" [fsName "head", fsName "tail"]
+        ,(PointsTo (Here $ Var $ suslikName "x") (Var (fsName "head"))
+         (PointsTo (Var (suslikName "x") :+ 1) (Var (suslikName "tail"))
+         (HeapletApply "sll" [Var $ freeVar "nxt"] (Var (fsName "tail")) Emp)))
+      )
+    ]
+
+treeLayout :: Layout
+treeLayout =
+  mkLayout
+    "treeLayout"
+    "Tree"
+    [suslikName "x"]
+    [ (MkPattern "Leaf" [], Emp)
+    , (MkPattern "Node" [fsName "payload", fsName "left", fsName "right"]
+        ,(PointsTo (Here $ Var $ suslikName "x") (Var (fsName "payload"))
+         (PointsTo (Var (suslikName "x") :+ 1) (Var (suslikName "left"))
+         (PointsTo (Var (suslikName "x") :+ 2) (Var (suslikName "right"))
+         (HeapletApply "treeLayout" [Var $ freeVar "leftX"] (Var (suslikName "left"))
+         (HeapletApply "treeLayout" [Var $ freeVar "rightX"] (Var (suslikName "right")) Emp))))))
+    ]
 
 test1 :: Def
 test1 =
@@ -263,6 +280,26 @@ oddTest =
           ]
       ]
   }
+
+leftListTest :: Def
+leftListTest =
+  MkDef
+  { defName = "leftList"
+  , defType = Syntax.Simple.Expr.IntType -- Placeholder
+  , defBranches =
+      [MkDefBranch (MkPattern "Leaf" [])
+          [MkGuardedExpr (BoolLit True)
+            (ConstrApply "Nil" [])
+          ]
+      ,MkDefBranch (MkPattern "Node" [MkName "a", MkName "left", MkName "right"])
+          [MkGuardedExpr (BoolLit True)
+            (ConstrApply "Cons" [Var (MkName "a")
+                                ,Apply "leftList" (Var (MkName "left"))
+                                ])
+          ]
+      ]
+  }
+
 
 testApply1 :: Assertion' FsName
 testApply1 =

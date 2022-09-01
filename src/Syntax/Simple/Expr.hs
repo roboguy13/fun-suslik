@@ -152,7 +152,7 @@ type Subst a b = [(a, b)]
 type PatSubst = Subst FsName (Expr FsName)
 type SuSLikSubst = Subst SuSLikName SuSLikName
 
-applyLayout :: Int -> Layout -> [SuSLikName] -> ConstrName -> [Expr FsName] -> Assertion' FsName
+applyLayout :: HasCallStack => Int -> Layout -> [SuSLikName] -> ConstrName -> [Expr FsName] -> Assertion' FsName
 applyLayout level layout suslikArgs cName fsArgs =
   case getMatchingBranch layout cName fsArgs of
     Nothing -> error $ "applyLayout: Cannot find branch for constructor " ++ cName
