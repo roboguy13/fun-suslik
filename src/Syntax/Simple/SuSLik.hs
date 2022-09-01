@@ -80,11 +80,13 @@ instance Ppr SuSLikBranch where
 data Heaplet a where
   PointsToS :: Loc a -> SuSLikExpr a -> Heaplet a
   HeapletApplyS :: String -> [SuSLikExpr a] -> Heaplet a
+  BlockS :: a -> Int -> Heaplet a
   deriving (Show, Functor)
 
 instance Ppr a => Ppr (Heaplet a) where
   ppr (PointsToS x y) = unwords [ppr x, ":->", ppr y]
   ppr (HeapletApplyS f args) = f ++ "(" ++ intercalate ", " (map ppr args) ++ ")"
+  ppr (BlockS x i) = "[" ++ ppr x ++ "," ++ show i ++ "]"
 
 instance Ppr a => Ppr [Heaplet a] where
   ppr [] = "emp"

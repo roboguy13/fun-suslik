@@ -23,7 +23,26 @@ import           GHC.Stack
 
 import Debug.Trace
 
--- findMaxIndex :: 
+findMaxIndex :: [Heaplet SuSLikName] -> SuSLikName -> Int
+findMaxIndex heaplets name = go 0 heaplets + 1
+  where
+    go curr [] = curr
+    go curr (PointsToS (Here _) _ : rest) = go curr rest
+    go curr (PointsToS (x :+ i) _ : rest)
+      | x == name = go (max curr i) rest
+      | otherwise = go curr rest
+    go curr (HeapletApplyS _ _ : rest) = go curr rest
+    go curr (BlockS x i : rest) -- NOTE: This overrides everything else for now
+      | x == name = i
+      | otherwise = go curr rest
+
+genBlock :: [Heaplet SuSLikName] -> SuSLikName -> [Heaplet SuSLikName]
+genBlock heaplets name =
+  let ix = (findMaxIndex heaplets name)
+  in
+    if ix > 1
+      then [BlockS name ix]
+      else []
 
 data Def =
   MkDef
@@ -153,10 +172,11 @@ genBranch :: [Layout] -> Layout -> Layout -> [SuSLikName] -> ((Pattern FsName, E
 genBranch defs inputLayout outputLayout suslikParams (guardedPat@(pat, _), rhs) =
   let patHeaplets = toHeaplets' $ removeAppsLayout (genPatternHeaplets defs inputLayout pat)
       lowered = lower' defs outputLayout [retName] rhs
+      rhs0 = patHeaplets <> toHeaplets' lowered
   in
   MkSuSLikBranch
   { suslikBranchCond = getCond defs inputLayout suslikParams guardedPat
-  , suslikBranchRhs = patHeaplets <> toHeaplets' lowered
+  , suslikBranchRhs = concatMap (genBlock rhs0) (retName : suslikParams) <> rhs0
   }
 
 genDefPreds :: [Layout] -> Layout -> Layout -> Def -> [InductivePred]
