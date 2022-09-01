@@ -228,6 +228,42 @@ test1 =
       ]
   }
 
+evenTest :: Def
+evenTest =
+  MkDef
+  { defName = "even"
+  , defType = Syntax.Simple.Expr.IntType -- Placeholder
+  , defBranches =
+      [MkDefBranch (MkPattern "Nil" [])
+          [MkGuardedExpr (BoolLit True)
+            (ConstrApply "Nil" [])
+          ]
+      ,MkDefBranch (MkPattern "Cons" [MkName "head", MkName "tail"])
+          [MkGuardedExpr (BoolLit True)
+            (Apply "odd" (Var (MkName "tail")))
+          ]
+      ]
+  }
+
+oddTest :: Def
+oddTest =
+  MkDef
+  { defName = "odd"
+  , defType = Syntax.Simple.Expr.IntType -- Placeholder
+  , defBranches =
+      [MkDefBranch (MkPattern "Nil" [])
+          [MkGuardedExpr (BoolLit True)
+            (ConstrApply "Nil" [])
+          ]
+      ,MkDefBranch (MkPattern "Cons" [MkName "head", MkName "tail"])
+          [MkGuardedExpr (BoolLit True)
+            (ConstrApply "Cons" [Var (MkName "head")
+                                ,Apply "even" (Var (MkName "tail"))
+                                ])
+          ]
+      ]
+  }
+
 testApply1 :: Assertion' FsName
 testApply1 =
   applyLayout 0 sllLayout [MkName "z"]

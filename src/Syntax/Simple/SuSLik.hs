@@ -44,6 +44,7 @@ instance Ppr SuSLikSig where
     ["void " <> name <> "(" <> intercalate ", " (map ppr params) <> ")"
     ,"  { " <> ppr pre <> " }"
     ,"  { " <> ppr post <> " }"
+    ,"{ ?? }"
     ]
 
 data SuSLikParam =
