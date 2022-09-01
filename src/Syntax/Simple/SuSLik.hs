@@ -62,7 +62,7 @@ instance Ppr SuSLikBranch where
 
 data Heaplet a where
   PointsToS :: Loc a -> SuSLikExpr a -> Heaplet a
-  HeapletApplyS :: String -> [a] -> Heaplet a
+  HeapletApplyS :: String -> [SuSLikExpr a] -> Heaplet a
   deriving (Show, Functor)
 
 instance Ppr a => Ppr (Heaplet a) where

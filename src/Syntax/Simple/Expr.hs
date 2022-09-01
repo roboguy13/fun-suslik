@@ -32,9 +32,16 @@ import           Data.Either
 
 import           GHC.Stack
 
+import Debug.Trace
 
 data Pattern a = MkPattern ConstrName [FsName]
   deriving (Show)
+
+getPatternVars :: Pattern a -> [FsName]
+getPatternVars (MkPattern _ vs) = vs
+
+getPatternConstr :: Pattern a -> ConstrName
+getPatternConstr (MkPattern cName _) = cName
 
 -- instance Ppr a => Ppr (Expr a) where
 --   ppr (Var v) = ppr v
@@ -156,11 +163,11 @@ applyLayout level layout suslikArgs cName fsArgs =
 
 applyLayoutPattern :: Layout -> [SuSLikName] -> Pattern FsName -> Assertion' FsName
 applyLayoutPattern layout suslikArgs (MkPattern cName args) =
-    applyLayout 0 layout suslikArgs cName (map Var args)
+    removeAppsLayout $ applyLayout 0 layout suslikArgs cName (map Var args)
 
-getVar :: HasCallStack => Expr a -> a
+getVar :: (Ppr a, HasCallStack) => Expr a -> a
 getVar (Var v) = v
-getVar _ = error "getVar"
+getVar e = error $ "getVar: " ++ ppr e
 
 getLayoutSubstFn :: Int -> Layout -> (LayoutName -> [Expr FsName] -> Expr FsName -> Maybe (Assertion' FsName))
 getLayoutSubstFn level layout lName suslikArgs (ConstrApply cName xs) = do
@@ -196,7 +203,7 @@ hasConstrApp (HeapletApply _ _ _ rest) = hasConstrApp rest
 
 -- | Turn "L[x...] (f y...)" into "lower L [x...] (f y...)" then reduce using
 -- the Haskell 'lower'
-toLowers :: [Layout] -> Assertion' FsName -> FreshGen (Assertion' FsName)
+toLowers :: HasCallStack => [Layout] -> Assertion' FsName -> FreshGen (Assertion' FsName)
 toLowers defs = go
   where
     go :: Assertion' FsName -> FreshGen (Assertion' FsName)
@@ -204,8 +211,22 @@ toLowers defs = go
     go (PointsTo x y rest) = PointsTo x y <$> (go rest)
     go (HeapletApply layoutName suslikParams e rest) = do
       lower defs (lookupLayout defs layoutName) (map getVar suslikParams) e >>= \case
-        Left {} -> error "toLowers"
+        Left {} -> error $ "toLowers: " ++ ppr e
         Right asn -> fmap (asn <>) (go rest)
+
+-- | Turn "x :-> (f e)" into "x :-> y, f[y] e"
+pointsToIntermediate :: Assertion' FsName -> FreshGen (Assertion' FsName)
+pointsToIntermediate = go
+  where
+    go :: Assertion' FsName -> FreshGen (Assertion' FsName)
+    go Emp = pure Emp
+    go (PointsTo x (Apply f e) rest) = do
+      v <- getFresh
+      r <- go rest
+      pure $ PointsTo x (Var v) (HeapletApply f [Var v] e r)
+    go (PointsTo x y rest) = PointsTo x y <$> go rest
+    go (HeapletApply f suslikParams e rest) =
+      HeapletApply f suslikParams e <$> go rest
 
 toSuSLikExpr :: Expr a -> Maybe (SuSLikExpr a)
 toSuSLikExpr (Var v) = Just $ VarS v
@@ -229,13 +250,19 @@ toSuSLikExpr_unsafe e =
     Just s -> s
     Nothing -> error $ "toSuSLikExpr_unsafe: " ++ ppr e
 
-lower' :: [Layout] -> Layout -> [SuSLikName] -> Expr FsName -> Assertion' FsName
+-- | Remove applications from layout expansion
+removeAppsLayout :: Assertion' FsName -> Assertion' FsName
+removeAppsLayout Emp = Emp
+removeAppsLayout (PointsTo x y rest) = PointsTo x y (removeAppsLayout rest)
+removeAppsLayout (HeapletApply _ _ _ rest) = removeAppsLayout rest
+
+lower' :: HasCallStack => [Layout] -> Layout -> [SuSLikName] -> Expr FsName -> Assertion' FsName
 lower' defs layout suslikArgs e =
   case runFreshGen (lower defs layout suslikArgs e) of
     (_, Right x) -> x
     _ -> error "lower'"
 
-lower :: [Layout] -> Layout -> [SuSLikName] -> Expr FsName -> FreshGen (Either (SuSLikExpr FsName) (Assertion' FsName))
+lower :: HasCallStack => [Layout] -> Layout -> [SuSLikName] -> Expr FsName -> FreshGen (Either (SuSLikExpr FsName) (Assertion' FsName))
 lower defs layout suslikArgs = go 0
   where
     go :: Int -> Expr FsName -> FreshGen (Either (SuSLikExpr FsName) (Assertion' FsName))
@@ -263,9 +290,11 @@ lower defs layout suslikArgs = go 0
 
       loweredArgs <- mapM (go level) args
       let level' = maximum $ fmap maximum $ fmap (fmap maxUniq) $ rights loweredArgs
-      let asn = applyLayout (succ level) layout suslikParams cName args
+      let asn0 = applyLayout (succ level) layout suslikParams cName args
+      asn <- pointsToIntermediate asn0
 
-      Right <$> toLowers defs asn
+      -- trace ("asn = " ++ ppr asn) $
+      pure $ Right asn
 
       -- pure $ Right $ toLowers defs asn
 
