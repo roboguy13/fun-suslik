@@ -152,6 +152,7 @@ genBranch defs layout (guardedPat@(pat, _), rhs) =
       lowered = lower' defs layout [retName] rhs
   in
     -- trace ("\nlowered = " ++ ppr lowered) $
+    -- trace ("\nrhs = " ++ ppr rhs) $
   MkSuSLikBranch
   { suslikBranchCond = getCond defs layout guardedPat
   , suslikBranchRhs = patHeaplets <> toHeaplets' lowered

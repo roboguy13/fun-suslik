@@ -291,7 +291,7 @@ lower defs layout suslikArgs = go 0
       loweredArgs <- mapM (go level) args
       let level' = maximum $ fmap maximum $ fmap (fmap maxUniq) $ rights loweredArgs
       let asn0 = applyLayout (succ level) layout suslikParams cName args
-      asn <- pointsToIntermediate asn0
+      asn <- pointsToIntermediate (removeAppsLayout asn0)
 
       -- trace ("asn = " ++ ppr asn) $
       pure $ Right asn
