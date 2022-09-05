@@ -16,6 +16,7 @@ import           Data.Foldable
 import qualified Data.Set as Set
 
 import           Data.List
+import           Data.Maybe
 
 import           Control.Arrow (first, second, (&&&), (***))
 
@@ -137,8 +138,8 @@ toHeaplets (HeapletApply str suslikArgs fsArg rest) = do
 toHeaplets' :: Ppr a => Assertion' (Name_ a) -> [Heaplet (Name_ a)]
 toHeaplets' = snd . runFreshGen . toHeaplets
 
-genPatternHeaplets :: HasCallStack => [Layout] -> Layout -> Pattern FsName -> Assertion' FsName
-genPatternHeaplets layoutDefs layout (MkPattern cName args) =
+genPatternHeaplets :: HasCallStack => Layout -> Pattern FsName -> Assertion' FsName
+genPatternHeaplets layout (MkPattern cName args) =
     -- TODO: Avoid capture here between the SuSLik parameters and the FS
     -- variables
   applyLayout 0 layout (layoutSuSLikParams layout) cName $ map Var args
@@ -163,19 +164,19 @@ getBranches def =
       $ map (defBranchPattern &&& defBranchGuardeds) (defBranches def)
 
 -- | Turn a guarded pattern match into a SuSLik Boolean expression
-getCond :: [Layout] -> Layout -> [SuSLikName] -> (Pattern FsName, Expr FsName) -> SuSLikExpr FsName
-getCond defs layout suslikParams (pat, cond) =
-  mkAndS (genPatCond suslikParams (genPatternHeaplets defs layout pat))
+getCond :: Layout -> [SuSLikName] -> (Pattern FsName, Expr FsName) -> SuSLikExpr FsName
+getCond layout suslikParams (pat, cond) =
+  mkAndS (genPatCond suslikParams (genPatternHeaplets layout pat))
          (toSuSLikExpr_unsafe cond)
 
 genBranch :: [Layout] -> Layout -> Layout -> [SuSLikName] -> ((Pattern FsName, Expr FsName), Expr FsName) -> SuSLikBranch
 genBranch defs inputLayout outputLayout suslikParams (guardedPat@(pat, _), rhs) =
-  let patHeaplets = toHeaplets' $ removeAppsLayout (genPatternHeaplets defs inputLayout pat)
+  let patHeaplets = toHeaplets' $ removeAppsLayout (genPatternHeaplets inputLayout pat)
       lowered = lower' defs outputLayout [retName] rhs
       rhs0 = patHeaplets <> toHeaplets' lowered
   in
   MkSuSLikBranch
-  { suslikBranchCond = getCond defs inputLayout suslikParams guardedPat
+  { suslikBranchCond = getCond inputLayout suslikParams guardedPat
   , suslikBranchRhs = concatMap (genBlock rhs0) (retName : suslikParams) <> rhs0
   }
 
@@ -212,6 +213,41 @@ genSig layout def =
   , suslikSigPost = [PointsToS (Here (ppr retName)) (VarS retString), HeapletApplyS (defName def) (VarS retString : suslikParamsS)]
   }
 
+genLayoutPred :: Layout -> InductivePred
+genLayoutPred layout =
+  MkInductivePred
+  { inductivePredName = layoutName layout
+  , inductivePredParams = map (locParam . ppr) $ layoutSuSLikParams layout
+  , inductivePredBranches = map (layoutPredBranch layout . fst) (layoutBranches layout)
+  }
+
+layoutPredBranch :: Layout -> Pattern FsName -> SuSLikBranch
+layoutPredBranch layout pat =
+  let suslikParams = layoutSuSLikParams layout
+      rhs = toHeaplets' $ removeSuSLikArgs $ genPatternHeaplets layout pat
+  in
+  MkSuSLikBranch
+  { suslikBranchCond = genPatCond suslikParams
+                                  (genPatternHeaplets layout pat)
+  , suslikBranchRhs = concatMap (genBlock rhs) suslikParams <> rhs
+  }
+
+removeSuSLikArgs :: Assertion' FsName -> Assertion' FsName
+removeSuSLikArgs = go
+  where
+    go Emp = Emp
+    go (PointsTo x y rest) = PointsTo x y (go rest)
+    go (HeapletApply layoutName _ fsArg rest) = HeapletApply layoutName [] fsArg (go rest)
+
+-- restrictParams :: [SuSLikName] -> [Heaplet SuSLikName] -> [Heaplet SuSLikName]
+-- restrictParams params = map go
+--   where
+--     go orig@(PointsToS {}) = orig
+--     go orig@(BlockS {}) = orig
+--     go (HeapletApplyS f args) = HeapletApplyS f (mapMaybe goExpr args)
+--
+--     goExpr (VarS v)
+--       | v `elem` params = Just $ VarS v
 
 ---- Tests ----
 
