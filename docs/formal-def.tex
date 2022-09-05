@@ -3,6 +3,8 @@
 \usepackage[T1]{fontenc}
 \usepackage{scrlayer-scrpage,hyperref}
 
+\usepackage{mathrsfs}
+
 \input{defs.tex}
 
 \begin{document}
@@ -122,6 +124,76 @@ leftList (Bin v left right) := Cons v (f left)
 
 \subsubsection{Completeness}
 
+
+\section{Semantics}
+
+
+\subsection{Function Instantiation}
+\[
+  \begin{array}{c}
+    \labinfer{\ttt{instantiate}_{L{_1},L_{2}}\sem{f\; (C_i\; \overline{a}) | e_b := e} = f(\Delta) : (h_b \land C_b) \Ra h \sep h_e}
+      {\begin{gathered}
+         \Sigma \cap \overline{a} = \varnothing
+             ~~~ \Gamma \vdash (\Sigma \rhd \lowerS{L_1}\sem{C_i\; \overline{a}} \bigs h) ~~~
+         \Gamma, \overline{a} \vdash (\Sigma \rhd \lowerS{L_2}\sem{e} \bigs h_e)\\
+         \Gamma \vdash (\Sigma \rhd \mathscr{C}_{\Sigma}\sem{C_i} \bigs C_b) ~~~
+         \Gamma \vdash (\Sigma \rhd \Esem{e_b} \bigs h_b)
+       \end{gathered}
+      }
+  \end{array}
+\]
+
+\subsection{Pattern Matching Conditions}
+\[
+  \begin{array}{c}
+    \labinfer{\Gamma \vdash (\Sigma \rhd \mathscr{C}\sem{C} \bigs h_b)}{(L (C\; \overline{a}) := h) \in \Sigma & h_b = \bigwedge S_\Sigma\sem{C}(h)}
+    % \\\\
+    % \labinfer{\Gamma \vdash (\Sigma \rhd \mathscr{C}\sem{C} \ni (x == 0))}{x \in \Sigma & (L (C\; \overline{a}) := h) \in \Sigma & (x \pointsto e_x) \in h}
+    % \\\\
+    % \labinfer{\Gamma \vdash (\Sigma \rhd \mathscr{C}\sem{C} \ni \ttt{not} (x == 0))}{x \in \Sigma & (L (C\; \overline{a}) := h) \in \Sigma & (x \pointsto e_x) \notin h}
+  \end{array}
+\]
+\\
+\[
+  S_\Sigma\sem{C}(h) = \{ (x == 0) \mid x \in \Sigma\; \land\; \exists e_x, (x \pointsto e_x) \in h \} \cup \{ \ttt{not} (x == 0) \mid x \in \Sigma\; \land\; \neg\exists e_x, (x \pointsto e_x) \in h \}
+\]
+
+\subsection{Lowering With Layouts}
+
+\[
+  \begin{array}{c}
+    \labinfer{\Gamma \vdash (\Sigma \rhd \lowerS{L}\sem{x} \bigs x)}{x \in \Var & x \in \Gamma}
+    \\\\
+    \labinfer{\Gamma \vdash (\Sigma \rhd \lowerS{L}\sem{f\; \overline{e}} \bigs h)}{}
+  \end{array}
+\]
+
+\subsection{Expressions}
+
+{\tiny \textbf{NOTE: This does not currently support function calls. How should this be done? It will need to
+know what layout to instantiate them with. Should we have a "lower"/"lift"/"instantiate" that is like the identity function at the
+fun-SuSLik level, but gives a "hint" about what to use for the layout?
+Should we also require that all otherwise "ambiguous" function calls must be explicitly instantiated with those functions? This
+is actually kind of like type annotations that disambiguate type inference and type checking: Everything must be fully "monomorphic" (in the
+sense of type polymorphism) either directly or indirectly.
+Every subexpression must have a type that's "closed" in the sense that it doesn't contain any (constrained) "layout type variables" (like \ttt{List}). Maybe
+this could be implemented similarly to Haskell's typeclass system?}}
+
+\[
+  \begin{array}{c}
+    \labinfer{\Gamma \vdash (\Sigma \rhd \Esem{x} \bigs x)}{x \in \Var & x \in \Gamma}
+    ~~~
+    \labinfer{\Gamma \vdash (\Sigma \rhd \Esem{i} \bigs i)}{i \in \mathbb{Z}}
+    ~~~
+    \labinfer{\Gamma \vdash (\Sigma \rhd \Esem{b} \bigs b)}{b \in \mathbb{B}}
+    \\\\
+    \labinfer{\Gamma \vdash (\Sigma \rhd \Esem{e_1 + e_2} \bigs (s_1 + s_2))}{\Gamma \vdash (\Sigma \rhd e_1 \bigs s_1) & \Gamma \vdash (\Sigma \rhd e_2 \bigs s_2)}
+    \\\\\
+    \labinfer{\Gamma \vdash (\Sigma \rhd \Esem{\ttt{not}\; e} \bigs (\ttt{not}\; s))}{\Gamma \vdash (\Sigma \rhd e \bigs s)}
+    \\\\
+    \labinfer{\Gamma \vdash (\Sigma \rhd \Esem{e_1\; \ttt{\&\&}\; e_2} \bigs (s_1\; \ttt{\&\&}\; s_2))}{\Gamma \vdash (\Sigma \rhd e_1 \bigs s_1) & \Gamma \vdash (\Sigma \rhd e_2 \bigs s_2)}
+  \end{array}
+\]
 
 \section{Introduction}
 
