@@ -50,6 +50,79 @@ filterLt7 (Cons x xs)
   | not (x < 7) := filterLt7 xs
 \end{lstlisting}
 
+\section{Correctness Examples}
+
+\subsection{leftList}
+
+\begin{lstlisting}
+data Tree := Leaf | Bin Int Tree Tree
+data List := Nil | Cons Int List
+
+L_Tree : Tree >-> layout[x]
+L_Tree Leaf := emp
+L_Tree (Bin v left right) :=
+  x :-> v, (x+1) :-> leftPtr, (x+2) :-> rightPtr,
+  L_Tree[leftPtr] left,
+  L_Tree[rightPtr] right
+
+L_List : List >-> layout[x]
+L_List Nil := emp
+L_List (Cons head tail) := x :-> a, (x+1) :-> nxt, L_List[nxt] tail
+
+leftList : Tree -> List
+leftList Leaf := Nil
+leftList (Bin v left right) := Cons v (f left)
+\end{lstlisting}
+% arg : Tree
+% arg = Bin 1 (Bin 2 Leaf Leaf) (Bin 10 Leaf Leaf)
+
+\subsubsection{Soundness}
+
+\begin{equation*}
+  [\ttt{arg}] \models P \implies [\ttt{leftList}(\ttt{arg})] \models Q
+\end{equation*}
+
+\begin{itemize}
+  \item \ttt{arg} = \ttt{Leaf}\\
+    \begin{align*}
+      &[\ttt{arg}] = \ttt{emp}\\
+      &[\ttt{leftList}(\ttt{arg})] = [\ttt{Nil}] = \ttt{emp}\\
+      &[\ttt{leftList}(\ttt{arg})] \models Q\\
+      &\ttt{emp} \models Q
+    \end{align*}
+
+  \item \ttt{arg} = \ttt{Node payload left right}\\
+    Inductive hypothesis conjuncts:
+      \begin{itemize}
+        \item $[\ttt{left}] \models P \implies [\ttt{leftList}(\ttt{left})] \models Q$
+        \item $[\ttt{right}] \models P \implies [\ttt{leftList}(\ttt{right})] \models Q$
+      \end{itemize}
+
+    \begin{align*}
+      &[\ttt{leftList}(\ttt{Node payload left right})] =\\
+      &[\ttt{Cons payload (leftList left)}] =\\
+        &\;\;\;\ttt{\{x :-> payload, (x+1) :-> left ** (x+2) :-> right **}\\
+        &\;\;\;\;\ttt{r :-> payload ** (r+1) :-> a ** }\lowered{leftList}(\ttt{a}, \ttt{left})\ttt{\}}
+    \end{align*}
+
+    \begin{align*}
+        &\ttt{\{x :-> payload ** (x+1) :-> left ** (x+2) :-> right **}\\
+        &\ttt{r :-> payload ** (r+1) :-> a ** }\lowered{leftList}(\ttt{a}, \ttt{left})\ttt{\}}\\
+        &\;\;\;\;\;\models \{\lowered{leftList}(\ttt{a}, \ttt{\{x :-> payload ** (x+1) :-> left ** (x+2) :-> right\}})\}
+    \end{align*}
+
+    \begin{align*}
+        &\ttt{\{x :-> payload ** (x+1) :-> left ** (x+2) :-> right **}\\
+        &\ttt{r :-> payload ** (r+1) :-> a ** }\lowered{leftList}(\ttt{a}, \ttt{left})\ttt{\}}\\
+        &\;\;\;\;\;\models \ttt{\{x :-> payload ** (x+1) :-> left ** (x+2) :-> right,}\\
+        &\;\;\;\;\;\;\;\;\;\;\ttt{r :-> payload ** (r+1) :-> a ** }\lowered{leftList}(\ttt{a}, \ttt{left})\ttt{\}}\\
+    \end{align*}
+\end{itemize}
+
+
+\subsubsection{Completeness}
+
+
 \section{Introduction}
 
 In this document, we give a translation from fun-SuSLik to SuSLik. First, we define the syntax and
