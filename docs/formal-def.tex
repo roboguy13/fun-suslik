@@ -194,18 +194,20 @@ Fully elaborated expressions are recognized by the$\concrete$ judgment, defined 
 \section{Semantics}
 
 \subsection{Function Instantiation}
+Branches of top-level function definitions are instantiated with the $\ttt{gen}$ judgment:
+
 \[
   \begin{array}{c}
     \labinfer{\ttt{gen}_{L{_1},L_{2}}\sem{f\; (C\; \overline{a}) | e_b := e} = f(\Delta) : (h_b \land C_b) \Ra h \sep h_e}
       {\begin{gathered}
          \Sigma \cap \overline{a} = \varnothing
-             ~~~ \Gamma \vdash (\Sigma \rhd \lowerS{L_1}\sem{C\; \overline{a}} \bigs h) ~~~
-         \Gamma, \overline{a} \vdash (\Sigma \rhd \lowerS{L_2}\sem{e} \bigs h_e)\\
-         \Gamma \vdash (\Sigma \rhd \mathscr{C}_{\Sigma}\sem{C} \bigs C_b) ~~~
-         \Gamma \vdash (\Sigma \rhd \Esem{e_b} \bigs h_b)
+             ~~~ \Gamma \vdash (\Sigma \rhd \sem{\lowerS{L_1}(C\; \overline{a})} \bigs h)\\
+         \Gamma, \overline{a} \vdash (\Sigma \rhd \sem{\lowerS{L_2}(e)} \bigs h_e)\\
+         \Sigma \rhd \mathscr{C}_{\Sigma}\sem{C} = C_b ~~~
+         \Gamma \vdash (\Sigma \rhd \sem{e_b} \bigs h_b)
          \\
          \Gamma \vdash f : \alpha \ra \beta ~~~
-         \overline{\Gamma \vdash C : \tau_{1} \ra \tau_{2} \ra \cdots \ra \alpha}
+         \Gamma \vdash C : \overline{\tau_{i} \ra}\; \alpha
          \\
          \Gamma, \overline{a_i : \tau_i} \vdash (\Sigma \rhd e \concrete)
        \end{gathered}
@@ -218,7 +220,7 @@ Fully elaborated expressions are recognized by the$\concrete$ judgment, defined 
 This relation specifies the SuSLik condition given by a pattern match. It has the form
 
 \begin{equation*}
-  \Sigma \rhd \mathscr{C}\sem{C} \bigs b
+  \Sigma \rhd \mathscr{C}\sem{C} \longmapsto b
 \end{equation*}
 
 \noindent
@@ -226,7 +228,7 @@ where $C$ is a fun-SuSLik constructor name and $b$ is a SuSLik Boolean expressio
 
 \[
   \begin{array}{c}
-    \labinfer{\Gamma \vdash (\Sigma \rhd \mathscr{C}\sem{C} \bigs h_b)}{(L (C\; \overline{a}) := h) \in \Sigma & h_b = \bigwedge S_\Sigma\sem{C}(h)}
+    \labinfer{\Gamma \vdash (\Sigma \rhd \mathscr{C}\sem{C} \longmapsto h_b)}{(L (C\; \overline{a}) := h) \in \Sigma & h_b = \bigwedge S_\Sigma\sem{C}(h)}
     % \\\\
     % \labinfer{\Gamma \vdash (\Sigma \rhd \mathscr{C}\sem{C} \ni (x == 0))}{x \in \Sigma & (L (C\; \overline{a}) := h) \in \Sigma & (x \pointsto e_x) \in h}
     % \\\\
@@ -241,17 +243,24 @@ This definition uses the following helper function:
   S_\Sigma\sem{C}(h) = \{ (x == 0) \mid x \in \Sigma\; \land\; \exists e_x, (x \pointsto e_x) \in h \} \cup \{ \ttt{not} (x == 0) \mid x \in \Sigma\; \land\; \neg\exists e_x, (x \pointsto e_x) \in h \}
 \]
 
-\subsection{Lowering With Layouts}
+\begin{lemma}
+  The relation above, given an environment $\Sigma$, defines a function from fun-SuSLik constructor names to SuSLik expressions.\\
+  Write this function as follows:
 
-\[
-  \begin{array}{c}
-    \labinfer{\Gamma \vdash (\Sigma \rhd \lowerS{L}\sem{x} \bigs x)}{x \in \Var & x \in \Gamma}
-    \\\\
-    \labinfer{\Gamma \vdash (\Sigma \rhd \lowerS{L}\sem{f\; \overline{e}} \bigs h)}{}
-  \end{array}
-\]
+  $\Sigma \rhd \mathscr{C}\sem{C} = b \iff \Sigma \rhd \mathscr{C}\sem{C} \longmapsto b$
+\end{lemma}
 
-\subsection{Expressions}
+% \subsection{Lowering With Layouts}
+%
+% \[
+%   \begin{array}{c}
+%     \labinfer{\Gamma \vdash (\Sigma \rhd \lowerS{L}\sem{x} \bigs x)}{x \in \Var & x \in \Gamma}
+%     \\\\
+%     \labinfer{\Gamma \vdash (\Sigma \rhd \lowerS{L}\sem{f\; \overline{e}} \bigs h)}{}
+%   \end{array}
+% \]
+
+\subsection{Translating Expressions}
 
 {\tiny \textbf{NOTE: This does not currently support function calls. How should this be done? It will need to
 know what layout to instantiate them with. Should we have a "lower"/"lift"/"instantiate" that is like the identity function at the
@@ -267,19 +276,24 @@ this could be implemented similarly to Haskell's typeclass system?)}}
 
 \[
   \begin{array}{c}
-    \labinfer{\Gamma \vdash (\Sigma \rhd \Esem{x} \bigs x)}{x \in \Var & x \in \Gamma}
+    \labinfer{\Gamma \vdash (\Sigma \rhd \sem{x} \bigs x)}{x \in \Var & x \in \Gamma}
     ~~~
-    \labinfer{\Gamma \vdash (\Sigma \rhd \Esem{i} \bigs i)}{i \in \mathbb{Z}}
+    \labinfer{\Gamma \vdash (\Sigma \rhd \sem{i} \bigs i)}{i \in \mathbb{Z}}
     ~~~
-    \labinfer{\Gamma \vdash (\Sigma \rhd \Esem{b} \bigs b)}{b \in \mathbb{B}}
+    \labinfer{\Gamma \vdash (\Sigma \rhd \sem{b} \bigs b)}{b \in \mathbb{B}}
     \\\\
-    \labinfer{\Gamma \vdash (\Sigma \rhd \Esem{e_1 + e_2} \bigs (s_1 + s_2))}{\Gamma \vdash (\Sigma \rhd e_1 \bigs s_1) & \Gamma \vdash (\Sigma \rhd e_2 \bigs s_2)}
+    \labinfer{\Gamma \vdash (\Sigma \rhd \sem{e_1 + e_2} \bigs (s_1 + s_2))}{\Gamma \vdash (\Sigma \rhd e_1 \bigs s_1) & \Gamma \vdash (\Sigma \rhd e_2 \bigs s_2)}
     \\\\\
-    \labinfer{\Gamma \vdash (\Sigma \rhd \Esem{\ttt{not}\; e} \bigs (\ttt{not}\; s))}{\Gamma \vdash (\Sigma \rhd e \bigs s)}
+    \labinfer{\Gamma \vdash (\Sigma \rhd \sem{\ttt{not}\; e} \bigs (\ttt{not}\; s))}{\Gamma \vdash (\Sigma \rhd e \bigs s)}
     \\\\
-    \labinfer{\Gamma \vdash (\Sigma \rhd \Esem{e_1\; \ttt{\&\&}\; e_2} \bigs (s_1\; \ttt{\&\&}\; s_2))}{\Gamma \vdash (\Sigma \rhd e_1 \bigs s_1) & \Gamma \vdash (\Sigma \rhd e_2 \bigs s_2)}
+    \labinfer{\Gamma \vdash (\Sigma \rhd \sem{e_1\; \ttt{\&\&}\; e_2} \bigs (s_1\; \ttt{\&\&}\; s_2))}{\Gamma \vdash (\Sigma \rhd e_1 \bigs s_1) & \Gamma \vdash (\Sigma \rhd e_2 \bigs s_2)}
+    \\\\
+    \labinfer{\Gamma \vdash (\Sigma \rhd \sem{\instantiate{A,B}(f\; e)} \bigs \mathcal{I}_{A,B}(f)(s)))}{\Gamma \vdash (\Sigma \rhd e \bigs s)}
   \end{array}
 \]
+
+\noindent
+The $\mathcal{I}_{A,B}(f)$ function gives the ``canonical'' SuSLik name for the inductive predicate generated by instantiating the function $f$ with input layout $A$ and output layout $B$.
 
 \section{Introduction}
 
