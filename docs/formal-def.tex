@@ -198,7 +198,7 @@ Branches of top-level function definitions are instantiated with the $\ttt{gen}$
 
 \[
   \begin{array}{c}
-    \labinfer{\ttt{gen}_{L{_1},L_{2}}\sem{f\; (C\; \overline{a}) | e_b := e} = f(\Delta) : (h_b \land C_b) \Ra h \sep h_e}
+    \labinfer{\ttt{gen}_{L{_1},L_{2}}\sem{f\; (C\; \overline{a}) | e_b := e} \longmapsto f(\Delta) : (h_b \land C_b) \Ra h \sep h_e}
       {\begin{gathered}
          \Sigma \cap \overline{a} = \varnothing
              ~~~ \Gamma \vdash (\Sigma \rhd \sem{\lowerS{L_1}(C\; \overline{a})} \bigs h)\\
@@ -214,6 +214,13 @@ Branches of top-level function definitions are instantiated with the $\ttt{gen}$
       }
   \end{array}
 \]
+
+\begin{lemma}
+  $\ttt{gen}_{A,B}(\sem{\cdot}) \longmapsto \cdot$ is a function from fun-SuSLik function branches to SuSLik inductive predicate branches.
+\end{lemma}
+
+\subsection{Layout Translation}
+
 
 \subsection{Pattern Matching Conditions}
 
@@ -289,6 +296,8 @@ this could be implemented similarly to Haskell's typeclass system?)}}
     \labinfer{\Gamma \vdash (\Sigma \rhd \sem{e_1\; \ttt{\&\&}\; e_2} \bigs (s_1\; \ttt{\&\&}\; s_2))}{\Gamma \vdash (\Sigma \rhd e_1 \bigs s_1) & \Gamma \vdash (\Sigma \rhd e_2 \bigs s_2)}
     \\\\
     \labinfer{\Gamma \vdash (\Sigma \rhd \sem{\instantiate{A,B}(f\; e)} \bigs \mathcal{I}_{A,B}(f)(r, x) \sep s[r:=x])}{\Gamma \vdash (\Sigma \rhd \lowerS{A}(e) \bigs s) & x\; \textnormal{fresh}}
+    \\\\\
+    \labinfer{\Gamma \vdash (\Sigma \rhd \sem{\lowerS{A}(C\; \overline{e})} \bigs s)}{}
   \end{array}
 \]
 
