@@ -288,7 +288,7 @@ this could be implemented similarly to Haskell's typeclass system?)}}
     \\\\
     \labinfer{\Gamma \vdash (\Sigma \rhd \sem{e_1\; \ttt{\&\&}\; e_2} \bigs (s_1\; \ttt{\&\&}\; s_2))}{\Gamma \vdash (\Sigma \rhd e_1 \bigs s_1) & \Gamma \vdash (\Sigma \rhd e_2 \bigs s_2)}
     \\\\
-    \labinfer{\Gamma \vdash (\Sigma \rhd \sem{\instantiate{A,B}(f\; e)} \bigs \mathcal{I}_{A,B}(f)(s)))}{\Gamma \vdash (\Sigma \rhd e \bigs s)}
+    \labinfer{\Gamma \vdash (\Sigma \rhd \sem{\instantiate{A,B}(f\; e)} \bigs \mathcal{I}_{A,B}(f)(r, x) \sep s[r:=x])}{\Gamma \vdash (\Sigma \rhd \lowerS{A}(e) \bigs s) & x\; \textnormal{fresh}}
   \end{array}
 \]
 
