@@ -124,26 +124,106 @@ leftList (Bin v left right) := Cons v (f left)
 
 \subsubsection{Completeness}
 
+\section{Layout Type Checking}
+
+We use a bidirectional type system\cite{Dunfield} to perform type checking and elaboration. Elaboration is the process
+through which a ``layout polymorphic'' expression gets explicitly instantiated to a particular layout.
+
+To distinguish a layout (``concrete type'') from an algebraic data type, we write $\layoutType{A}$ for the
+layout type associated with the layout $A$.
+
+\[
+  \begin{array}{c}
+    \labinfer{\Gamma \vdash (\Sigma \rhd x \infers \layoutType{A}}{x \in \Var & (x : \layoutType{A}) \in \Sigma}
+    \\\\
+    \labinfer{\Gamma \vdash (\Sigma \rhd \lowerS{A}(e) \infers \layoutType{A})}{\Gamma \vdash e : \tau & (A : \tau \monic \layout{\Delta}) \in \Sigma}
+    \\\\
+    \labinfer{\Gamma \vdash (\Sigma \rhd e \checks \layoutType{A})}{\Gamma \vdash (\Sigma \rhd e \infers \layoutType{A})}
+    ~~~
+    \labinfer{\Gamma \vdash (\Sigma \rhd \lowerS{A}(e) \infers \layoutType{A})}{\Gamma \vdash (\Sigma \rhd e \checks \layoutType{A})}
+    % \labinfer{\Gamma (\Sigma \rhd \lowerS{A}(e) \infers \layoutType{A}}{\Gamma \vdash
+    \\\\
+    \labinfer{\Gamma \vdash (\Sigma \rhd f\; e \infers \layoutType{B})}{\Gamma \vdash (\Sigma \rhd f \infers \layoutType{A} \ra \layoutType{B}) & \Gamma \vdash (\Sigma \rhd e \infers \layoutType{B})}
+    \\\\
+    \labinfer{\Gamma \vdash (\Sigma \rhd \lowerS{B}(C\; \overline{e}) \infers \layoutType{B})}
+      {\begin{gathered}
+        \Gamma \vdash C : \overline{\tau_i \ra}\; \tau ~~~ \Gamma \vdash (C\; \overline{e_i}) : \tau ~~~ \overline{e_i} \wellformed{\tau,B}\\
+        \Gamma \vdash (\Sigma \rhd \overline{e_i} \infers \overline{\layoutType{A_i})}
+       \end{gathered}
+      }
+    \\\\
+    \labinfer{\Gamma \vdash (\Sigma \rhd \instantiate{A,B}\; f \infers \layoutType{A} \ra \layoutType{B})}
+      {\Gamma \vdash f : \alpha \ra \beta & (A : \alpha \monic \layout{\Delta_\alpha}) \in \Sigma & (B : \beta \monic \layout{\Delta_\beta}) \in \Sigma }
+  \end{array}
+\]
+
+\noindent
+When a recursive constructor is lowered to a layout $L$, it requires all of its recursive subterms to also be lowered to the layout $L$ and not some other layout.
+This restriction is given by the $\wellformed{\tau,L}$ judgment:
+
+\[
+  \begin{array}{c}
+    \labinfer{\Gamma \vdash (\Sigma \rhd e \wellformed{\tau,L})}{\Gamma \vdash e : \alpha & \alpha \neq \tau}
+    \\\\
+    \labinfer{\Gamma \vdash (\Sigma \rhd e \wellformed{\tau,L})}{\Gamma \vdash (\Sigma \rhd e \infers \layoutType{L})}
+  \end{array}
+\]
+
+\noindent
+Fully elaborated expressions are recognized by the$\concrete$ judgment, defined as follows:
+
+\[
+  \begin{array}{c}
+    \labinfer{\Gamma \vdash (\Sigma \rhd e \concrete)}{\Gamma \vdash (\Sigma \rhd e \infers \layoutType{A})}
+  \end{array}
+\]
+
+\begin{lemma} \textbf{Lower elaboration}. For each fun-SuSLik expression $e$ with $\Gamma \vdash (\Sigma \rhd e \infers \layoutType{A})$, it is the case that $e$ has the form
+  $\lowerS{A}(e)$
+\end{lemma}
+
+\begin{lemma} \textbf{Instantiate elaboration}. For each fun-SuSLik expression $e$ with $\Gamma \vdash (\Sigma \rhd e \infers \layoutType{A} \ra \layoutType{B})$, it is the case that $e$ has the form
+  $\instantiate{A,B}(e)$
+\end{lemma}
+
+% \begin{lemma} \textbf{Instantiation existence}. For any fun-SuSLik expression $e$ where $\Gamma \vdash e : \alpha \ra \beta$
+%   and layouts $A : \alpha \monic \layout{\Delta_\alpha}, B : \beta \monic \layout{\Delta_\beta} \in \Sigma$,
+%   we can derive $\Gamma \vdash (\Sigma \rhd \instantiate{A,B}(e) \infers \layoutType{A} \ra \layoutType{B})$
+% \end{lemma}
 
 \section{Semantics}
-
 
 \subsection{Function Instantiation}
 \[
   \begin{array}{c}
-    \labinfer{\ttt{instantiate}_{L{_1},L_{2}}\sem{f\; (C_i\; \overline{a}) | e_b := e} = f(\Delta) : (h_b \land C_b) \Ra h \sep h_e}
+    \labinfer{\ttt{gen}_{L{_1},L_{2}}\sem{f\; (C\; \overline{a}) | e_b := e} = f(\Delta) : (h_b \land C_b) \Ra h \sep h_e}
       {\begin{gathered}
          \Sigma \cap \overline{a} = \varnothing
-             ~~~ \Gamma \vdash (\Sigma \rhd \lowerS{L_1}\sem{C_i\; \overline{a}} \bigs h) ~~~
+             ~~~ \Gamma \vdash (\Sigma \rhd \lowerS{L_1}\sem{C\; \overline{a}} \bigs h) ~~~
          \Gamma, \overline{a} \vdash (\Sigma \rhd \lowerS{L_2}\sem{e} \bigs h_e)\\
-         \Gamma \vdash (\Sigma \rhd \mathscr{C}_{\Sigma}\sem{C_i} \bigs C_b) ~~~
+         \Gamma \vdash (\Sigma \rhd \mathscr{C}_{\Sigma}\sem{C} \bigs C_b) ~~~
          \Gamma \vdash (\Sigma \rhd \Esem{e_b} \bigs h_b)
+         \\
+         \Gamma \vdash f : \alpha \ra \beta ~~~
+         \overline{\Gamma \vdash C : \tau_{1} \ra \tau_{2} \ra \cdots \ra \alpha}
+         \\
+         \Gamma, \overline{a_i : \tau_i} \vdash (\Sigma \rhd e \concrete)
        \end{gathered}
       }
   \end{array}
 \]
 
 \subsection{Pattern Matching Conditions}
+
+This relation specifies the SuSLik condition given by a pattern match. It has the form
+
+\begin{equation*}
+  \Sigma \rhd \mathscr{C}\sem{C} \bigs b
+\end{equation*}
+
+\noindent
+where $C$ is a fun-SuSLik constructor name and $b$ is a SuSLik Boolean expression.
+
 \[
   \begin{array}{c}
     \labinfer{\Gamma \vdash (\Sigma \rhd \mathscr{C}\sem{C} \bigs h_b)}{(L (C\; \overline{a}) := h) \in \Sigma & h_b = \bigwedge S_\Sigma\sem{C}(h)}
@@ -153,6 +233,9 @@ leftList (Bin v left right) := Cons v (f left)
     % \labinfer{\Gamma \vdash (\Sigma \rhd \mathscr{C}\sem{C} \ni \ttt{not} (x == 0))}{x \in \Sigma & (L (C\; \overline{a}) := h) \in \Sigma & (x \pointsto e_x) \notin h}
   \end{array}
 \]
+
+\noindent
+This definition uses the following helper function:
 \\
 \[
   S_\Sigma\sem{C}(h) = \{ (x == 0) \mid x \in \Sigma\; \land\; \exists e_x, (x \pointsto e_x) \in h \} \cup \{ \ttt{not} (x == 0) \mid x \in \Sigma\; \land\; \neg\exists e_x, (x \pointsto e_x) \in h \}
@@ -176,8 +259,11 @@ fun-SuSLik level, but gives a "hint" about what to use for the layout?
 Should we also require that all otherwise "ambiguous" function calls must be explicitly instantiated with those functions? This
 is actually kind of like type annotations that disambiguate type inference and type checking: Everything must be fully "monomorphic" (in the
 sense of type polymorphism) either directly or indirectly.
-Every subexpression must have a type that's "closed" in the sense that it doesn't contain any (constrained) "layout type variables" (like \ttt{List}). Maybe
-this could be implemented similarly to Haskell's typeclass system?}}
+Every subexpression must have a type that's "closed" in the sense that it doesn't contain any (constrained) "layout type variables" (like \ttt{List}). Could have a judgment for this. This could
+also make sure the layout instantiations match in the places where they need to line up. It can also insert annotations everywhere it needed to infer something, so everything is fully annotated (elaboration with bidirectional type inference?).
+\\
+(Maybe
+this could be implemented similarly to Haskell's typeclass system?)}}
 
 \[
   \begin{array}{c}

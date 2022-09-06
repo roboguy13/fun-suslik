@@ -19,9 +19,6 @@
 % \renewcommand{\syntleft}{}
 % \renewcommand{\syntright}{}
 
-\newcommand{\infers}{\ensuremath{\Rightarrow}}
-\newcommand{\checks}{\ensuremath{\Leftarrow}}
-
 \newcommand{\ttt}[1]{\texttt{#1}}
 \newcommand{\Tlst}[1]{\text{\lstinline{#1}}}
 \newcommand{\lst}[1]{\lstinline{#1}}
@@ -61,6 +58,8 @@
 \newcommand{\val}{\textnormal{ val}}
 \newcommand{\ok}{\textnormal{ ok}}
 
+\newcommand{\concrete}{\textnormal{ concrete}}
+
 \newcommand{\True}{\ttt{True}}
 \newcommand{\False}{\ttt{False}}
 \newcommand{\head}{\ttt{head}}
@@ -97,6 +96,7 @@
 
 \newcommand{\liftS} [1] {\textnormal{\ttt{lift}}_{#1}}
 \newcommand{\lowerS} [1] {\textnormal{\ttt{lower}}_{#1}}
+\newcommand{\instantiate} [1] {\textnormal{\ttt{instantiate}}_{#1}}
 
 \newcommand{\lesseq}{\ttt{le}}
 \newcommand{\eq}{\ttt{eq}}
@@ -186,6 +186,13 @@
 \newcommand{\LayoutCase}{\textnormal{LayoutLambda}}
 
 \newcommand{\Var}{\textnormal{Var}}
+
+\newcommand{\infers}{\;{\color{red}\Rightarrow}\;}
+\newcommand{\checks}{\;{\color{blue}\Leftarrow}\;}
+
+\newcommand{\layoutType} [1] {\mathcal{L}(#1)}
+
+\newcommand{\wellformed} [1] {\;\textnormal{wellformed}_{#1}}
 
 \endinput
 
