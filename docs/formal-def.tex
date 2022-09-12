@@ -182,7 +182,7 @@ Fully elaborated expressions are recognized by the$\concrete$ judgment, defined 
   $\lowerS{A}(e)$
 \end{lemma}
 
-\begin{lemma} \textbf{Instantiate elaboration}. For each fun-SuSLik expression $e$ with $\Gamma \vdash (\Sigma \rhd e \infers \layoutType{A} \ra \layoutType{B})$, it is the case that $e$ has the form
+\begin{lemma} \textbf{Instantiate elaboration}. For each fun-SuSLik expression $e$ with $\Gamma \vdash (\Sigma\; \rhd\; e \infers \layoutType{A} \ra \layoutType{B})$, it is the case that $e$ has the form
   $\instantiate{A,B}(e)$
 \end{lemma}
 
@@ -218,10 +218,12 @@ Branches of top-level function definitions are instantiated with the $\ttt{gen}$
 
 \begin{lemma}
   % $\ttt{gen}_{A,B}(\sem{\cdot}) \longmapsto \cdot$ is a function from fun-SuSLik function branches to SuSLik inductive predicate branches.
-  $\cdot \genStep{A}{B} \cdot$ is a function from fun-SuSLik function branches to SuSLik inductive predicate branches.
+  Given any two layout names $A$ amd $B$, $\cdot \genStep{A}{B} \cdot$ is a function from fun-SuSLik function branches to SuSLik inductive predicate branches.
 \end{lemma}
 
 \subsection{Layout Translation}
+
+\textbf{TODO: Should we include SuSLik blocks in the translation specification?}
 
 One branch of a layout can be translated from fun-SuSLik into a SuSLik inductive predicate branch as follows:
 
@@ -229,12 +231,27 @@ One branch of a layout can be translated from fun-SuSLik into a SuSLik inductive
   \begin{array}{c}
     \labinfer{\Gamma \vdash (\Sigma \rhd \sem{L\; (C\; \overline{x}) := e} \layoutStep
         L(\Delta) : b \Ra h)}
-      {\Sigma \rhd \sem{C} \condStep b}
+      {\Sigma \rhd \sem{C} \condStep b & e \heapletStep h}
   \end{array}
 \]
 
 \noindent
-By doing this to every branch of a layout, we get a full translation from layouts to SuSLik inductive predicates.
+This uses the following relation for translating fun-SuSLik assertions into SuSLik assertions:
+
+\[
+  \begin{array}{c}
+    \labinfer{\ttt{emp} \heapletStep \ttt{emp}}{}
+    ~~~
+    \labinfer{p \pointsto e, r \heapletStep p \pointsto e, h}
+      {r \heapletStep h}
+    \\\\
+    \labinfer{L\; a, r \heapletStep L(a), h}
+      {r \heapletStep h}
+  \end{array}
+\]
+
+\noindent
+By using $\Sigma \rhd \cdot \layoutStep \cdot$ for every branch of a layout, we get a full translation from layouts to SuSLik inductive predicates.
 
 
 \subsection{Pattern Matching Conditions}
