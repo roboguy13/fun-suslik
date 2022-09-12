@@ -198,12 +198,13 @@ Branches of top-level function definitions are instantiated with the $\ttt{gen}$
 
 \[
   \begin{array}{c}
-    \labinfer{\ttt{gen}_{L{_1},L_{2}}\sem{f\; (C\; \overline{a}) | e_b := e} \longmapsto f(\Delta) : (h_b \land C_b) \Ra h \sep h_e}
+    % \labinfer{\ttt{gen}_{L{_1},L_{2}}\sem{f\; (C\; \overline{a}) | e_b := e} \longmapsto f(\Delta) : (h_b \land C_b) \Ra h \sep h_e}
+    \labinfer{\sem{f\; (C\; \overline{a}) \mid e_b := e} \genStep{L_1}{L_2} f(\Delta) : (h_b \land C_b) \Ra h \sep h_e}
       {\begin{gathered}
          \Sigma \cap \overline{a} = \varnothing
              ~~~ \Gamma \vdash (\Sigma \rhd \sem{\lowerS{L_1}(C\; \overline{a})} \bigs h)\\
          \Gamma, \overline{a} \vdash (\Sigma \rhd \sem{\lowerS{L_2}(e)} \bigs h_e)\\
-         \Sigma \rhd \mathscr{C}_{\Sigma}\sem{C} = C_b ~~~
+         \Sigma \rhd \sem{C} \condStep C_b ~~~
          \Gamma \vdash (\Sigma \rhd \sem{e_b} \bigs h_b)
          \\
          \Gamma \vdash f : \alpha \ra \beta ~~~
@@ -216,10 +217,24 @@ Branches of top-level function definitions are instantiated with the $\ttt{gen}$
 \]
 
 \begin{lemma}
-  $\ttt{gen}_{A,B}(\sem{\cdot}) \longmapsto \cdot$ is a function from fun-SuSLik function branches to SuSLik inductive predicate branches.
+  % $\ttt{gen}_{A,B}(\sem{\cdot}) \longmapsto \cdot$ is a function from fun-SuSLik function branches to SuSLik inductive predicate branches.
+  $\cdot \genStep{A}{B} \cdot$ is a function from fun-SuSLik function branches to SuSLik inductive predicate branches.
 \end{lemma}
 
 \subsection{Layout Translation}
+
+One branch of a layout can be translated from fun-SuSLik into a SuSLik inductive predicate branch as follows:
+
+\[
+  \begin{array}{c}
+    \labinfer{\Gamma \vdash (\Sigma \rhd \sem{L\; (C\; \overline{x}) := e} \layoutStep
+        L(\Delta) : b \Ra h)}
+      {\Sigma \rhd \sem{C} \condStep b}
+  \end{array}
+\]
+
+\noindent
+By doing this to every branch of a layout, we get a full translation from layouts to SuSLik inductive predicates.
 
 
 \subsection{Pattern Matching Conditions}
@@ -227,7 +242,7 @@ Branches of top-level function definitions are instantiated with the $\ttt{gen}$
 This relation specifies the SuSLik condition given by a pattern match. It has the form
 
 \begin{equation*}
-  \Sigma \rhd \mathscr{C}\sem{C} \longmapsto b
+  \Sigma \rhd \sem{C} \condStep b
 \end{equation*}
 
 \noindent
@@ -235,7 +250,7 @@ where $C$ is a fun-SuSLik constructor name and $b$ is a SuSLik Boolean expressio
 
 \[
   \begin{array}{c}
-    \labinfer{\Gamma \vdash (\Sigma \rhd \mathscr{C}\sem{C} \longmapsto h_b)}{(L (C\; \overline{a}) := h) \in \Sigma & h_b = \bigwedge S_\Sigma\sem{C}(h)}
+    \labinfer{\Sigma \rhd \sem{C} \condStep b}{(L (C\; \overline{a}) := h) \in \Sigma & b = \bigwedge S_\Sigma\sem{C}(h)}
     % \\\\
     % \labinfer{\Gamma \vdash (\Sigma \rhd \mathscr{C}\sem{C} \ni (x == 0))}{x \in \Sigma & (L (C\; \overline{a}) := h) \in \Sigma & (x \pointsto e_x) \in h}
     % \\\\
@@ -252,9 +267,10 @@ This definition uses the following helper function:
 
 \begin{lemma}
   The relation above, given an environment $\Sigma$, defines a function from fun-SuSLik constructor names to SuSLik expressions.\\
-  Write this function as follows:
+  Proof. Follows immediately from the fact that $\bigwedge S_\Sigma\sem{C}(\cdot)$ is a function from SuSLik assertions to SuSLik expressions.
+  % Write this function as follows:
 
-  $\Sigma \rhd \mathscr{C}\sem{C} = b \iff \Sigma \rhd \mathscr{C}\sem{C} \longmapsto b$
+  % $\Sigma \rhd \mathscr{C}\sem{C} = b \iff \Sigma \rhd \mathscr{C}\sem{C} \longmapsto b$
 \end{lemma}
 
 % \subsection{Lowering With Layouts}
@@ -297,7 +313,8 @@ this could be implemented similarly to Haskell's typeclass system?)}}
     \\\\
     \labinfer{\Gamma \vdash (\Sigma \rhd \sem{\instantiate{A,B}(f\; e)} \bigs \mathcal{I}_{A,B}(f)(r, x) \sep s[r:=x])}{\Gamma \vdash (\Sigma \rhd \lowerS{A}(e) \bigs s) & x\; \textnormal{fresh}}
     \\\\\
-    \labinfer{\Gamma \vdash (\Sigma \rhd \sem{\lowerS{A}(C\; \overline{e})} \bigs s)}{}
+    \labinfer{\Gamma \vdash (\Sigma \rhd \sem{\lowerS{A}(C\; \overline{e})} \bigs s)}
+      {\Gamma \vdash (\Sigma \rhd \sem{\lowerS{A}(C\; \overline{e})} \checks \layoutType{A}) & \ttt{Lgen}_{\Delta}\sem{A}(C\; \overline{e}) = s}
   \end{array}
 \]
 
