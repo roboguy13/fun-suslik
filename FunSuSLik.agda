@@ -634,7 +634,7 @@ data _,,_▷_∶_ : G-Env → Ty-Env → Expr → Type → Set where
 
     Δ ,, Γ ▷ e ∶ (Adt-Type Adt-Name-A) →
     ---------
-    Δ ,, Γ ▷ (Instantiate A B f-name e) ∶ (Layout-Type A ⟶ Layout-Type B)
+    Δ ,, Γ ▷ (Instantiate A B f-name e) ∶ (Layout-Type B)
 
 data G-Env-Valid : G-Env → G-Env → Set where
   
