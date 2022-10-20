@@ -632,7 +632,7 @@ data _,,_▷_∶_ : G-Env → Ty-Env → Expr → Type → Set where
 
     (f-name , G-Fn-Def (Mk-Fn-Def (Adt-Type Adt-Name-A) (Adt-Type Adt-Name-B) f-branches)) ∈ Δ →
 
-    Δ ,, Γ ▷ e ∶ (Adt-Type Adt-Name-A) →
+    Δ ,, Γ ▷ e ∶ (Layout-Type A) →
     ---------
     Δ ,, Γ ▷ (Instantiate A B f-name e) ∶ (Layout-Type B)
 
