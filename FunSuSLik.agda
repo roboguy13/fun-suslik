@@ -15,7 +15,6 @@ open import Function.Base using (case_of_; case_return_of_)
 
 open ≡-Reasoning
 
-
 module FunSuSLik
   (Name : Set)
   (Name-eq-dec : ∀ {a b : Name} → (a ≡ b) ⊎ (a ≢ b))
@@ -26,16 +25,14 @@ module FunSuSLik
   -- (fresh-Name : (xs : Params) → Σ Name λ n → ¬ (n N∈ xs))
   where
 
+_∈_ : {A : Set} → A → List A → Set
+x ∈ xs = Any (_≡ x) xs
+
+
 Name-N=-≡ : ∀ {a : Name} → a N= a
 Name-N=-≡ {a} with Name-eq-dec {a} {a}
 ... | inj₁ x = tt
 ... | inj₂ y = y refl
-
--- Valid-Param : Name → Params → Set
--- Valid-Param (Mk-Name n) (Mk-Params p) = n Data.Nat.< p
-
--- Name : Set
--- Name = ℕ
 
 data Addr : Set where
   _:+_ : Name → ℕ → Addr
@@ -56,7 +53,11 @@ data Layout-Branch : Set where
     Layout-Branch
 
 data Layout : Set where
-  Mk-Layout : List Layout-Branch → Layout
+  Mk-Layout :
+    Name → -- Layout name
+    (Name × List Name) → -- The type, consisting of: the ADT name and the list of SuSLik parameters
+    List Layout-Branch →
+    Layout
 
 -- fun-SuSLik Language
 data Type : Set where
@@ -64,7 +65,8 @@ data Type : Set where
   Bool-Type : Type
   _⟶_ : Type → Type → Type
   Adt-Type : Name → Type
-  Layout-Type : Layout → Type
+  Layout-Type : Name → Type
+  -- _>->_ : Name → Name → Type
 
 data Expr where
   Var : Name → Expr
@@ -82,10 +84,10 @@ data Expr where
   Add : Expr → Expr → Expr
   -- Mul : Expr → Expr → Expr
 
-  Lower : Layout → Expr → Expr
+  Lower : Name → Expr → Expr
   Instantiate :
-    Layout → -- Input layout
-    Layout → -- Output layout
+    Name → -- Input layout
+    Name → -- Output layout
     Name → -- Function name
     Expr → -- Argument
     Expr
@@ -107,7 +109,7 @@ data Fn-Branch : Set where
     Fn-Branch
 
 data Fn-Def : Set where
-  Mk-Fn-Def : List Fn-Branch → Fn-Def
+  Mk-Fn-Def : Type → Type → List Fn-Branch → Fn-Def
 
 -- SuSLik Language
 data SuSLik-Expr : Set where
@@ -138,7 +140,7 @@ data SuSLik-Asn : Set where
 
 -- Generate SuSLik inductive predicate names for instantiated functions
 postulate
-  I : Layout → Layout → Name → Name
+  I : Name → Name → Name → Name
   I-uniq : ∀ {A₁ B₁ A₂ B₂ f g} →
     (A₁ ≢ A₂) ⊎ (B₁ ≢ B₂) ⊎ (f ≢ g) →
     I A₁ B₁ f ≢ I A₂ B₂ g
@@ -198,42 +200,31 @@ data SuSLik-Ind : Set where
     List SuSLik-Ind-Branch →
     SuSLik-Ind
 
--- data Global-Def : Set where
---   Global-Fn : Fn-Def → Global-Def
---   Global-Layout : Layout → Global-Def
-
--- -- Global environment
--- G-Env : Set
--- G-Env = List (Name × Global-Def × Type)
-
 Ty-Env : Set
 Ty-Env = List (Name × Type)
 
+data Adt-Branch : Set where
+  Mk-Adt-Branch :
+    Name →      -- Constructor name
+    List Type → -- Field types
+    Adt-Branch
+
+data Adt : Set where
+  Mk-Adt : List Adt-Branch → Adt
+
+data Global-Def : Set where
+  G-Fn-Def : Fn-Def → Global-Def
+  G-Layout-Def : Layout → Global-Def
+  G-Adt-Def : Adt → Global-Def
+
 G-Env : Set
-G-Env = List (Name × Fn-Def)
+G-Env = List (Name × Global-Def)
 
--- SuSLik-Env : Set
--- SuSLik-Env = List SuSLik-Expr
-
--- data Env-lookup : Name → Env → (Expr × Type) → Set where
---   Env-here : ∀ {x xs} → Env-lookup (Mk-Name 0) (x ∷ xs) x
---   Env-there : ∀ {n x xs e} →
---     Env-lookup (Mk-Name n) xs e →
---     Env-lookup (Mk-Name (ℕ.suc n)) (x ∷ xs) e
-
--- data G-Env-lookup : Global-Name → G-Env → (Global-Def × Type) → Set where
---   G-Env-here : ∀ {n xs d} → G-Env-lookup n ((n , d) ∷ xs) d
---   G-Env-there : ∀ {n x xs d} →
---     G-Env-lookup n xs d →
---     G-Env-lookup n (x ∷ xs) d
+-- Adt-Constr-Fields : Name → G-Env → List Name
 
 data Base-Type : Type → Set where
   Base-Type-Int : Base-Type Int-Type
   Base-Type-Bool : Base-Type Bool-Type
-
--- -- TODO: Make this a tree (or a "bunch")?
--- Fresh-Supply : Set
--- Fresh-Supply = List Name
 
 data Fresh-Supply : Set where
   FS-Empty : Fresh-Supply
@@ -320,277 +311,11 @@ data _,,_▷_⇓[_,_]_ : Fresh-Supply → G-Env → Expr → Addr → Name → S
   ⇓-Lift : ∀ {Σ s r v} →
     FS-Empty ,, Σ ▷ (Lift s) ⇓[ r , v ] (((Var v == Addr-Var r) && (Addr-Var r == Addr-Var s)) ,, [])
 
--- Subst : Set
--- Subst = List (Name × Name)
-
--- Subst-Name-1 : (Name × Name) → Name → Name
--- Subst-Name-1 (old , new) x with Name-eq-dec {old} {x}
--- ... | inj₁ refl = new
--- ... | inj₂ y = x
-
--- Subst-Name : Subst → Name → Name
--- Subst-Name [] n = n
--- Subst-Name (x ∷ xs) n = Subst-Name-1 x (Subst-Name xs n)
-
--- Subst-Addr-1 : (Name × Name) → Addr → Addr
--- Subst-Addr-1 subst (x :+ x₁) = Subst-Name-1 subst x :+ x₁
--- Subst-Addr-1 subst Unused-Addr = Unused-Addr
-
--- Subst-Addr : Subst → Addr → Addr
--- Subst-Addr [] addr = addr
--- Subst-Addr (x ∷ xs) addr = Subst-Addr xs (Subst-Addr-1 x addr)
-
--- Subst-Exprs-1 : (Name × Name) → List Expr → List Expr
-
--- Subst-Expr-1 : (Name × Name) → Expr → Expr
--- Subst-Expr-1 subst (Var x) = Var (Subst-Name-1 subst x)
--- Subst-Expr-1 subst (x C· ys) = x C· (Subst-Exprs-1 subst ys)
--- Subst-Expr-1 subst (x · e) = x · (Subst-Expr-1 subst e)
--- Subst-Expr-1 subst (Bool-Lit x) = Bool-Lit x
--- Subst-Expr-1 subst (Int-Lit x) = Int-Lit x
--- Subst-Expr-1 subst (e && e₁) = (Subst-Expr-1 subst e) && (Subst-Expr-1 subst e₁)
--- Subst-Expr-1 subst (Not e) = Not (Subst-Expr-1 subst e)
--- Subst-Expr-1 subst (e == e₁) = (Subst-Expr-1 subst e) == (Subst-Expr-1 subst e₁)
--- Subst-Expr-1 subst (Add e e₁) = Add (Subst-Expr-1 subst e) (Subst-Expr-1 subst e₁)
--- Subst-Expr-1 subst (Lower x e) = Lower x (Subst-Expr-1 subst e)
--- Subst-Expr-1 subst (Instantiate A B f e) = Instantiate A B f (Subst-Expr-1 subst e)
--- Subst-Expr-1 subst (Lift x) = Lift (Subst-Addr-1 subst x)
-
--- Subst-Exprs-1 subst [] = []
--- Subst-Exprs-1 subst (x ∷ xs) = Subst-Expr-1 subst x ∷ Subst-Exprs-1 subst xs
-
--- Subst-Expr : Subst → Expr → Expr
--- Subst-Expr [] e = e
--- Subst-Expr (x ∷ xs) e = Subst-Expr-1 x (Subst-Expr xs e)
-
--- Subst-SuSLik-Expr-1 : (Name × Name) → SuSLik-Expr → SuSLik-Expr
--- Subst-SuSLik-Expr-1 subst (Var x) = Var (Subst-Name-1 subst x)
--- Subst-SuSLik-Expr-1 subst (Addr-Var addr) = Addr-Var (Subst-Addr-1 subst addr)
--- Subst-SuSLik-Expr-1 (old , new) (Bool-Lit x) = Bool-Lit x
--- Subst-SuSLik-Expr-1 (old , new) (Int-Lit x) = Int-Lit x
--- Subst-SuSLik-Expr-1 subst (e && e₁) = Subst-SuSLik-Expr-1 subst e && Subst-SuSLik-Expr-1 subst e₁
--- Subst-SuSLik-Expr-1 subst (Not e) = Subst-SuSLik-Expr-1 subst e
--- Subst-SuSLik-Expr-1 subst (e == e₁) = Subst-SuSLik-Expr-1 subst e == Subst-SuSLik-Expr-1 subst e₁
--- Subst-SuSLik-Expr-1 subst (Add e e₁) = Add (Subst-SuSLik-Expr-1 subst e) (Subst-SuSLik-Expr-1 subst e₁)
-
--- Subst-SuSLik-Expr : Subst → SuSLik-Expr → SuSLik-Expr
--- Subst-SuSLik-Expr [] e = e
--- Subst-SuSLik-Expr (x ∷ xs) e = Subst-SuSLik-Expr xs (Subst-SuSLik-Expr-1 x e)
-
--- Subst-SuSLik-Heaplet : Subst → SuSLik-Heaplet → SuSLik-Heaplet
--- Subst-SuSLik-Heaplet subst (x :-> x₁) = (Subst-Addr subst x) :-> (Subst-SuSLik-Expr subst x₁)
---   -- Intentionally not substituting x, since it is global:
--- Subst-SuSLik-Heaplet subst (x · x₁) = x · Data.List.map (Subst-SuSLik-Expr subst) x₁
--- Subst-SuSLik-Heaplet subst (Temp addr) = Temp (Subst-Addr subst addr)
-
--- Subst-SuSLik-Heaplets : Subst → List SuSLik-Heaplet → List SuSLik-Heaplet
--- Subst-SuSLik-Heaplets subst hs = Data.List.map (Subst-SuSLik-Heaplet subst) hs
-
--- Subst-Asn : Subst → SuSLik-Asn → SuSLik-Asn
--- Subst-Asn subst (x ,, x₁) = Subst-SuSLik-Expr subst x ,, Subst-SuSLik-Heaplets subst x₁
-
--- Addr-fvs : Addr → List Name
--- Addr-fvs (x :+ x₁) = [ x ]
--- Addr-fvs Unused = []
-
--- Exprs-fvs : List Expr → List Name
-
--- Expr-fvs : Expr → List Name
--- Expr-fvs (Var x) = [ x ]
--- Expr-fvs (x C· x₁) = Exprs-fvs x₁
--- Expr-fvs (x · e) = Expr-fvs e
--- Expr-fvs (Bool-Lit x) = []
--- Expr-fvs (Int-Lit x) = []
--- Expr-fvs (e && e₁) = Expr-fvs e ++ Expr-fvs e₁
--- Expr-fvs (Not e) = Expr-fvs e
--- Expr-fvs (e == e₁) = Expr-fvs e ++ Expr-fvs e₁
--- Expr-fvs (Add e e₁) = Expr-fvs e ++ Expr-fvs e₁
--- Expr-fvs (Lower x e) = Expr-fvs e
--- Expr-fvs (Instantiate x x₁ x₂ e) = Expr-fvs e
--- Expr-fvs (Lift x) = Addr-fvs x
-
--- Exprs-fvs [] = []
--- Exprs-fvs (x ∷ xs) = Expr-fvs x ++ Exprs-fvs xs
-
--- -- data _α=_ : SuSLik-Asn → SuSLik-Asn → Set where
--- --   α=-
-
--- -- Names-disjoint : List Name → List Name → Set
--- -- Names-disjoint [] _ = ⊤
--- -- Names-disjoint (x ∷ xs) ys = ¬ (x N∈ ys) × Names-disjoint xs ys
-
--- data Names-disjoint : List Name → List Name → Set where
---   Names-disjoint-Nil : ∀ {ys} → Names-disjoint [] ys
---   Names-disjoint-Cons : ∀ {x xs ys} →
---     ¬ (x N∈ ys) →
---     Names-disjoint xs ys →
---     Names-disjoint (x ∷ xs) ys
-
--- Subst-⇓ : ∀ {Σ e r v s}
---   (subst : Subst) →
---   Names-disjoint (Data.List.map proj₁ subst) (Expr-fvs e) →
---   Σ ▷ e ⇓[ r , v ] s →
---   Σ ▷ e ⇓[ Subst-Addr subst r , Subst-Name subst v ] (Subst-Asn subst s)
---   -- Σ ▷ (Subst-Expr subst e) ⇓[ Subst-Addr subst r , Subst-Name subst v ] (Subst-Asn subst s)
--- Subst-⇓ subst disjoint ⇓-Var = {!!}
--- Subst-⇓ subst disjoint ⇓-Int = {!!}
--- Subst-⇓ subst disjoint ⇓-Bool = {!!}
--- Subst-⇓ subst disjoint (⇓-Add x x₁ x₂ prf prf₁) = {!!}
--- Subst-⇓ subst disjoint (⇓-Instantiate x prf) = {!!}
--- Subst-⇓ subst disjoint (⇓-Lower-Lower prf) = {!!}
--- Subst-⇓ subst disjoint (⇓-Instantiate-Comp x prf prf₁) = {!!}
--- Subst-⇓ subst disjoint ⇓-Lift = {!!}
-
--- -- Subst-Name-1-invariant : ∀ {n n′ old new} →
--- --   old ≢ n →
--- --   Subst-Name-1 (old , new) n ≡ n′ →
--- --   n ≡ n′
--- -- Subst-Name-1-invariant {n} {n′} {old} ¬≡ refl with Name-eq-dec {old} {n}
--- -- ... | inj₁ eq = ⊥-elim (¬≡ eq)
--- -- ... | inj₂ y = refl
-
--- Subst-Name-1-invariant : ∀ {n old new} →
---   old ≢ n →
---   Subst-Name-1 (old , new) n ≡ n
--- Subst-Name-1-invariant {n} {old} ¬≡ with Name-eq-dec {old} {n}
--- ... | inj₁ eq = ⊥-elim (¬≡ eq)
--- ... | inj₂ y = refl
-
--- Subst-Name-invariant-cons-[] : ∀ {n} {old new} {subst : Subst} →
---   old ≢ n →
---   Subst-Name ((old , new) ∷ []) n ≡ n
--- Subst-Name-invariant-cons-[] {n} {old} {new} {subst} ref with Name-eq-dec {old} {n}
--- ... | inj₁ x = ⊥-elim (ref x)
--- ... | inj₂ y = refl
-
--- Subst-Name-invariant-cons : ∀ {n n′} {old new} {subst : Subst} →
---   old ≢ n →
---   Subst-Name subst n ≡ n′ →
---   Subst-Name ((old , new) ∷ subst) n ≡ n′
--- Subst-Name-invariant-cons {n} {n′} {old} {new} {[]} ¬≡ prf rewrite prf = Subst-Name-1-invariant ¬≡
--- Subst-Name-invariant-cons {n} {n′} {old} {new} {x ∷ subst₁} ¬≡ prf rewrite prf =
---   let
---     p = Subst-Name-invariant-cons {n} {n′} {old} {new}
---   in
---   Subst-Name-1-invariant {!!}
-
--- -- Subst-Name-invariant-cons {n} {.(Subst-Name [] n)} {old} {new} {[]} ref refl with Name-eq-dec {Subst-Name-1 (old , new) n} {n}
--- -- ... | inj₁ x = x
--- -- ... | inj₂ y = ⊥-elim (ref {!!})
--- -- Subst-Name-invariant-cons {n} {.(Subst-Name (x ∷ subst₁) n)} {old} {new} {x ∷ subst₁} ref refl = {!!}
--- -- --   with Name-eq-dec (Subst-Name ((old , new) ∷ subst) n) n′
--- -- -- ... | z = ?
-
--- weaken-¬N∈ : ∀ {n x xs} →
---   ¬ (n N∈ (x ∷ xs)) →
---   ¬ (n N∈ xs)
--- weaken-¬N∈ ref = λ z → ref (there z)
-
--- weaken-¬N∈-++-1 : ∀ {n xs ys} →
---   ¬ (n N∈ (xs ++ ys)) →
---   ¬ (n N∈ xs)
--- weaken-¬N∈-++-1 = {!!}
-
--- weaken-¬N∈-++-2 : ∀ {n xs ys} →
---   ¬ (n N∈ (xs ++ ys)) →
---   ¬ (n N∈ ys)
--- weaken-¬N∈-++-2 = {!!}
-
--- Subst-Name-invariant : ∀ {n} {subst : Subst} →
---   ¬ (n N∈ Data.List.map proj₁ subst) →
---   Subst-Name subst n ≡ n
--- Subst-Name-invariant {n} {[]} ¬∈ = refl
--- Subst-Name-invariant {n} {(x , _) ∷ subst₁} ¬∈ with Name-eq-dec {n} {x}
--- ... | inj₁ eq rewrite eq = ⊥-elim (¬∈ (here Name-N=-≡))
--- ... | inj₂ ¬eq rewrite (Subst-Name-invariant {n} {subst₁} (weaken-¬N∈ ¬∈)) =
---   Subst-Name-1-invariant λ x₁ → ¬eq (sym x₁)
-
--- Names-disjoint-Var : ∀ {subst : Subst} {n} →
---   Names-disjoint (Data.List.map proj₁ subst) (Expr-fvs (Var n)) →
---   ¬ (n N∈ Data.List.map proj₁ subst)
--- Names-disjoint-Var = {!!}
-
--- Expr-subst-1-invariant : ∀ {old new e} →
---   ¬ (old N∈ Expr-fvs e) →
---   Subst-Expr-1 (old , new) e ≡ e
--- Expr-subst-1-invariant {old} {new} {Var x} ref = {!!}
--- Expr-subst-1-invariant {old} {new} {x C· x₁} ref = {!!}
--- Expr-subst-1-invariant {old} {new} {x · e} ref rewrite Expr-subst-1-invariant {old} {new} {e} ref = refl
--- Expr-subst-1-invariant {old} {new} {Bool-Lit x} ref = refl
--- Expr-subst-1-invariant {old} {new} {Int-Lit x} ref = refl
--- Expr-subst-1-invariant {old} {new} {e && e₁} ref rewrite Expr-subst-1-invariant {old} {new} {e} (weaken-¬N∈-++-1 ref) | Expr-subst-1-invariant {old} {new} {e₁} (weaken-¬N∈-++-2 ref) = refl
--- Expr-subst-1-invariant {old} {new} {Not e} ref rewrite Expr-subst-1-invariant {old} {new} {e} ref = refl
--- Expr-subst-1-invariant {old} {new} {e == e₁} ref rewrite Expr-subst-1-invariant {old} {new} {e} (weaken-¬N∈-++-1 ref) | Expr-subst-1-invariant {old} {new} {e₁} (weaken-¬N∈-++-2 ref) = refl
--- Expr-subst-1-invariant {old} {new} {Add e e₁} ref rewrite Expr-subst-1-invariant {old} {new} {e} (weaken-¬N∈-++-1 ref) | Expr-subst-1-invariant {old} {new} {e₁} (weaken-¬N∈-++-2 ref) = refl
--- Expr-subst-1-invariant {old} {new} {Lower x e} ref rewrite Expr-subst-1-invariant {old} {new} {e} ref = refl
--- Expr-subst-1-invariant {old} {new} {Instantiate x x₁ x₂ e} ref rewrite Expr-subst-1-invariant {old} {new} {e} ref = refl
--- Expr-subst-1-invariant {old} {new} {Lift x} ref = {!!}
-
--- Expr-subst-invariant : ∀ {subst e} →
---   Names-disjoint (Data.List.map proj₁ subst) (Expr-fvs e) →
---   Subst-Expr subst e ≡ e
--- -- Expr-subst-invariant {x₁ ∷ subst₁} {Var x} (Names-disjoint-Cons x₂ prf) = {!!}
--- Expr-subst-invariant {[]} {Var x} Names-disjoint-Nil = refl
--- Expr-subst-invariant {(fst , snd) ∷ subst₁} {Var x} (Names-disjoint-Cons x₂ prf) rewrite Expr-subst-invariant {subst₁} {Var x} prf = Expr-subst-1-invariant x₂
--- Expr-subst-invariant {subst} {x C· x₁} prf = {!!}
--- Expr-subst-invariant {subst} {x · e} prf = {!!}
--- Expr-subst-invariant {subst} {Bool-Lit x} prf = {!!}
--- Expr-subst-invariant {subst} {Int-Lit x} prf = {!!}
--- Expr-subst-invariant {subst} {e && e₁} prf = {!!}
--- Expr-subst-invariant {subst} {Not e} prf = {!!}
--- Expr-subst-invariant {subst} {e == e₁} prf = {!!}
--- Expr-subst-invariant {subst} {Add e e₁} prf = {!!}
--- Expr-subst-invariant {subst} {Lower x e} prf = {!!}
--- Expr-subst-invariant {subst} {Instantiate x x₁ x₂ e} prf = {!!}
--- Expr-subst-invariant {subst} {Lift x} prf = {!!}
-
-
--- _Sα≡_/_ : SuSLik-Asn → SuSLik-Asn → List Name → Set
--- a Sα≡ b / ns = Σ Subst λ subst → ((Names-disjoint (Data.List.map proj₁ subst) ns) × (a ≡ Subst-Asn subst b))
-
--- _Eα≡_/_ : Expr → Expr → List Name → Set
--- a Eα≡ b / ns = Σ Subst λ subst → ((Names-disjoint (Data.List.map proj₁ subst) ns) × (a ≡ Subst-Expr subst b))
-
--- -- Subst-⇓ : ∀ {Σ e r v s} {subst} →
--- --   Σ ▷ e ⇓[ r , v ] s →
--- --   Σ ▷ e ⇓[ r , Subst-Name subst v ] (Subst-Asn subst s)
--- -- Subst-⇓ = ?
-
--- -- α≡-Expr-invariant : ∀ e
-
 Append-fn : ∀ {A : Set} {xs ys zs : List A} →
   Append xs ys zs →
   zs ≡ xs ++ ys
 Append-fn Append-Nil = refl
 Append-fn (Append-Cons prf) rewrite Append-fn prf = refl
-
--- ⇓-Append : ∀ {fr fr₁ fr₁′ fr₂ Σ e r v s s′} →
---   Append fr₁ fr₂ fr →
---   Append fr₁′ fr₂ fr →
---   fr₁ ,, Σ ▷ e ⇓[ r , v ] s →
---   fr₁′ ,, Σ ▷ e ⇓[ r , v ] s′ →
---   fr₁ ≡ fr₁′
--- ⇓-Append prf1 prf2 ⇓-Var ⇓-Var = refl
--- ⇓-Append prf1 prf2 ⇓-Int ⇓-Int = refl
--- ⇓-Append prf1 prf2 ⇓-Bool ⇓-Bool = refl
--- ⇓-Append {fr} {fr₁} {fr₁′} {fr₂} (Append-Cons prf1) (Append-Cons prf2) (⇓-Add x x₁ x₂ x₃ prf3 prf4) (⇓-Add x₄ x₅ x₆ x₇ prf5 prf6) =
---   let
---     p = ⇓-Append prf1 prf2 {!!} {!!}
---   in
---   {!!}
---   -- rewrite (trans (sym (Append-fn prf1)) (Append-fn prf2)) =
-
---   -- let
---   --   p = Append-fn prf1
---   --   q = Append-fn prf2
-
---   --   -- r : v₂ ∷ fr ++ fr₂ ≡ v₃ ∷ fr₁ ++ fr₂
---   --   r = trans (sym p) q
---   -- in
---   -- {!!}
--- ⇓-Append prf1 prf2 (⇓-Instantiate x prf3) (⇓-Instantiate x₁ prf4) = {!!}
--- ⇓-Append prf1 prf2 (⇓-Lower-Lower prf3) (⇓-Lower-Lower prf4) = {!!}
--- ⇓-Append prf1 prf2 (⇓-Instantiate-Comp x x₁ prf3 prf4) (⇓-Instantiate-Comp x₂ x₃ prf5 prf6) = {!!}
 
 ⇓-Deterministic : ∀ {fr Σ e r v s s′} →
   fr ,, Σ ▷ e ⇓[ r , v ] s →
@@ -615,31 +340,6 @@ Append-fn (Append-Cons prf) rewrite Append-fn prf = refl
   with Combine-Asns-<> comb1 | Combine-Asns-<> comb2 | Combine-Asns-<> comb3 | Combine-Asns-<> comb4
 ... | refl | refl | refl | refl rewrite ⇓-Deterministic p q | ⇓-Deterministic p₁ q₁ = refl
 ⇓-Deterministic ⇓-Lift ⇓-Lift = refl
-
--- ⇓-Deterministic ⇓-Var ⇓-Var = refl
--- ⇓-Deterministic ⇓-Int ⇓-Int = refl
--- ⇓-Deterministic ⇓-Bool ⇓-Bool = refl
--- ⇓-Deterministic (⇓-Add x x₁ x₂ p p₁) (⇓-Add x₃ x₄ x₅ q q₁) rewrite ⇓-Deterministic p q | ⇓-Deterministic p₁ q₁ = refl
--- ⇓-Deterministic (⇓-Instantiate x p) (⇓-Instantiate x₁ q) rewrite ⇓-Deterministic p q = refl
--- ⇓-Deterministic (⇓-Lower-Lower p) (⇓-Lower-Lower q) rewrite ⇓-Deterministic p q = refl
--- ⇓-Deterministic (⇓-Instantiate-Comp x p p₁) (⇓-Instantiate-Comp x₁ q q₁) rewrite ⇓-Deterministic p q | ⇓-Deterministic p₁ q₁ = refl
--- ⇓-Deterministic ⇓-Lift ⇓-Lift = refl
-
-  -- (fresh : ∀ env → Σ Name λ n → All (_≢ n) env)
-
--- FS-Names : ∀ fr →
---   Σ (List Name) λ ns →
---   All (λ n → FS-Any (_≡ n) fr) ns
--- FS-Names FS-Empty = [] , []
--- FS-Names (FS-Branch x left right)
--- -- FS-Names (FS-Branch (x ∷ xs) left right) = {!!}
---   with FS-Names left | FS-Names right
--- ... | fst , snd | fst₁ , snd₁ = (x ++ fst ++ fst₁) , {!!}
--- -- ... | fst , snd | fst₁ , snd₁ = (x ++ fst ++ fst₁) , {!!}
-
--- FS-Names : Fresh-Supply → List Name
--- FS-Names FS-Empty = []
--- FS-Names (FS-Branch xs left right) = xs ++ FS-Names left ++ FS-Names right
 
 data FS-Names : Fresh-Supply → List Name → Set where
   FS-Names-Empty : FS-Names FS-Empty []
@@ -673,8 +373,6 @@ data FS-Names : Fresh-Supply → List Name → Set where
 ++-assoc {_} {x ∷ xs} {x₁ ∷ ys} {[]} rewrite ++-[] {_} {xs ++ x₁ ∷ ys} | ++-assoc {_} {xs} {x₁ ∷ ys} {[]} | ++-[] {_} {x ∷ (xs ++ x₁ ∷ ys)} = refl
 ++-assoc {_} {x ∷ xs} {x₁ ∷ ys} {x₂ ∷ zs} rewrite ++-assoc {_} {xs} {x₁ ∷ ys} {x₂ ∷ zs} = refl
 
--- Append (x ++ fst) fst₁ (x ++ fst ++ fst₁)
-
 FS-Names-exists : ∀ fr →
   Σ (List Name) λ names →
     FS-Names fr names
@@ -686,9 +384,6 @@ Append-cons-eq : ∀ {A : Set} {x x′ : A} {xs ys zs} →
   Append (x ∷ xs) ys (x′ ∷ zs) →
   x ≡ x′
 Append-cons-eq (Append-Cons prf) = refl
-
--- FS-Names-not-head : ∀ {fr x xs} →
---   FS-Names fr 
 
 dec-∈ : ∀ {x : Name} {xs} →
   (Any (_≡ x) xs) ⊎ (All (_≢ x) xs)
@@ -826,23 +521,6 @@ FS-fresh fr =
     in
     ¬All-Any (_≡ n) prf p
 
--- ¬FS-Any⇒FS-All : ∀ fr
-
-
--- FS-fresh : ∀ fr →
---   Σ Name λ n →
---     FS-All (_≢ n) fr
--- FS-fresh fr =
---   let
---     fs-names = FS-Names-exists fr
---     n , prf = fresh (proj₁ fs-names)
---     -- p = ⊆-FS-Names (proj₂ fs-names) {!!}
---   in
---   n , {!!}
-
--- FS-fresh FS-Empty = proj₁ (fresh []) , FS-All-Empty
--- FS-fresh (FS-Branch x fr fr₁) = proj₁ (FS-fresh fr₁) , FS-All-Branch {!!} {!!} {!!}
-
 fresh-first : ∀ {x xs} →
   proj₁ (fresh (x ∷ xs)) ≢ x
 fresh-first {x} {xs} with proj₂ (fresh (x ∷ xs))
@@ -863,14 +541,7 @@ fresh-second {x} {y} {rest} with proj₂ (fresh (x ∷ y ∷ rest))
 ⇓-Total {env} {x · e} {r} {v} = {!!}
 ⇓-Total {env} {Bool-Lit x} {r} {v} = FS-Empty , ((Var v == Bool-Lit x) ,, ((r :-> Var v) ∷ [])) , ⇓-Bool
 ⇓-Total {env} {Int-Lit x} {r} {v} = FS-Empty , ((Var v == Int-Lit x) ,, ((r :-> Var v) ∷ [])) , ⇓-Int
--- ⇓-Total {env} {e && e₁} {r} {v} =
---   let v₁ , v₁-prf = fresh []
---       v₂ , v₂-prf = fresh [ v₁ ]
---   in
---   {!!} , ({!!} ,, {!!}) , {!⇓-And!}
-  -- proj₁ ⇓-Total , ((Var v ,, []) , {!!})
--- ⇓-Total {env} {Not e} {r} {v} = proj₁ ⇓-Total , ((Var v ,, []) , {!!})
--- ⇓-Total {env} {Not e} {r} {v} = {!!} , {!!} , {!⇓-Not!}
+
 ⇓-Total {env} {e == e₁} {r} {v} =
   let v₁ , v₁-prf = fresh [ v ]
       v₂ , v₂-prf = fresh (v ∷ v₁ ∷ [])
@@ -891,125 +562,90 @@ fresh-second {x} {y} {rest} with proj₂ (fresh (x ∷ y ∷ rest))
                                    (((Var v == Addr-Var r) && (Addr-Var r == Addr-Var x)) ,, []) ,
                                    ⇓-Lift
 
--- ⇓-Total {env} {Var x} {r} {v} = FS-Empty , ((Var v == Var x) ,, ((r :-> Var v) ∷ [])) , ⇓-Var
--- ⇓-Total {env} {x C· x₁} {r} {v} = {!!}
--- ⇓-Total {env} {x · e} {r} {v} = {!!}
--- ⇓-Total {env} {Bool-Lit x} {r} {v} = FS-Empty , ((Var v == Bool-Lit x) ,, ((r :-> Var v) ∷ [])) , ⇓-Bool
--- ⇓-Total {env} {Int-Lit x} {r} {v} = FS-Empty , ((Var v == Int-Lit x) ,, ((r :-> Var v) ∷ [])) , ⇓-Int
--- ⇓-Total {env} {e && e₁} {r} {v} = proj₁ ⇓-Total , ((Var v ,, []) , {!!})
--- ⇓-Total {env} {Not e} {r} {v} = proj₁ ⇓-Total , ((Var v ,, []) , {!⇓-Not!})
--- ⇓-Total {env} {e == e₁} {r} {v} = {!!}
--- ⇓-Total {env} {Add e e₁} {r} {v} = {!!}
--- ⇓-Total {env} {Lower x e} {r} {v} = {!!}
--- ⇓-Total {env} {Instantiate x x₁ x₂ e} {r} {v} = {!!}
--- ⇓-Total {env} {Lift x} {r} {v} = FS-Empty ,
---                                    (((Var v == Addr-Var r) && (Addr-Var r == Addr-Var x)) ,, []) ,
---                                    ⇓-Lift
 
 S[_,_]⟦_⟧_ : Addr → Name → Expr → G-Env → SuSLik-Asn
 S[ r , v ]⟦ e ⟧ env with ⇓-Total {env} {e} {r} {v}
 ... | fst , fst₁ , snd = fst₁
 
+T[_,_]⟦_⟧_ : Addr → Name → Type → G-Env → SuSLik-Asn
+T[ r , v ]⟦ e ⟧ env = {!!}
 
+-- TODO: Add a thing to check that a global environment is valid and well-typed
 
--- ⇓-Deterministic ⇓-Var ⇓-Var = refl
--- ⇓-Deterministic ⇓-Int ⇓-Int = refl
--- ⇓-Deterministic ⇓-Bool ⇓-Bool = refl
--- ⇓-Deterministic (⇓-Add {fr} {fr₁} {fr₂} app₁ x₁ x₂ x₃ p p₁) (⇓-Add {fr′} {fr₁′} {fr₂′} app₂ x₅ x₆ x₇ q q₁) rewrite Append-fn app₁ | Append-fn app₂
---   with ⇓-Deterministic p q
--- ... | z = ?
--- ⇓-Deterministic (⇓-Instantiate x p) (⇓-Instantiate x₁ q) = {!!}
--- ⇓-Deterministic (⇓-Lower-Lower p) (⇓-Lower-Lower q) = {!!}
--- ⇓-Deterministic (⇓-Instantiate-Comp x x₁ p p₁) (⇓-Instantiate-Comp x₂ x₃ q q₁) = {!!}
+data _,,_▷_∶_ : G-Env → Ty-Env → Expr → Type → Set where
+  Type-of-Var : ∀ {Δ Γ n τ} →
+    (n , τ) ∈ Γ →
+    ---------
+    Δ ,, Γ ▷ Var n ∶ τ
 
--- ⇓-Deterministic ⇓-Int ⇓-Int = [] , (Names-disjoint-Nil , refl)
--- ⇓-Deterministic ⇓-Bool ⇓-Bool = [] , (Names-disjoint-Nil , refl)
--- -- Σ ▷ e₁ ⇓[ Unused-Addr , v₁ ] _s′_774
--- ⇓-Deterministic {Σ} {e} {r} {v} {s} {s′} (⇓-Add {_} {e₁} {_} {_} {_} {v₀} {v₁} x x₁ x₂ prf₁ prf₂) (⇓-Add {_} {e₂} {_} {_} {_} {v₀′} {v₁′} {s₁′} x₃ x₄ x₅ prf₃ prf₄)
---   with ⇓-Deterministic prf₁ (subst (λ x₆ → Σ ▷ e₂ ⇓[ Unused-Addr , v₀ ] x₆) {!!} (subst (λ x₇ → Σ ▷ e₂ ⇓[ Unused-Addr , x₇ ] s₁′) {!!} prf₃))
--- ... | z = {!!}
--- ⇓-Deterministic (⇓-Instantiate x prf₁) (⇓-Instantiate x₁ prf₂) = {!!}
--- ⇓-Deterministic (⇓-Lower-Lower prf₁) (⇓-Lower-Lower prf₂) = {!!}
--- ⇓-Deterministic (⇓-Instantiate-Comp x prf₁ prf₂) (⇓-Instantiate-Comp x₁ prf₃ prf₄) = {!!}
--- ⇓-Deterministic ⇓-Lift ⇓-Lift = [] , (Names-disjoint-Nil , refl)
+  -- Type-of-C·-nil : ∀ {Δ Γ Adt-Name branches C} →
+  --   (Adt-Name , G-Adt-Def (Mk-Adt branches)) ∈ Δ →
+  --   Mk-Adt-Branch C [] ∈ branches →
+  --   Δ ,, Γ ▷ (C C· []) ∶ Adt-Type Adt-Name
 
--- -- Type checking --
--- -- data _⊢_▷_⇒_ : Env → G-Env → Expr → Type → Set where
--- --   ⇒-Var-Layout : ∀ {Γ} {Σ} {n : Name} {e : Expr} {A} →
--- --     Env-lookup n Γ (e , Layout-Type A) →
--- --     ---------------
--- --     Γ ⊢ Σ ▷ Var n ⇒ Layout-Type A
+  Type-of-C· : ∀ {Δ Γ Adt-Name branches C args τs} →
+    (Adt-Name , G-Adt-Def (Mk-Adt branches)) ∈ Δ →
+    Mk-Adt-Branch C τs ∈ branches →
+    All (λ (arg , τ) → Δ ,, Γ ▷ arg ∶ τ) (Data.List.zip args τs) →
+    ---------
+    Δ ,, Γ ▷ (C C· args) ∶ Adt-Type Adt-Name
 
--- --   ⇒-Var-Base-Type : ∀ {Γ} {Σ} {n : Name} {e : Expr} {τ} →
--- --     Env-lookup n Γ (e , τ) →
--- --     Base-Type τ →
--- --     ---------------
--- --     Γ ⊢ Σ ▷ Var n ⇒ τ
+  Type-of-· : ∀ {Δ Γ f-name branches arg τ₁ τ₂} →
+    (f-name , G-Fn-Def (Mk-Fn-Def τ₁ τ₂ branches)) ∈ Δ →
+    Δ ,, Γ ▷ arg ∶ τ₁ →
+    ---------
+    Δ ,, Γ ▷ (f-name · arg) ∶ τ₂
 
--- --   ⇒-Bool-Lit : ∀ {Γ Σ b} →
--- --     ---------------
--- --     Γ ⊢ Σ ▷ Bool-Lit b ⇒ Bool-Type
+  Type-of-Int-Lit : ∀ {Δ Γ i} →
+    ---------
+    Δ ,, Γ ▷ Int-Lit i ∶ Int-Type
 
--- --   ⇒-Int-Lit : ∀ {Γ Σ i} →
--- --     ---------------
--- --     Γ ⊢ Σ ▷ Int-Lit i ⇒ Int-Type
+  Type-of-Bool-Lit : ∀ {Δ Γ b} →
+    ---------
+    Δ ,, Γ ▷ Bool-Lit b ∶ Bool-Type
 
--- --   ⇒-&& : ∀ {Γ Σ x y} →
--- --     Γ ⊢ Σ ▷ x ⇒ Bool-Type →
--- --     Γ ⊢ Σ ▷ y ⇒ Bool-Type →
--- --     ---------------
--- --     Γ ⊢ Σ ▷ (x && y) ⇒ Bool-Type
+  Type-of-== : ∀ {Δ Γ e₁ e₂ τ} →
+    Δ ,, Γ ▷ e₁ ∶ τ →
+    Δ ,, Γ ▷ e₂ ∶ τ →
+    ---------
+    Δ ,, Γ ▷ (e₁ == e₂) ∶ τ
 
--- --   ⇒-Not : ∀ {Γ Σ x} →
--- --     Γ ⊢ Σ ▷ x ⇒ Bool-Type →
--- --     ---------------
--- --     Γ ⊢ Σ ▷ Not x ⇒ Bool-Type
+  Type-of-Add : ∀ {Δ Γ e₁ e₂} →
+    Δ ,, Γ ▷ e₁ ∶ Int-Type →
+    Δ ,, Γ ▷ e₂ ∶ Int-Type →
+    ---------
+    Δ ,, Γ ▷ Add e₁ e₂ ∶ Int-Type
 
--- --   ⇒-== : ∀ {Γ Σ x y} →
--- --     Γ ⊢ Σ ▷ x ⇒ Int-Type →
--- --     Γ ⊢ Σ ▷ y ⇒ Int-Type →
--- --     ---------------
--- --     Γ ⊢ Σ ▷ (x == y) ⇒ Bool-Type
+  Type-of-Lower : ∀ {Δ Γ A Adt-Name adt-def SuSLik-params branches e} →
+    (A , G-Layout-Def (Mk-Layout A (Adt-Name , SuSLik-params) branches)) ∈ Δ →
+    (Adt-Name , G-Adt-Def adt-def) ∈ Δ →
+    Δ ,, Γ ▷ e ∶ Adt-Type Adt-Name →
+    ---------
+    Δ ,, Γ ▷ Lower A e ∶ Layout-Type A
 
--- --   ⇒-Add : ∀ {Γ Σ x y} →
--- --     Γ ⊢ Σ ▷ x ⇒ Int-Type →
--- --     Γ ⊢ Σ ▷ y ⇒ Int-Type →
--- --     ---------------
--- --     Γ ⊢ Σ ▷ (Add x y) ⇒ Int-Type
+  Type-of-Instantiate : ∀ {Δ Γ A B Adt-Name-A Adt-Name-B adt-def-A adt-def-B SuSLik-params-A SuSLik-params-B branches-A branches-B f-branches f-name e} →
+    (A , G-Layout-Def (Mk-Layout A (Adt-Name-A , SuSLik-params-A) branches-A)) ∈ Δ →
+    (Adt-Name-A , G-Adt-Def adt-def-A) ∈ Δ →
 
--- --   ⇒-Mul : ∀ {Γ Σ x y} →
--- --     Γ ⊢ Σ ▷ x ⇒ Int-Type →
--- --     Γ ⊢ Σ ▷ y ⇒ Int-Type →
--- --     ---------------
--- --     Γ ⊢ Σ ▷ (Mul x y) ⇒ Int-Type
+    (B , G-Layout-Def (Mk-Layout B (Adt-Name-B , SuSLik-params-B) branches-B)) ∈ Δ →
+    (Adt-Name-B , G-Adt-Def adt-def-B) ∈ Δ →
 
--- --   ⇒-App : ∀ {Γ Σ α B d f e} →
--- --     G-Env-lookup f Σ (d , α ⟶ Layout-Type B) →
--- --     Γ ⊢ Σ ▷ e ⇒ α →
--- --     ---------------
--- --     Γ ⊢ Σ ▷ (f · e) ⇒ Layout-Type B
+    (f-name , G-Fn-Def (Mk-Fn-Def (Adt-Type Adt-Name-A) (Adt-Type Adt-Name-B) f-branches)) ∈ Δ →
 
--- --   ⇒-Lower : ∀ {Γ Σ A e d τ} →
--- --     G-Env-lookup A Σ (d , τ ⟶ Layout-Type A) →  -- A is a layout for τ
--- --     ---------------
--- --     Γ ⊢ Σ ▷ Lower A e ⇒ Layout-Type A
+    Δ ,, Γ ▷ e ∶ (Adt-Type Adt-Name-A) →
+    ---------
+    Δ ,, Γ ▷ (Instantiate A B f-name e) ∶ (Layout-Type A ⟶ Layout-Type B)
 
--- --   ⇒-Instantiate : ∀ {Γ Σ A B α β f d-f d-A d-B} →
--- --     G-Env-lookup A Σ (d-A , α ⟶ Layout-Type A) → -- A is a layout for α
--- --     G-Env-lookup B Σ (d-B , β ⟶ Layout-Type B) → -- B is a layout for β
--- --     G-Env-lookup f Σ (d-f , α ⟶ β) →
--- --     ---------------
--- --     Γ ⊢ Σ ▷ Instantiate A B f ⇒ (Layout-Type A ⟶ Layout-Type B)
+data G-Env-Valid : G-Env → G-Env → Set where
+  
 
--- -- Concrete : Env → G-Env → Expr → Set
--- -- Concrete Γ Σ e = ∃[ τ ](Γ ⊢ Σ ▷ e ⇒ τ)
+_▷_∶_ : G-Env → Expr → Type → Set
+Δ ▷ e ∶ τ = Δ ,, [] ▷ e ∶ τ
 
--- -- -- -- Translate an expression of base type
--- -- -- data _⟶base_ : Expr → SuSLik-Expr → Set where
--- -- --   ⟶base-Var : ∀ {Γ }
+data _▷_÷_ : G-Env → SuSLik-Asn → SuSLik-Asn → Set where
 
--- -- -- Layout translation --
-
--- -- -- data _⟶heaplet_ : Heaplet → SuSLik-Heaplet → Set where
--- -- --   ⟶heaplet-:-> : ∀ {a e} →
+high→low-level : ∀ {Δ e r v τ} →
+  Δ ▷ e ∶ τ →
+  Δ ▷ (S[ r , v ]⟦ e ⟧ Δ) ÷ (T[ r , v ]⟦ τ ⟧ Δ)
+high→low-level prf = {!!}
 
