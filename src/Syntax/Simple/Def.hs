@@ -62,6 +62,9 @@ data DefBranch =
   }
   deriving (Show)
 
+getFirstBranch :: Def -> DefBranch
+getFirstBranch MkDef{ defBranches = (b:_) } = b
+
 data GuardedExpr =
   MkGuardedExpr
   { guardedCond :: Expr FsName
@@ -222,9 +225,10 @@ genBranch defs inputLayout outputLayoutMaybe suslikParams (guardedPat@(pats, _),
   , suslikBranchRhs = concatMap (genBlock rhs0) (retName : suslikParams) <> rhs0
   }
 
+-- TODO: Multiple input layouts for multiple ADT parameters
 genDefPreds :: [Layout] -> Layout -> Layout -> Def -> [InductivePred]
 genDefPreds defs inputLayout outputLayout fnDef =
-  let suslikParams = layoutSuSLikParams inputLayout
+  let suslikParams = layoutSuSLikParams inputLayout ++ getBasicPatternVars (defBranchPattern (getFirstBranch fnDef))
 
       branches = getBranches fnDef
 
@@ -243,10 +247,11 @@ genDefPreds defs inputLayout outputLayout fnDef =
   [basePred]
   -- basePred : condPreds
 
+-- TODO: Multiple input layouts for multiple ADT parameters
 -- | No layout for the output: Requires a base type for the result type
 genBaseDefPreds :: [Layout] -> Layout -> Def -> [InductivePred]
 genBaseDefPreds defs inputLayout fnDef =
-  let suslikParams = layoutSuSLikParams inputLayout
+  let suslikParams = layoutSuSLikParams inputLayout ++ getBasicPatternVars (defBranchPattern (getFirstBranch fnDef))
 
       branches = getBranches fnDef
 

@@ -43,6 +43,12 @@ getPatternVars :: Pattern a -> [FsName]
 getPatternVars (MkPattern _ vs) = vs
 getPatternVars (PatternVar v) = [v]
 
+getBasicPatternVars :: [Pattern a] -> [FsName]
+getBasicPatternVars = concatMap go
+  where
+    go (MkPattern _ _) = []
+    go (PatternVar v) = [v]
+
 -- getPatternConstr :: Pattern a -> ConstrName
 -- getPatternConstr (MkPattern cName _) = cName
 
