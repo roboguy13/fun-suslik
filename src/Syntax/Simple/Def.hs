@@ -8,8 +8,10 @@ module Syntax.Simple.Def
   where
 
 import           Syntax.Simple.Expr
+import qualified Syntax.Simple.Expr as Expr
 import           Syntax.Simple.Heaplet
 import           Syntax.Simple.SuSLik
+import qualified Syntax.Simple.SuSLik as SuSLik
 import           Syntax.Name
 import           Syntax.FreshGen
 import           Syntax.Ppr
@@ -107,6 +109,11 @@ genPatCond suslikParams0 asn =
 
 nameToString :: Name_ String -> String
 nameToString = ppr
+
+toSuSLikParam :: Name_ String -> Type -> SuSLikParam
+toSuSLikParam n Expr.IntType = MkSuSLikParam (ppr n) SuSLik.IntType
+toSuSLikParam n Expr.BoolType = MkSuSLikParam (ppr n) SuSLik.BoolType
+toSuSLikParam n _ = MkSuSLikParam (ppr n) LocType
 
 connect :: forall a. (HasCallStack, Ppr a) => Expr (Name_ a) -> (SuSLikExpr (Name_ a) -> FreshGen [Heaplet (Name_ a)]) -> FreshGen [Heaplet (Name_ a)]
 -- connect (Apply f (Var v)) k = do
@@ -240,7 +247,9 @@ genDefPreds defs inputLayout outputLayout fnDef =
       basePred =
         MkInductivePred
         { inductivePredName = defName fnDef
-        , inductivePredParams = retParam : map (locParam . nameToString) (suslikParams ++ getBasicPatternVars (defBranchPattern (getFirstBranch fnDef)))
+            -- TODO: Update this when we can have multiple ADT arguments
+        , inductivePredParams =
+            retParam : zipWith toSuSLikParam (suslikParams ++ getBasicPatternVars (defBranchPattern (getFirstBranch fnDef))) (getArgTypes (defType fnDef))
         , inductivePredBranches = map (genBranch defs inputLayout (Just outputLayout) suslikParams) branches
         }
   in
@@ -258,7 +267,10 @@ genBaseDefPreds defs inputLayout fnDef =
       basePred =
         MkInductivePred
         { inductivePredName = defName fnDef
-        , inductivePredParams = retParam : map (locParam . nameToString) (suslikParams ++ getBasicPatternVars (defBranchPattern (getFirstBranch fnDef)))
+            -- TODO: Update this when we can have multiple ADT arguments
+        , inductivePredParams =
+            retParam : zipWith toSuSLikParam (suslikParams ++ getBasicPatternVars (defBranchPattern (getFirstBranch fnDef))) (getArgTypes (defType fnDef))
+        -- , inductivePredParams = retParam : map (locParam . nameToString) (suslikParams ++ getBasicPatternVars (defBranchPattern (getFirstBranch fnDef)))
         , inductivePredBranches = map (genBranch defs inputLayout Nothing suslikParams) branches
         }
   in

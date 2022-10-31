@@ -89,6 +89,11 @@ data Type where
   LayoutType :: String -> Type
   deriving (Show)
 
+getArgTypes :: Type -> [Type]
+getArgTypes (FnType dom cod@(FnType {})) = dom : getArgTypes cod
+getArgTypes (FnType dom cod) = [dom]
+getArgTypes ty = error $ "getArgTypes: not a function type: " ++ show ty
+
 data Adt =
   MkAdt
   { adtName :: String
