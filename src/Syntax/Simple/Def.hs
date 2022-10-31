@@ -239,16 +239,6 @@ removeSuSLikArgs = go
     go (PointsTo x y rest) = PointsTo x y (go rest)
     go (HeapletApply layoutName _ fsArg rest) = HeapletApply layoutName [] fsArg (go rest)
 
--- restrictParams :: [SuSLikName] -> [Heaplet SuSLikName] -> [Heaplet SuSLikName]
--- restrictParams params = map go
---   where
---     go orig@(PointsToS {}) = orig
---     go orig@(BlockS {}) = orig
---     go (HeapletApplyS f args) = HeapletApplyS f (mapMaybe goExpr args)
---
---     goExpr (VarS v)
---       | v `elem` params = Just $ VarS v
-
 ---- Tests ----
 
 sllLayout :: Layout
@@ -261,7 +251,7 @@ sllLayout =
     , (MkPattern "Cons" [fsName "head", fsName "tail"]
         ,(PointsTo (Here $ Var $ suslikName "x") (Var (fsName "head"))
          (PointsTo (Var (suslikName "x") :+ 1) (Var (suslikName "tail"))
-         (HeapletApply "sll" [Var $ freeVar "nxt"] (Var (fsName "tail")) Emp)))
+         (HeapletApply "sll" [] (Var (fsName "tail")) Emp)))
       )
     ]
 

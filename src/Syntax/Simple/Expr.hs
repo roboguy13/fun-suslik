@@ -70,8 +70,10 @@ data Type where
 
   FnType :: Type -> Type -> Type
 
-  AdtType :: Adt -> Type
-  LayoutType :: Layout -> Type
+  -- AdtType :: Adt -> Type
+  AdtType :: String -> Type
+  -- LayoutType :: Layout -> Type
+  LayoutType :: String -> Type
   deriving (Show)
 
 data Adt =
