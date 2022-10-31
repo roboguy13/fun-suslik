@@ -112,7 +112,8 @@ connect e0@(Apply f e) k =
   connect e $ \suslikE -> do
     newVar <- getFresh :: FreshGen (Name_ a)
     heaplets <- k (VarS (newVar))
-    pure $ heaplets -- ++ [HeapletApplyS f [newVar]]
+    -- pure $ heaplets -- ++ [HeapletApplyS f [newVar]]
+    pure $ heaplets ++ [HeapletApplyS f [VarS newVar, suslikE]]
 
 connect (Var v) k = k $ VarS v
 
