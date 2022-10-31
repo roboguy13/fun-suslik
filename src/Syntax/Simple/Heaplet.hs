@@ -38,7 +38,7 @@ data Expr a where
   Le :: Expr a -> Expr a -> Expr a
   Lt :: Expr a -> Expr a -> Expr a
 
-  Apply :: String -> Expr a -> Expr a
+  Apply :: String -> [Expr a] -> Expr a
 
   ConstrApply :: ConstrName -> [Expr a] -> Expr a
 
@@ -78,7 +78,7 @@ instance Ppr a => Ppr (Expr a) where
   ppr (Le x y) = pprBinOp "<=" x y
   ppr (Lt x y) = pprBinOp "<" x y
 
-  ppr (Apply f e) = "(" ++ f ++ " " ++ ppr e ++ ")"
+  ppr (Apply f e) = "(" ++ f ++ " " ++ unwords (map ppr e) ++ ")"
   ppr (ConstrApply cName args) =
     "(" ++ cName ++ " " ++ unwords (map ppr args) ++ ")"
 
@@ -96,7 +96,7 @@ type LayoutName = String
 data Assertion a where
   Emp :: Assertion a
   PointsTo :: Loc a -> a -> Assertion a -> Assertion a
-  HeapletApply :: LayoutName -> [a] -> a -> Assertion a -> Assertion a
+  HeapletApply :: LayoutName -> [a] -> [a] -> Assertion a -> Assertion a
   deriving (Functor, Show, Foldable)
 
 instance Ppr a => Ppr (Assertion a) where
@@ -105,7 +105,7 @@ instance Ppr a => Ppr (Assertion a) where
   ppr (HeapletApply lName suslikArgs fsArg rest) =
     unwords
       [lName ++ "[" ++ intercalate "," (map ppr suslikArgs) ++ "]"
-      ,ppr fsArg
+      ,unwords (map ppr fsArg)
       ] ++ ", " ++ ppr rest
 
 type Assertion' a = Assertion (Expr a)
@@ -131,7 +131,7 @@ maybeToEndo f x =
     Nothing -> x
     Just y -> y
 
-substLayoutAssertion :: Int -> (Int -> LayoutName -> [Expr FsName] -> Expr FsName -> Maybe (Assertion' FsName)) -> Assertion' FsName -> Assertion' FsName
+substLayoutAssertion :: Int -> (Int -> LayoutName -> [Expr FsName] -> [Expr FsName] -> Maybe (Assertion' FsName)) -> Assertion' FsName -> Assertion' FsName
 substLayoutAssertion _level _f Emp = Emp
 substLayoutAssertion level f (PointsTo x y rest) = PointsTo x y (substLayoutAssertion level f rest)
 substLayoutAssertion level f (HeapletApply lName suslikArgs e rest) =
@@ -205,7 +205,7 @@ instance Monad Expr where
   Le x y >>= f = Le (x >>= f) (y >>= f)
   Lt x y >>= f = Lt (x >>= f) (y >>= f)
 
-  Apply fName x >>= f = Apply fName (x >>= f)
+  Apply fName x >>= f = Apply fName (map (>>= f) x)
 
   ConstrApply cName args >>= f = ConstrApply cName (map (>>= f) args)
 

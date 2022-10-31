@@ -174,12 +174,14 @@ parseLayout = do
       pure (pat, rhs)
 
 parsePattern :: Parser (Pattern FsName)
-parsePattern = do
-  parseOp "("
-  cName <- parseConstructor
-  pVars <- (some parseSpace *> parseSpaced (fmap fsName parseIdentifier)) <|> pure []
-  parseOp ")"
-  pure $ MkPattern cName pVars
+parsePattern =
+  fmap (PatternVar . fsName) parseIdentifier
+    <|> do
+      parseOp "("
+      cName <- parseConstructor
+      pVars <- (some parseSpace *> parseSpaced (fmap fsName parseIdentifier)) <|> pure []
+      parseOp ")"
+      pure $ MkPattern cName pVars
 
 parseAssertion :: Parser (Assertion' FsName)
 parseAssertion =
@@ -200,8 +202,8 @@ parseHeapletApply :: Parser (Assertion' FsName) -> Parser (Assertion' FsName)
 parseHeapletApply p = do
   layoutName <- parseLayoutName
   some parseSpace
-  arg <- parseExpr
-  HeapletApply layoutName [] arg <$> (optionalParse Emp (parseOp "," *> p))
+  args <- parseSpaced parseExpr
+  HeapletApply layoutName [] args <$> (optionalParse Emp (parseOp "," *> p))
 
 
 parseLoc :: Parser (Loc (Expr FsName))
@@ -261,8 +263,8 @@ parseApp :: Parser (Expr FsName)
 parseApp = do
   f <- parseIdentifier
   some parseSpace
-  arg <- parseExpr'
-  pure $ Apply f arg
+  args <- parseSpaced parseExpr'
+  pure $ Apply f args
 
 parseConstrApp :: Parser (Expr FsName)
 parseConstrApp = do

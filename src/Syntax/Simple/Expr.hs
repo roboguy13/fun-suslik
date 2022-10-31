@@ -7,6 +7,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 
+{-# OPTIONS_GHC -Wincomplete-patterns #-}
+
 module Syntax.Simple.Expr
   where
 
@@ -34,14 +36,15 @@ import           GHC.Stack
 
 import Debug.Trace
 
-data Pattern a = MkPattern ConstrName [FsName]
+data Pattern a = MkPattern ConstrName [FsName] | PatternVar FsName
   deriving (Show)
 
 getPatternVars :: Pattern a -> [FsName]
 getPatternVars (MkPattern _ vs) = vs
+getPatternVars (PatternVar v) = [v]
 
-getPatternConstr :: Pattern a -> ConstrName
-getPatternConstr (MkPattern cName _) = cName
+-- getPatternConstr :: Pattern a -> ConstrName
+-- getPatternConstr (MkPattern cName _) = cName
 
 -- instance Ppr a => Ppr (Expr a) where
 --   ppr (Var v) = ppr v
@@ -120,6 +123,8 @@ matchPattern :: Pattern FsName -> ConstrName -> [Expr FsName] -> Maybe PatSubst
 matchPattern (MkPattern cName params) cName' args = do
   guard (cName == cName')
   pure (zip params args)
+matchPattern (PatternVar v) cName args = 
+  Just [(v, ConstrApply cName args)]
 
 matchBranch :: ConstrName -> [Expr FsName] -> (Pattern FsName, Assertion' FsName) -> Maybe (PatSubst, Assertion' FsName)
 matchBranch cName args (pat, branch) = do
@@ -167,6 +172,9 @@ applyLayoutPattern :: Layout -> [SuSLikName] -> Pattern FsName -> Assertion' FsN
 applyLayoutPattern layout suslikArgs (MkPattern cName args) =
     removeAppsLayout $ applyLayout 0 layout suslikArgs cName (map Var args)
 
+    -- TODO: What should we do here?
+applyLayoutPattern layout suslikArgs (PatternVar v) = error "applyLayoutPattern: PatternVar"
+
 getVar :: (Ppr a, HasCallStack) => Expr a -> a
 getVar (Var v) = v
 getVar e = error $ "getVar: " ++ ppr e
@@ -177,9 +185,10 @@ getLayoutSubstFn level layout lName suslikArgs (ConstrApply cName xs) = do
   Just $ applyLayout level layout (map getVar suslikArgs) cName xs
 getLayoutSubstFn _ _ _ _ _ = Nothing
 
-getLayoutsSubstFn :: [Layout] -> Int -> (LayoutName -> [Expr FsName] -> Expr FsName -> Maybe (Assertion' FsName))
-getLayoutsSubstFn layouts level lName suslikArgs fsArg =
+getLayoutsSubstFn :: [Layout] -> Int -> (LayoutName -> [Expr FsName] -> [Expr FsName] -> Maybe (Assertion' FsName))
+getLayoutsSubstFn layouts level lName suslikArgs [fsArg] =
   foldr (<|>) Nothing $ map (\layout -> getLayoutSubstFn level layout lName suslikArgs fsArg) layouts
+getLayoutsSubstFn _ _ _ _ _ = error "getLayoutsSubstFn: Layouts should have exactly one parameter"
 
 unfoldLayoutDefsAt :: Int -> [Layout] -> Assertion' FsName -> Assertion' FsName
 unfoldLayoutDefsAt level defs asn =
@@ -194,11 +203,15 @@ unfoldLayoutDefs defs = go 1
       | not (hasConstrApp x) = x
       | otherwise            = go (succ level) (unfoldLayoutDefsAt level defs x)
 
+isConstrApp :: Expr a -> Bool
+isConstrApp (ConstrApply {}) = True
+isConstrApp _ = False
+
 hasConstrApp :: Assertion' FsName -> Bool
 hasConstrApp Emp = False
 hasConstrApp (PointsTo _ _ rest) = hasConstrApp rest
-hasConstrApp (HeapletApply _ _ (ConstrApply {}) rest) = True
-hasConstrApp (HeapletApply _ _ _ rest) = hasConstrApp rest
+hasConstrApp (HeapletApply _ _ args rest) = any isConstrApp args || hasConstrApp rest
+-- hasConstrApp (HeapletApply _ _ _ rest) = hasConstrApp rest
 
 -- -- | Connect with (potentially) an intermediate variable
 -- connect :: 
@@ -211,10 +224,11 @@ toLowers defs = go
     go :: Assertion' FsName -> FreshGen (Assertion' FsName)
     go Emp = pure Emp
     go (PointsTo x y rest) = PointsTo x y <$> (go rest)
-    go (HeapletApply layoutName suslikParams e rest) = do
+    go (HeapletApply layoutName suslikParams [e] rest) = do
       lower defs (lookupLayout defs layoutName) (map getVar suslikParams) e >>= \case
         Left {} -> error $ "toLowers: " ++ ppr e
         Right asn -> fmap (asn <>) (go rest)
+    go _ = error "toLowers: Layout should have exactly one parameter"
 
 -- | Turn "x :-> (f e)" into "x :-> y, f[y] e"
 pointsToIntermediate :: Assertion' FsName -> FreshGen (Assertion' FsName)

@@ -2,6 +2,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 
+{-# OPTIONS_GHC -Wincomplete-patterns #-}
+
 module Syntax.Simple.Def
   where
 
@@ -107,13 +109,16 @@ connect :: forall a. (HasCallStack, Ppr a) => Expr (Name_ a) -> (SuSLikExpr (Nam
 -- connect (Apply f (Var v)) k = do
 --   hs <- k (VarS v)
 --   pure $ hs -- ++ [HeapletApplyS f [v]]
-connect e0@(Apply f e) k =
+connect e0@(Apply f es) k =
     -- trace ("\ne0 = " ++ ppr e0) $
-  connect e $ \suslikE -> do
-    newVar <- getFresh :: FreshGen (Name_ a)
-    heaplets <- k (VarS (newVar))
-    -- pure $ heaplets -- ++ [HeapletApplyS f [newVar]]
-    pure $ heaplets ++ [HeapletApplyS f [VarS newVar, suslikE]]
+  connects es go
+  where
+    go suslikEs = do
+      newVar <- getFresh :: FreshGen (Name_ a)
+      heaplets <- k (VarS (newVar))
+      -- pure $ heaplets -- ++ [HeapletApplyS f [newVar]]
+      -- pure $ heaplets ++ [HeapletApplyS f [VarS newVar, suslikE]]
+      pure $ heaplets ++ [HeapletApplyS f (VarS newVar : suslikEs)]
 
 connect (Var v) k = k $ VarS v
 
@@ -137,6 +142,11 @@ connect e k =
   --   Just s -> k s
   --   Nothing -> error $ "connect: " ++ ppr e
 
+connects xs0 f = go [] xs0
+  where
+    go acc [] = f (reverse acc)
+    go acc (x:xs) = connect x $ \e -> go (e : acc) xs
+
 connectBinOp :: forall a. (HasCallStack, Ppr a) =>
   (SuSLikExpr (Name_ a) -> SuSLikExpr (Name_ a) -> SuSLikExpr (Name_ a)) ->
   Expr (Name_ a) -> Expr (Name_ a) -> (SuSLikExpr (Name_ a) -> FreshGen [Heaplet (Name_ a)]) -> FreshGen [Heaplet (Name_ a)]
@@ -150,7 +160,7 @@ toHeaplets Emp = pure []
 toHeaplets (PointsTo x y rest) = do
   here <- connect y $ \suslikY -> pure [PointsToS (fmap getVar x) suslikY]
   fmap (here ++) (toHeaplets rest)
-toHeaplets (HeapletApply str suslikArgs (Var fsArg) rest) =
+toHeaplets (HeapletApply str suslikArgs [Var fsArg] rest) =
     -- trace ("--------- " ++ unwords (map ppr suslikArgs) ++ "; " ++ ppr fsArg) $
   -- fmap (HeapletApplyS str (map getVar suslikArgs ++ [fsArg]) :) (toHeaplets rest)
   fmap (HeapletApplyS str (map toSuSLikExpr_unsafe suslikArgs ++ [VarS fsArg]) :) (toHeaplets rest)
@@ -158,7 +168,7 @@ toHeaplets (HeapletApply str suslikArgs fsArg rest) = do
   -- here <- connect fsArg $ \suslikE -> fmap (HeapletApplyS str (map getVar suslikArgs ++ [suslikE]) :) (toHeaplets rest)
   -- traceM $ "\n*********toHeaplets: " ++ show (map ppr suslikArgs) ++ "; " ++ ppr fsArg
   -- let here = [HeapletApplyS str 
-  here <- connect fsArg $ \suslikE -> fmap (HeapletApplyS str (map toSuSLikExpr_unsafe suslikArgs ++ [suslikE]) :) (toHeaplets rest)
+  here <- connects fsArg $ \suslikE -> fmap (HeapletApplyS str (map toSuSLikExpr_unsafe suslikArgs ++ suslikE) :) (toHeaplets rest)
   fmap (here ++) (toHeaplets rest)
   -- error $ "toHeaplets:  " ++ str ++ "[" ++ intercalate "," (map ppr suslikArgs) ++ "] " ++ ppr fsArg
 
@@ -170,9 +180,11 @@ genPatternHeaplets layout (MkPattern cName args) =
     -- TODO: Avoid capture here between the SuSLik parameters and the FS
     -- variables
   applyLayout 0 layout (layoutSuSLikParams layout) cName $ map Var args
+genPatternHeaplets layout (PatternVar v) = Emp -- TODO: Is this right?
 
 branchArgs :: [SuSLikName] -> Pattern FsName -> [SuSLikName]
 branchArgs suslikParams (MkPattern _ patParams) = suslikParams ++ patParams
+branchArgs suslikParams (PatternVar v) = suslikParams ++ [v]
 
 retString :: String
 retString = "r"
@@ -297,7 +309,7 @@ sllLayout =
     , (MkPattern "Cons" [fsName "head", fsName "tail"]
         ,(PointsTo (Here $ Var $ suslikName "x") (Var (fsName "head"))
          (PointsTo (Var (suslikName "x") :+ 1) (Var (suslikName "tail"))
-         (HeapletApply "sll" [] (Var (fsName "tail")) Emp)))
+         (HeapletApply "sll" [] [Var (fsName "tail")] Emp)))
       )
     ]
 
@@ -312,8 +324,8 @@ treeLayout =
         ,(PointsTo (Here $ Var $ suslikName "x") (Var (fsName "payload"))
          (PointsTo (Var (suslikName "x") :+ 1) (Var (suslikName "left"))
          (PointsTo (Var (suslikName "x") :+ 2) (Var (suslikName "right"))
-         (HeapletApply "treeLayout" [Var $ freeVar "leftX"] (Var (suslikName "left"))
-         (HeapletApply "treeLayout" [Var $ freeVar "rightX"] (Var (suslikName "right")) Emp))))))
+         (HeapletApply "treeLayout" [Var $ freeVar "leftX"] [Var (suslikName "left")]
+         (HeapletApply "treeLayout" [Var $ freeVar "rightX"] [Var (suslikName "right")] Emp))))))
     ]
 
 test1 :: Def
@@ -329,10 +341,10 @@ test1 =
       ,MkDefBranch [MkPattern "Cons" [MkName "head", MkName "tail"]]
           [MkGuardedExpr (Lt (Var (MkName "head")) (IntLit 7))
             (ConstrApply "Cons" [Var (MkName "head")
-                                ,Apply "filterLt7" (Var (MkName "tail"))
+                                ,Apply "filterLt7" [Var (MkName "tail")]
                                 ])
           ,MkGuardedExpr (Not (Lt (Var (MkName "head")) (IntLit 7)))
-            (Apply "filterLt7" (Var (MkName "tail")))
+            (Apply "filterLt7" [Var (MkName "tail")])
           ]
       ]
   }
@@ -349,7 +361,7 @@ evenTest =
           ]
       ,MkDefBranch [MkPattern "Cons" [MkName "head", MkName "tail"]]
           [MkGuardedExpr (BoolLit True)
-            (Apply "odd" (Var (MkName "tail")))
+            (Apply "odd" [Var (MkName "tail")])
           ]
       ]
   }
@@ -367,7 +379,7 @@ oddTest =
       ,MkDefBranch [MkPattern "Cons" [MkName "head", MkName "tail"]]
           [MkGuardedExpr (BoolLit True)
             (ConstrApply "Cons" [Var (MkName "head")
-                                ,Apply "even" (Var (MkName "tail"))
+                                ,Apply "even" [Var (MkName "tail")]
                                 ])
           ]
       ]
@@ -386,7 +398,7 @@ leftListTest =
       ,MkDefBranch [MkPattern "Node" [MkName "a", MkName "left", MkName "right"]]
           [MkGuardedExpr (BoolLit True)
             (ConstrApply "Cons" [Var (MkName "a")
-                                ,Apply "leftList" (Var (MkName "left"))
+                                ,Apply "leftList" [Var (MkName "left")]
                                 ])
           ]
       ]
@@ -405,5 +417,5 @@ testApply2 =
   applyLayout 0 sllLayout [MkName "z"]
     "Nil" []
 
-(_, (Right testLower1)) = runFreshGen $ lower [sllLayout] sllLayout [MkName "z"] (ConstrApply "Cons" [Add (Var $ MkName "a") (Var $ MkName "b"), Apply "f" $ Var $ MkName "c"])
+(_, (Right testLower1)) = runFreshGen $ lower [sllLayout] sllLayout [MkName "z"] (ConstrApply "Cons" [Add (Var $ MkName "a") (Var $ MkName "b"), Apply "f" [Var $ MkName "c"]])
 
