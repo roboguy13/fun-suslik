@@ -228,7 +228,7 @@ genBranch defs inputLayout outputLayoutMaybe suslikParams (guardedPat@(pats, _),
 -- TODO: Multiple input layouts for multiple ADT parameters
 genDefPreds :: [Layout] -> Layout -> Layout -> Def -> [InductivePred]
 genDefPreds defs inputLayout outputLayout fnDef =
-  let suslikParams = layoutSuSLikParams inputLayout ++ getBasicPatternVars (defBranchPattern (getFirstBranch fnDef))
+  let suslikParams = layoutSuSLikParams inputLayout
 
       branches = getBranches fnDef
 
@@ -240,7 +240,7 @@ genDefPreds defs inputLayout outputLayout fnDef =
       basePred =
         MkInductivePred
         { inductivePredName = defName fnDef
-        , inductivePredParams = retParam : map (locParam . nameToString) suslikParams
+        , inductivePredParams = retParam : map (locParam . nameToString) (suslikParams ++ getBasicPatternVars (defBranchPattern (getFirstBranch fnDef)))
         , inductivePredBranches = map (genBranch defs inputLayout (Just outputLayout) suslikParams) branches
         }
   in
@@ -251,14 +251,14 @@ genDefPreds defs inputLayout outputLayout fnDef =
 -- | No layout for the output: Requires a base type for the result type
 genBaseDefPreds :: [Layout] -> Layout -> Def -> [InductivePred]
 genBaseDefPreds defs inputLayout fnDef =
-  let suslikParams = layoutSuSLikParams inputLayout ++ getBasicPatternVars (defBranchPattern (getFirstBranch fnDef))
+  let suslikParams = layoutSuSLikParams inputLayout
 
       branches = getBranches fnDef
 
       basePred =
         MkInductivePred
         { inductivePredName = defName fnDef
-        , inductivePredParams = retParam : map (locParam . nameToString) suslikParams
+        , inductivePredParams = retParam : map (locParam . nameToString) (suslikParams ++ getBasicPatternVars (defBranchPattern (getFirstBranch fnDef)))
         , inductivePredBranches = map (genBranch defs inputLayout Nothing suslikParams) branches
         }
   in
