@@ -262,7 +262,7 @@ lower' :: HasCallStack => [Layout] -> Layout -> [SuSLikName] -> Expr FsName -> A
 lower' defs layout suslikArgs e =
   case runFreshGen (lower defs layout suslikArgs e) of
     (_, Right x) -> x
-    _ -> error "lower'"
+    _ -> error $ "lower': " ++ ppr e
 
 lower :: HasCallStack => [Layout] -> Layout -> [SuSLikName] -> Expr FsName -> FreshGen (Either (SuSLikExpr FsName) (Assertion' FsName))
 lower defs layout suslikArgs = go 0

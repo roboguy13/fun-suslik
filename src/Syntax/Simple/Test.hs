@@ -37,3 +37,28 @@ oddTest' =
     \odd (Nil) := Nil;\
     \odd (Cons head tail) := Cons head (even tail);"
 
+-- wrapIntAdt :: Adt
+-- wrapIntAdt =
+--   parse' parseAdtDef
+--     "data WrapInt := Wrapped Int"
+--
+-- wrapIntLayout :: Layout
+-- wrapIntLayout =
+--   parse' parseLayout
+--     "WrapIntL : WrapInt >-> layout[x];\
+--     \WrapIntL (Wrapped i) := x :-> i;"
+
+foldTest :: Def
+foldTest =
+  parse' parseFnDef
+    "sum : List -> Int;\
+    \sum (Nil) := 0;\
+    \sum (Cons head tail) := head + (sum tail);"
+
+foldTestTailRec :: Def
+foldTestTailRec =
+  parse' parseFnDef
+    "sumTR : List -> Int -> Int;\
+    \sumTR (Nil) (acc) := acc;\
+    \sumTR (Cons head tail) (acc) := sumTR tail (head + acc);"
+

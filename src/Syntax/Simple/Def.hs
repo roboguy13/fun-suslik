@@ -169,10 +169,13 @@ getCond layout suslikParams (pats, cond) =
   mkAndS (foldr mkAndS (BoolS True) (map (genPatCond suslikParams) (map (genPatternHeaplets layout) pats)))
          (toSuSLikExpr_unsafe cond)
 
-genBranch :: [Layout] -> Layout -> Layout -> [SuSLikName] -> (([Pattern FsName], Expr FsName), Expr FsName) -> SuSLikBranch
-genBranch defs inputLayout outputLayout suslikParams (guardedPat@(pats, _), rhs) =
+genBranch :: [Layout] -> Layout -> Maybe Layout -> [SuSLikName] -> (([Pattern FsName], Expr FsName), Expr FsName) -> SuSLikBranch
+genBranch defs inputLayout outputLayoutMaybe suslikParams (guardedPat@(pats, _), rhs) =
   let patHeaplets = concatMap toHeaplets' $ map removeAppsLayout (map (genPatternHeaplets inputLayout) pats)
-      lowered = lower' defs outputLayout [retName] rhs
+      lowered =
+        case outputLayoutMaybe of
+          Just outputLayout -> lower' defs outputLayout [retName] rhs
+          Nothing -> PointsTo (Here (Var retName)) rhs Emp
       rhs0 = patHeaplets <> toHeaplets' lowered
   in
   MkSuSLikBranch
@@ -195,11 +198,27 @@ genDefPreds defs inputLayout outputLayout fnDef =
         MkInductivePred
         { inductivePredName = defName fnDef
         , inductivePredParams = retParam : map (locParam . nameToString) suslikParams
-        , inductivePredBranches = map (genBranch defs inputLayout outputLayout suslikParams) branches
+        , inductivePredBranches = map (genBranch defs inputLayout (Just outputLayout) suslikParams) branches
         }
   in
   [basePred]
   -- basePred : condPreds
+
+-- | No layout for the output: Requires a base type for the result type
+genBaseDefPreds :: [Layout] -> Layout -> Def -> [InductivePred]
+genBaseDefPreds defs inputLayout fnDef =
+  let suslikParams = layoutSuSLikParams inputLayout
+
+      branches = getBranches fnDef
+
+      basePred =
+        MkInductivePred
+        { inductivePredName = defName fnDef
+        , inductivePredParams = retParam : map (locParam . nameToString) suslikParams
+        , inductivePredBranches = map (genBranch defs inputLayout Nothing suslikParams) branches
+        }
+  in
+  [basePred]
 
 genSig :: Layout -> Def -> SuSLikSig
 genSig layout def =
