@@ -55,7 +55,7 @@ data Def =
 
 data DefBranch =
   MkDefBranch
-  { defBranchPattern :: Pattern FsName
+  { defBranchPattern :: [Pattern FsName]
   , defBranchGuardeds :: [GuardedExpr]
   }
   deriving (Show)
@@ -157,21 +157,21 @@ retName :: SuSLikName
 retName = suslikName retString
 
 -- | Collect all the branches with their patterns, guards and bodies
-getBranches :: Def -> [((Pattern FsName, Expr FsName), Expr FsName)]
+getBranches :: Def -> [(([Pattern FsName], Expr FsName), Expr FsName)]
 getBranches def =
     map (\(pat, guarded) -> ((pat, guardedCond guarded), guardedBody guarded))
       $ concatMap (\(pat, gs) -> map (pat,) gs)
       $ map (defBranchPattern &&& defBranchGuardeds) (defBranches def)
 
 -- | Turn a guarded pattern match into a SuSLik Boolean expression
-getCond :: Layout -> [SuSLikName] -> (Pattern FsName, Expr FsName) -> SuSLikExpr FsName
-getCond layout suslikParams (pat, cond) =
-  mkAndS (genPatCond suslikParams (genPatternHeaplets layout pat))
+getCond :: Layout -> [SuSLikName] -> ([Pattern FsName], Expr FsName) -> SuSLikExpr FsName
+getCond layout suslikParams (pats, cond) =
+  mkAndS (foldr mkAndS (BoolS True) (map (genPatCond suslikParams) (map (genPatternHeaplets layout) pats)))
          (toSuSLikExpr_unsafe cond)
 
-genBranch :: [Layout] -> Layout -> Layout -> [SuSLikName] -> ((Pattern FsName, Expr FsName), Expr FsName) -> SuSLikBranch
-genBranch defs inputLayout outputLayout suslikParams (guardedPat@(pat, _), rhs) =
-  let patHeaplets = toHeaplets' $ removeAppsLayout (genPatternHeaplets inputLayout pat)
+genBranch :: [Layout] -> Layout -> Layout -> [SuSLikName] -> (([Pattern FsName], Expr FsName), Expr FsName) -> SuSLikBranch
+genBranch defs inputLayout outputLayout suslikParams (guardedPat@(pats, _), rhs) =
+  let patHeaplets = concatMap toHeaplets' $ map removeAppsLayout (map (genPatternHeaplets inputLayout) pats)
       lowered = lower' defs outputLayout [retName] rhs
       rhs0 = patHeaplets <> toHeaplets' lowered
   in
@@ -276,11 +276,11 @@ test1 =
   { defName = "filterLt7"
   , defType = Syntax.Simple.Expr.IntType -- Placeholder
   , defBranches =
-      [MkDefBranch (MkPattern "Nil" [])
+      [MkDefBranch [MkPattern "Nil" []]
           [MkGuardedExpr (BoolLit True)
             (ConstrApply "Nil" [])
           ]
-      ,MkDefBranch (MkPattern "Cons" [MkName "head", MkName "tail"])
+      ,MkDefBranch [MkPattern "Cons" [MkName "head", MkName "tail"]]
           [MkGuardedExpr (Lt (Var (MkName "head")) (IntLit 7))
             (ConstrApply "Cons" [Var (MkName "head")
                                 ,Apply "filterLt7" (Var (MkName "tail"))
@@ -297,11 +297,11 @@ evenTest =
   { defName = "even"
   , defType = Syntax.Simple.Expr.IntType -- Placeholder
   , defBranches =
-      [MkDefBranch (MkPattern "Nil" [])
+      [MkDefBranch [MkPattern "Nil" []]
           [MkGuardedExpr (BoolLit True)
             (ConstrApply "Nil" [])
           ]
-      ,MkDefBranch (MkPattern "Cons" [MkName "head", MkName "tail"])
+      ,MkDefBranch [MkPattern "Cons" [MkName "head", MkName "tail"]]
           [MkGuardedExpr (BoolLit True)
             (Apply "odd" (Var (MkName "tail")))
           ]
@@ -314,11 +314,11 @@ oddTest =
   { defName = "odd"
   , defType = Syntax.Simple.Expr.IntType -- Placeholder
   , defBranches =
-      [MkDefBranch (MkPattern "Nil" [])
+      [MkDefBranch [MkPattern "Nil" []]
           [MkGuardedExpr (BoolLit True)
             (ConstrApply "Nil" [])
           ]
-      ,MkDefBranch (MkPattern "Cons" [MkName "head", MkName "tail"])
+      ,MkDefBranch [MkPattern "Cons" [MkName "head", MkName "tail"]]
           [MkGuardedExpr (BoolLit True)
             (ConstrApply "Cons" [Var (MkName "head")
                                 ,Apply "even" (Var (MkName "tail"))
@@ -333,11 +333,11 @@ leftListTest =
   { defName = "leftList"
   , defType = Syntax.Simple.Expr.IntType -- Placeholder
   , defBranches =
-      [MkDefBranch (MkPattern "Leaf" [])
+      [MkDefBranch [MkPattern "Leaf" []]
           [MkGuardedExpr (BoolLit True)
             (ConstrApply "Nil" [])
           ]
-      ,MkDefBranch (MkPattern "Node" [MkName "a", MkName "left", MkName "right"])
+      ,MkDefBranch [MkPattern "Node" [MkName "a", MkName "left", MkName "right"]]
           [MkGuardedExpr (BoolLit True)
             (ConstrApply "Cons" [Var (MkName "a")
                                 ,Apply "leftList" (Var (MkName "left"))
