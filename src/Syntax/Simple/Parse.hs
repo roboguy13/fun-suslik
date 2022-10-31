@@ -353,7 +353,7 @@ parseFnBranch name0 = do
   guard (name == name0)
 
   many parseSpace
-  pat <- parsePattern
+  pat <- parseSpaced parsePattern
 
   guardeds <- some parseGuardedExpr
 
