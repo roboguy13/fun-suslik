@@ -108,7 +108,7 @@ connect :: forall a. (HasCallStack, Ppr a) => Expr (Name_ a) -> (SuSLikExpr (Nam
 --   hs <- k (VarS v)
 --   pure $ hs -- ++ [HeapletApplyS f [v]]
 connect e0@(Apply f e) k =
-    trace ("\ne0 = " ++ ppr e0) $
+    -- trace ("\ne0 = " ++ ppr e0) $
   connect e $ \suslikE -> do
     newVar <- getFresh :: FreshGen (Name_ a)
     heaplets <- k (VarS (newVar))
