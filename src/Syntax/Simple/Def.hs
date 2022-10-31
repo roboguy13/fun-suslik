@@ -208,7 +208,7 @@ getBranches def =
 -- | Turn a guarded pattern match into a SuSLik Boolean expression
 getCond :: Layout -> [SuSLikName] -> ([Pattern FsName], Expr FsName) -> SuSLikExpr FsName
 getCond layout suslikParams (pats, cond) =
-  mkAndS (foldr mkAndS (BoolS True) (map (genPatCond suslikParams) (map (genPatternHeaplets layout) pats)))
+  mkAndS (foldr mkAndS (BoolS True) (map (genPatCond suslikParams) (map (genPatternHeaplets layout) (filter (not . isBasicPatternVar) pats))))
          (toSuSLikExpr_unsafe cond)
 
 genBranch :: [Layout] -> Layout -> Maybe Layout -> [SuSLikName] -> (([Pattern FsName], Expr FsName), Expr FsName) -> SuSLikBranch

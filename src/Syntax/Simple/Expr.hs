@@ -49,6 +49,10 @@ getBasicPatternVars = concatMap go
     go (MkPattern _ _) = []
     go (PatternVar v) = [v]
 
+isBasicPatternVar :: Pattern a -> Bool
+isBasicPatternVar (PatternVar v) = True
+isBasicPatternVar _ = False
+
 -- getPatternConstr :: Pattern a -> ConstrName
 -- getPatternConstr (MkPattern cName _) = cName
 
