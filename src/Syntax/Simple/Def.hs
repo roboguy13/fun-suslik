@@ -107,16 +107,42 @@ connect :: forall a. (HasCallStack, Ppr a) => Expr (Name_ a) -> (SuSLikExpr (Nam
 -- connect (Apply f (Var v)) k = do
 --   hs <- k (VarS v)
 --   pure $ hs -- ++ [HeapletApplyS f [v]]
-connect (Apply f e) k =
-    -- trace ("\ne = " ++ ppr e) $
+connect e0@(Apply f e) k =
+    trace ("\ne0 = " ++ ppr e0) $
   connect e $ \suslikE -> do
     newVar <- getFresh :: FreshGen (Name_ a)
     heaplets <- k (VarS (newVar))
     pure $ heaplets -- ++ [HeapletApplyS f [newVar]]
+
+connect (Var v) k = k $ VarS v
+
+connect (IntLit i) k = k $ IntS i
+
+connect (BoolLit b) k = k $ BoolS b
+
+connect (And x y) k = connectBinOp AndS x y k
+connect (Add x y) k = connectBinOp AddS x y k
+connect (Or x y) k = connectBinOp OrS x y k
+connect (Not x) k = connect x $ \x' -> k $ NotS x'
+connect (Equal x y) k = connectBinOp EqualS x y k
+connect (Mul x y) k = connectBinOp MulS x y k
+connect (Sub x y) k = connectBinOp SubS x y k
+connect (Le x y) k = connectBinOp LeS x y k
+connect (Lt x y) k = connectBinOp LtS x y k
+
 connect e k =
-  case toSuSLikExpr e of
-    Just s -> k s
-    Nothing -> error $ "connect: " ++ ppr e
+  error "connect"
+  -- case toSuSLikExpr e of
+  --   Just s -> k s
+  --   Nothing -> error $ "connect: " ++ ppr e
+
+connectBinOp :: forall a. (HasCallStack, Ppr a) =>
+  (SuSLikExpr (Name_ a) -> SuSLikExpr (Name_ a) -> SuSLikExpr (Name_ a)) ->
+  Expr (Name_ a) -> Expr (Name_ a) -> (SuSLikExpr (Name_ a) -> FreshGen [Heaplet (Name_ a)]) -> FreshGen [Heaplet (Name_ a)]
+connectBinOp op x y k =
+  connect x $ \x' ->
+  connect y $ \y' ->
+    k $ op x' y'
 
 toHeaplets :: (Ppr a) => Assertion' (Name_ a) -> FreshGen [Heaplet (Name_ a)]
 toHeaplets Emp = pure []

@@ -59,6 +59,6 @@ foldTestTailRec :: Def
 foldTestTailRec =
   parse' parseFnDef
     "sumTR : List -> Int -> Int;\
-    \sumTR (Nil) (acc) := acc;\
-    \sumTR (Cons head tail) (acc) := sumTR tail (head + acc);"
+    \sumTR (Nil) acc := acc;\
+    \sumTR (Cons head tail) acc := sumTR tail (head + acc);"
 
