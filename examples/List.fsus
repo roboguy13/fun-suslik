@@ -1,5 +1,9 @@
 %generate filterLt7 [Sll] Sll
 %generate leftList [TreeLayout] Sll
+%generate even [Sll] Sll
+%generate odd [Sll] Sll
+%generate sum [Sll] Int
+%generate sumTailRec [Sll] Int
 
 data List := Nil | Cons Int List;
 
@@ -40,9 +44,9 @@ sum : List -> Int;
 sum (Nil) := 0;
 sum (Cons head tail) := head + (sum tail);
 
-sumTR : List -> Int -> Int;
-sumTR (Nil) acc := acc;
-sumTR (Cons head tail) acc := sumTR tail (head + acc);
+sumTailRec : List -> Int -> Int;
+sumTailRec (Nil) acc := acc;
+sumTailRec (Cons head tail) acc := sumTailRec tail (head + acc);
 
 replicate : Int -> Int -> List;
 replicate n i
