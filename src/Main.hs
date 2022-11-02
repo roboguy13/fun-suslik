@@ -17,13 +17,13 @@ isBaseTypeName _ = False
 
 main :: IO ()
 main = do
-  -- getArgs >>= \case
-  --   [] -> error "Expected a source filename"
-  --   args@(_:_:_) -> error $ "Too many arguments. Expected 1, got " ++ show (length args)
-  --
-  --   [fileName] -> do
-  --     fileData <- readFile fileName
-      fileData <- readFile "examples/List.fsus"
+  getArgs >>= \case
+    [] -> error "Expected a source filename"
+    args@(_:_:_) -> error $ "Too many arguments. Expected 1, got " ++ show (length args)
+
+    [fileName] -> do
+      fileData <- readFile fileName
+      -- fileData <- readFile "examples/List.fsus"
       let parsed = parse' parseFile fileData
       let layouts = fileLayouts parsed
       let fnDefs = fileFnDefs parsed

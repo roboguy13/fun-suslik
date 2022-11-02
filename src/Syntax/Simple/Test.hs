@@ -76,10 +76,10 @@ replicateTest =
 takeTest :: Def
 takeTest =
   parse' parseFnDef
-    "take : List -> Int -> List\n\
-    \take (Nil) i := Nil\n\
+    "take : List -> Int -> List;\n\
+    \take (Nil) i := Nil;\n\
     \take (Cons head tail) i\n\
-    \| i == 0 := Nil\n\
+    \| i == 0 := Nil;\n\
     \| not (i == 0) := Cons head (take tail) (i - 1);"
 
 sllLayoutTest :: Layout
