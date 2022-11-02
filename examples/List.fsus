@@ -1,11 +1,11 @@
-%instantiate leftList [TreeLayout] ListLayout
+%generate leftList [TreeLayout] ListLayout
 
 data List := Nil | Cons Int List;
 
 data Tree := Leaf | Node Int Tree Tree;
 
-TreeLayout : Tree >-> layout[x]
-TreeLayout (Leaf) := emp
+TreeLayout : Tree >-> layout[x];
+TreeLayout (Leaf) := emp;
 TreeLayout (Node payload left right) :=
   x :-> payload,
   (x+1) :-> left,
@@ -13,42 +13,40 @@ TreeLayout (Node payload left right) :=
   TreeLayout left,
   TreeLayout right;
 
-
-filterLt7 : List -> List
-filterLt7 (Nil) := Nil
+filterLt7 : List -> List;
+filterLt7 (Nil) := Nil;
 filterLt7 (Cons head tail)
-  | head < 7       := Cons head (filterLt7 tail)
+  | head < 7       := Cons head (filterLt7 tail);
   | not (head < 7) := filterLt7 tail;
 
-
 leftList : Tree -> List;
-leftList (Leaf) := Nil
+leftList (Leaf) := Nil;
 leftList (Node a left right) := Cons a (leftList left);
 
 even : List -> List;
-even (Nil) := Nil
+even (Nil) := Nil;
 even (Cons head tail) := odd tail;
 
 odd : List -> List;
-odd (Nil) := Nil
+odd (Nil) := Nil;
 odd (Cons head tail) := Cons head (even tail);
 
 sum : List -> Int;
-sum (Nil) := 0
+sum (Nil) := 0;
 sum (Cons head tail) := head + (sum tail);
 
 sumTR : List -> Int -> Int;
-sumTR (Nil) acc := acc
+sumTR (Nil) acc := acc;
 sumTR (Cons head tail) acc := sumTR tail (head + acc);
 
 replicate : Int -> Int -> List;
 replicate n i
-  | n == 0 := Nil
+  | n == 0 := Nil;
   | not (n == 0) := Cons i (replicate (n - 1) i);
 
 take : List -> Int -> List;
-take (Nil) i := Nil
+take (Nil) i := Nil;
 take (Cons head tail) i
-  | i == 0 := Nil
+  | i == 0 := Nil;
   | not (i == 0) := Cons head (take tail) (i - 1);
 

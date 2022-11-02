@@ -13,7 +13,7 @@ test1' :: Def
 test1' =
   -- parse' (parseFnDef <* eof)
   parse' parseFnDef
-    "filterLt7 : List -> List\n\
+    "filterLt7 : List -> List;\n\
     \filterLt7 (Nil) := Nil;\n\
     \filterLt7 (Cons head tail)\n\
     \  | head < 7       := Cons head (filterLt7 tail);\n\
