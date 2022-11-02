@@ -15,31 +15,98 @@ import           Syntax.Simple.Def
 import           Syntax.Simple.Heaplet
 import           Syntax.Name
 
-newtype Parser a = MkParser { runParser :: String -> [(String, a)] }
+import           Data.List.NonEmpty (NonEmpty (..))
+import qualified Data.List.NonEmpty as NonEmpty
+
+data ParseLoc = MkParseLoc Int Int
+
+showParseLoc :: ParseLoc -> String
+showParseLoc (MkParseLoc r c) =
+  "line " ++ show r ++ ", column " ++ show c
+
+locNewline :: ParseLoc -> ParseLoc
+locNewline (MkParseLoc r _) = MkParseLoc (r+1) 1
+
+locShiftChar :: Char -> ParseLoc -> ParseLoc
+locShiftChar char loc@(MkParseLoc r c)
+  | char == '\n' || char == '\r' = locNewline loc
+  | otherwise = MkParseLoc r (c+1)
+
+initialParseLoc :: ParseLoc
+initialParseLoc = MkParseLoc 1 1
+
+data ParseValue' a
+  = ParseError (ParseLoc, String)
+  | MkParseValue (NonEmpty a)
   deriving (Functor)
 
-parse :: Parser a -> String -> Maybe a
+showParseError :: (ParseLoc, String) -> String
+showParseError (loc, msg) = showParseLoc loc ++ ": " ++ msg
+
+instance Semigroup (ParseValue' a) where
+  x <> (ParseError {}) = x
+  (ParseError {}) <> y = y
+
+  MkParseValue xs <> MkParseValue ys = MkParseValue (xs <> ys)
+
+instance Monoid (ParseValue' a) where
+  mempty = ParseError (MkParseLoc 0 0, "Empty parse")
+
+instance Applicative ParseValue' where
+  pure = return
+  (<*>) = ap
+
+instance Monad ParseValue' where
+  return x = MkParseValue (x :| [])
+  ParseError e >>= _ = ParseError e
+  MkParseValue xs >>= f = foldMap f xs
+
+instance Alternative ParseValue' where
+  empty = mempty
+  (<|>) = (<>)
+
+
+type ParseValue a = ParseValue' (ParseLoc, String, a)
+
+oneParseValue :: ParseLoc -> String -> a -> ParseValue a
+oneParseValue loc rest x = MkParseValue ((loc, rest, x) :| [])
+
+newtype Parser a = MkParser { runParser :: (ParseLoc, String) -> ParseValue a }
+  deriving (Functor)
+
+parse :: Parser a -> String -> Either String a
 parse p str =
-  case filter (null . fst) (runParser p str) of
-    [] -> Nothing
-    ((_,x):_) -> Just x
+  case runParser p (initialParseLoc, str) of
+    ParseError e -> Left $ showParseError e
+    MkParseValue ((_, _, x) :| _) -> Right x
+  -- case NonEmpty.filter (null . fst) (runParser p str) of
+  --   ParseError e -> Left e
+  --   MkParseValue ((_,x) : _) -> Just x
+  --   MkParseValue [] -> Just "Empty parse"
 
 parse' :: Parser a -> String -> a
 parse' p str =
   case parse p str of
-    Nothing -> error "Parse error"
-    Just x -> x
+    Left e -> error $ "Parse error: " ++ e
+    Right x -> x
+
+withExpected :: String -> Parser a -> Parser a
+withExpected msg p =
+  MkParser $ \(loc, s) ->
+    case runParser p (loc, s) of
+      ParseError _ -> ParseError (loc, "Expected " ++ msg)
+      MkParseValue x -> MkParseValue x
 
 instance Applicative Parser where
   pure = return
   (<*>) = ap
 
 instance Monad Parser where
-  return x = MkParser (\s -> [(s, x)])
+  return x = MkParser (\(loc, s) -> oneParseValue loc s x)
   MkParser p >>= f =
     MkParser $ \s -> do
-      (s', x) <- p s
-      runParser (f x) s'
+      (loc, s', x) <- p s
+      runParser (f x) (loc, s')
 
 instance Alternative Parser where
   empty = MkParser $ const mempty
@@ -48,22 +115,26 @@ instance Alternative Parser where
 
 parseCharWhen :: (Char -> Bool) -> Parser Char
 parseCharWhen pred = MkParser $ \case
-  "" -> empty
-  (c:cs)
-    | pred c    -> pure (cs, c)
+  (loc, "") -> empty
+  (loc, c:cs)
+    | pred c    -> pure (locShiftChar c loc, cs, c)
     | otherwise -> empty
 
 parseChar :: Char -> Parser Char
-parseChar c = parseCharWhen (== c)
+parseChar c =
+  withExpected (show c) $ parseCharWhen (== c)
 
 parseString :: String -> Parser String
-parseString = mapM parseChar
+parseString str = withExpected (show str) $
+  mapM parseChar str
 
 parseOneOf :: [Char] -> Parser Char
-parseOneOf cs = parseCharWhen (`elem` cs)
+parseOneOf cs = withExpected ("one of " ++ show cs) $
+  parseCharWhen (`elem` cs)
 
 parseSpace :: Parser Char
-parseSpace = parseOneOf "\t\n\r "
+parseSpace = withExpected "space" $
+  parseOneOf "\t\n\r "
 
 parseBracketed :: Parser a -> Parser a -> Parser b -> Parser b
 parseBracketed left right p = left *> p <* right
@@ -94,7 +165,8 @@ parseUppercase :: Parser Char
 parseUppercase = parseOneOf ['A'..'Z']
 
 parseDigit :: Parser Char
-parseDigit = parseOneOf ['0'..'9']
+parseDigit = withExpected "digit" $
+  parseOneOf ['0'..'9']
 
 parseAlphanum :: Parser Char
 parseAlphanum = parseAlpha <|> parseDigit
@@ -109,31 +181,97 @@ parseLowercaseName :: Parser String
 parseLowercaseName = liftA2 (:) parseLowercase parseNameTail
 
 parseIdentifier :: Parser String
-parseIdentifier = parseLowercaseName
+parseIdentifier = withExpected "identifier" $
+  parseLowercaseName
 
 parseConstructor :: Parser String
-parseConstructor = parseUppercaseName
+parseConstructor = withExpected "constructor name" $
+  parseUppercaseName
 
 parseLayoutName :: Parser String
-parseLayoutName = parseUppercaseName
+parseLayoutName = withExpected "layout name" $
+  parseUppercaseName
 
 parseTypeName :: Parser String
-parseTypeName = parseUppercaseName
+parseTypeName = withExpected "type name" $
+  parseUppercaseName
 
 parseOp :: String -> Parser String
-parseOp str = many parseSpace *> parseString str <* many parseSpace
+parseOp str = withExpected str $
+  many parseSpace *> parseString str <* many parseSpace
 
 optionalParse :: a -> Parser a -> Parser a
 optionalParse def p = p <|> pure def
 
 -------
 
--- data ParsedType where
---   PIntType :: ParsedType
---   PBoolType :: ParsedType
---   PFnType :: ParsedType -> ParsedType -> ParsedType
---   PTypeName :: String -> ParsedType
---   deriving (Show)
+data ParsedFile =
+  MkParsedFile
+  { fileFnDefs :: [Def]
+  , fileAdts :: [Adt]
+  , fileLayouts :: [Layout]
+  , fileDirectives :: [Directive]
+  }
+
+instance Semigroup ParsedFile where
+  MkParsedFile x y z w <> MkParsedFile x' y' z' w' =
+    MkParsedFile (x <> x') (y <> y') (z <> z') (w <> w')
+
+instance Monoid ParsedFile where
+  mempty = MkParsedFile [] [] [] []
+
+oneFileFnDef :: Def -> ParsedFile
+oneFileFnDef d = MkParsedFile [d] [] [] []
+
+oneFileAdt :: Adt -> ParsedFile
+oneFileAdt adt = MkParsedFile [] [adt] [] []
+
+oneFileLayout :: Layout -> ParsedFile
+oneFileLayout layout = MkParsedFile [] [] [layout] []
+
+oneFileDirective :: Directive -> ParsedFile
+oneFileDirective d = MkParsedFile [] [] [] [d]
+
+parseFile :: Parser ParsedFile
+parseFile = do
+    directive <- parseDirective
+    some parseSpace
+    body <- mconcat <$> some go
+
+    pure (oneFileDirective directive <> body)
+  where
+    go =
+      (oneFileFnDef <$> parseFnDef)
+        <|>
+      (oneFileAdt <$> parseAdtDef)
+        <|>
+      (oneFileLayout <$> parseLayout)
+
+data Directive =
+  InstantiateDef
+    String   -- | fun-SuSLik function name
+    [String] -- | Argument layouts
+    String   -- | Result layout
+
+parseDirective :: Parser Directive
+parseDirective = parseInstantiateDirective
+
+parseInstantiateDirective :: Parser Directive
+parseInstantiateDirective = do
+  parseString "%instantiate"
+  some parseSpace
+
+  fnName <- parseIdentifier
+  some parseSpace
+
+  argLayouts <- parseBracketed (parseOp "[") (parseOp "]")
+                  $ parseList (parseChar ',') parseLayoutName
+  some parseSpace
+
+  resultLayout <- parseLayoutName
+
+  pure $ InstantiateDef fnName argLayouts resultLayout
+
 
 data GlobalItem where
   -- GlobalAdt :: Adt -> GlobalItem

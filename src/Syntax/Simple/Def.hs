@@ -2,7 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 
-{-# OPTIONS_GHC -Wincomplete-patterns #-}
+-- {-# OPTIONS_GHC -Wincomplete-patterns #-}
 
 module Syntax.Simple.Def
   where
@@ -73,6 +73,12 @@ data GuardedExpr =
   , guardedBody :: Expr FsName
   }
   deriving (Show)
+
+lookupDef :: [Def] -> String -> Def
+lookupDef defs name =
+  case find ((== name) . defName) defs of
+    Nothing -> error $ "Cannot find function " ++ show name
+    Just d -> d
 
 -- toSuSLikExpr :: Expr FsName -> SuSLikExpr SuSLikName
 -- toSuSLikExpr (Var v) = VarS v

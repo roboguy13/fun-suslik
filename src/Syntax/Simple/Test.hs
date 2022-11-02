@@ -62,3 +62,20 @@ foldTestTailRec =
     \sumTR (Nil) acc := acc;\
     \sumTR (Cons head tail) acc := sumTR tail (head + acc);"
 
+replicateTest :: Def
+replicateTest =
+  parse' parseFnDef
+    "replicate : Int -> Int -> List;\
+    \replicate n i\
+    \ | n == 0 := Nil\
+    \ | not (n == 0) := Cons i (replicate (n - 1) i);"
+
+takeTest :: Def
+takeTest =
+  parse' parseFnDef
+    "take : List -> Int -> List;\
+    \take (Nil) i := Nil;\
+    \take (Cons head tail) i\
+    \| i == 0 := Nil\
+    \| not (i == 0) := Cons head (take tail) (i - 1);"
+

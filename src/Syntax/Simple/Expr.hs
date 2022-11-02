@@ -7,7 +7,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 
-{-# OPTIONS_GHC -Wincomplete-patterns #-}
+-- {-# OPTIONS_GHC -Wincomplete-patterns #-}
 
 module Syntax.Simple.Expr
   where
