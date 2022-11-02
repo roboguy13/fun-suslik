@@ -1,8 +1,13 @@
-%generate leftList [TreeLayout] ListLayout
+%generate filterLt7 [Sll] Sll
+%generate leftList [TreeLayout] Sll
 
 data List := Nil | Cons Int List;
 
 data Tree := Leaf | Node Int Tree Tree;
+
+Sll : List >-> layout[x];
+Sll (Nil) := emp;
+Sll (Cons head tail) := x :-> head, (x+1) :-> tail, Sll tail;
 
 TreeLayout : Tree >-> layout[x];
 TreeLayout (Leaf) := emp;
