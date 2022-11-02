@@ -4,11 +4,15 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeApplications #-}
 
+-- {-# OPTIONS_GHC -fplugin Debug.Breakpoint #-}
+
+-- {-# OPTIONS_GHC -Wall -Wno-unused-do-bind #-}
+
 module Syntax.Simple.Parse
   where
 
-import           Control.Monad
-import           Control.Applicative
+import           Control.Monad hiding (some, many)
+import           Control.Applicative hiding (some, many)
 
 import           Syntax.Simple.Expr
 import           Syntax.Simple.Def
@@ -18,171 +22,255 @@ import           Syntax.Name
 import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.List.NonEmpty as NonEmpty
 
-data ParseLoc = MkParseLoc Int Int
+import qualified Data.Set as Set
 
-showParseLoc :: ParseLoc -> String
-showParseLoc (MkParseLoc r c) =
-  "line " ++ show r ++ ", column " ++ show c
+import           Text.Megaparsec
+import           Text.Megaparsec.Char
+import           Data.Void
 
-locNewline :: ParseLoc -> ParseLoc
-locNewline (MkParseLoc r _) = MkParseLoc (r+1) 1
+-- import Debug.Trace
+-- import GHC.Stack
+--
+-- import Debug.Breakpoint
 
-locShiftChar :: Char -> ParseLoc -> ParseLoc
-locShiftChar char loc@(MkParseLoc r c)
-  | char == '\n' || char == '\r' = locNewline loc
-  | otherwise = MkParseLoc r (c+1)
-
-initialParseLoc :: ParseLoc
-initialParseLoc = MkParseLoc 1 1
-
-data ParseValue' a
-  = ParseError (ParseLoc, String)
-  | MkParseValue (NonEmpty a)
-  deriving (Functor)
-
-showParseError :: (ParseLoc, String) -> String
-showParseError (loc, msg) = showParseLoc loc ++ ": " ++ msg
-
-instance Semigroup (ParseValue' a) where
-  x <> (ParseError {}) = x
-  (ParseError {}) <> y = y
-
-  MkParseValue xs <> MkParseValue ys = MkParseValue (xs <> ys)
-
-instance Monoid (ParseValue' a) where
-  mempty = ParseError (MkParseLoc 0 0, "Empty parse")
-
-instance Applicative ParseValue' where
-  pure = return
-  (<*>) = ap
-
-instance Monad ParseValue' where
-  return x = MkParseValue (x :| [])
-  ParseError e >>= _ = ParseError e
-  MkParseValue xs >>= f = foldMap f xs
-
-instance Alternative ParseValue' where
-  empty = mempty
-  (<|>) = (<>)
-
-
-type ParseValue a = ParseValue' (ParseLoc, String, a)
-
-oneParseValue :: ParseLoc -> String -> a -> ParseValue a
-oneParseValue loc rest x = MkParseValue ((loc, rest, x) :| [])
-
-newtype Parser a = MkParser { runParser :: (ParseLoc, String) -> ParseValue a }
-  deriving (Functor)
-
-parse :: Parser a -> String -> Either String a
-parse p str =
-  case runParser p (initialParseLoc, str) of
-    ParseError e -> Left $ showParseError e
-    MkParseValue ((_, _, x) :| _) -> Right x
-  -- case NonEmpty.filter (null . fst) (runParser p str) of
-  --   ParseError e -> Left e
-  --   MkParseValue ((_,x) : _) -> Just x
-  --   MkParseValue [] -> Just "Empty parse"
-
-parse' :: Parser a -> String -> a
-parse' p str =
-  case parse p str of
-    Left e -> error $ "Parse error: " ++ e
-    Right x -> x
-
-withExpected :: String -> Parser a -> Parser a
-withExpected msg p =
-  MkParser $ \(loc, s) ->
-    case runParser p (loc, s) of
-      ParseError _ -> ParseError (loc, "Expected " ++ msg)
-      MkParseValue x -> MkParseValue x
-
-instance Applicative Parser where
-  pure = return
-  (<*>) = ap
-
-instance Monad Parser where
-  return x = MkParser (\(loc, s) -> oneParseValue loc s x)
-  MkParser p >>= f =
-    MkParser $ \s -> do
-      (loc, s', x) <- p s
-      runParser (f x) (loc, s')
-
-instance Alternative Parser where
-  empty = MkParser $ const mempty
-  p <|> q =
-    MkParser (\s -> runParser p s <|> runParser q s)
-
-parseCharWhen :: (Char -> Bool) -> Parser Char
-parseCharWhen pred = MkParser $ \case
-  (loc, "") -> empty
-  (loc, c:cs)
-    | pred c    -> pure (locShiftChar c loc, cs, c)
-    | otherwise -> empty
-
-parseChar :: Char -> Parser Char
-parseChar c =
-  withExpected (show c) $ parseCharWhen (== c)
-
-parseString :: String -> Parser String
-parseString str = withExpected (show str) $
-  mapM parseChar str
-
-parseOneOf :: [Char] -> Parser Char
-parseOneOf cs = withExpected ("one of " ++ show cs) $
-  parseCharWhen (`elem` cs)
-
-parseSpace :: Parser Char
-parseSpace = withExpected "space" $
-  parseOneOf "\t\n\r "
-
+-- data ParseLoc = MkParseLoc Int Int
+--
+-- showParseLoc :: ParseLoc -> String
+-- showParseLoc (MkParseLoc r c) =
+--   "line " ++ show r ++ ", column " ++ show c
+--
+-- locNewline :: ParseLoc -> ParseLoc
+-- locNewline (MkParseLoc r _) = MkParseLoc (r+1) 1
+--
+-- locShiftChar :: Char -> ParseLoc -> ParseLoc
+-- locShiftChar char loc@(MkParseLoc r c)
+--   | char == '\n' || char == '\r' = locNewline loc
+--   | otherwise = MkParseLoc r (c+1)
+--
+-- initialParseLoc :: ParseLoc
+-- initialParseLoc = MkParseLoc 1 1
+--
+-- data ParseValue' a
+--   = ParseError [(ParseLoc, String)]
+--   | MkParseValue (NonEmpty a)
+--   deriving (Functor)
+--
+--
+-- showParseError :: (ParseLoc, String) -> String
+-- showParseError (loc, msg) = showParseLoc loc ++ ": " ++ msg
+--
+-- instance Semigroup (ParseValue' a) where
+--   ParseError xs <> ParseError ys = ParseError (xs <> ys)
+--
+--   x <> (ParseError {}) = x
+--   (ParseError {}) <> y = y
+--
+--   MkParseValue xs <> MkParseValue ys = MkParseValue (xs <> ys)
+--
+-- instance Monoid (ParseValue' a) where
+--   mempty = ParseError [(MkParseLoc 0 0, "Empty parse")]
+--
+-- instance Applicative ParseValue' where
+--   pure = return
+--   (<*>) = ap
+--
+-- instance Monad ParseValue' where
+--   return x = MkParseValue (x :| [])
+--   ParseError e >>= _ = ParseError e
+--   MkParseValue xs >>= f = foldMap f xs
+--   -- MkParseValue (x :| xs) >>= f =
+--   --   let z = last (x : xs)
+--   --   in
+--   --   foldr ((<>) . f) (f z) (init (x:xs))
+--
+-- -- instance Alternative ParseValue' where
+-- --   empty = mempty
+-- --   (<|>) = (<>)
+--
+--
+-- type ParseValue a = ParseValue' (ParseLoc, String, a)
+--
+-- oneParseValue :: ParseLoc -> String -> a -> ParseValue a
+-- oneParseValue loc rest x = MkParseValue ((loc, rest, x) :| [])
+--
+-- newtype Parser a = MkParser { runParser :: (ParseLoc, String) -> ParseValue a }
+--   deriving (Functor)
+--
+-- parseError :: String -> Parser a
+-- parseError msg = MkParser $ \(loc, _) -> ParseError [(loc, msg)]
+--
+-- parseGuard :: Bool -> String -> Parser ()
+-- parseGuard True _ = pure ()
+-- parseGuard False msg = parseError msg
+--
+-- parse :: Parser a -> String -> Either String a
+-- parse p str =
+--   case runParser (p <* parseEOF) (initialParseLoc, str) of
+--   -- case runParser p (initialParseLoc, str) of
+--     -- ParseError e -> Left $ unlines $ map showParseError e
+--     ParseError e -> Left $ showParseError (head e)
+--     MkParseValue ((_, "", x) :| _) -> Right x
+--     MkParseValue ((_, rest, _) :| _) ->
+--       Left $ "Couldn't finish parsing: rest of file: \n" ++ truncateString rest 500 ++ "\n"
+--   where
+--     truncateString "" 0 = ""
+--     truncateString _ 0 = "\n..."
+--     truncateString "" _ = ""
+--     truncateString (c:cs) n = c : truncateString cs (n-1)
+--   -- case NonEmpty.filter (null . fst) (runParser p str) of
+--   --   ParseError e -> Left e
+--   --   MkParseValue ((_,x) : _) -> Just x
+--   --   MkParseValue [] -> Just "Empty parse"
+--
+-- parse' :: Parser a -> String -> a
+-- parse' p str =
+--   case parse p str of
+--     Left e -> error $ "Parse error: " ++ e
+--     Right x -> x
+--
+-- withExpected :: String -> Parser a -> Parser a
+-- withExpected msg p =
+--   MkParser $ \(loc, s) ->
+--     case runParser p (loc, s) of
+--       ParseError es -> ParseError ((loc, "Expected " ++ msg):es)
+--       MkParseValue x -> MkParseValue x
+--
+-- instance Applicative Parser where
+--   pure = return
+--   (<*>) = ap
+--
+-- instance Monad Parser where
+--   return x = MkParser (\(loc, s) -> oneParseValue loc s x)
+--   MkParser p >>= f =
+--     MkParser $ \arg -> do
+--       (loc, s', x) <- p arg
+--       runParser (f x) (loc, s')
+--
+-- instance Alternative Parser where
+--   empty = MkParser $ \(loc, _) -> ParseError [(loc, "Empty parse")]
+--   (<|>) = (<|>)
+--
+-- (<|>) :: Parser a -> Parser a -> Parser a
+-- p <|> q =
+--   MkParser (\s -> runParser p s <> runParser q s)
+--
+-- some :: Parser a -> Parser [a]
+-- some = some
+-- -- some p =
+-- --   MkParser $ \(loc, s) ->
+-- --     case runParser p (loc, s) of
+-- --       ParseError e -> ParseError e
+-- --       r -> runParser (some p) (loc, s)
+-- --   -- where
+-- --   --   goMany = goSome <|> pure []
+-- --   --   goSome = liftA2 (:) p goMany
+--
+-- many :: Parser a -> Parser [a]
+-- many = many
+--   -- where
+--   --   goMany = goSome <|> pure []
+--   --   goSome = liftA2 (:) p goMany
+--
+-- parseCharWhen :: (Char -> Bool) -> Parser Char
+-- parseCharWhen pred = MkParser $ \case
+--   (loc, "") -> ParseError [(MkParseLoc 0 0, "Empty parse")]
+--   (loc, c:cs)
+--     | pred c    -> pure (locShiftChar c loc, cs, c)
+--     | otherwise ->
+--         ParseError [(loc, "Unexpected " ++ show c)]
+--
+-- parseChar :: Char -> Parser Char
+-- parseChar c =
+--   withExpected (show c) $ parseCharWhen (== c)
+--
+-- parseString :: HasCallStack => String -> Parser String
+-- parseString str = withExpected (show str) $ MkParser $ \(loc, curr) ->
+--   breakpoint $
+--   runParser (mapM parseChar str) (loc, curr)
+--
+-- parseOneOf :: [Char] -> Parser Char
+-- parseOneOf cs = withExpected ("one of " ++ show cs) $
+--   parseCharWhen (`elem` cs)
+--
+-- parseNewline :: Parser Char
+-- parseNewline = withExpected "newline" $
+--   parseOneOf "\n\r"
+--
+-- parseEOF :: Parser ()
+-- parseEOF = MkParser $ \(loc, str) ->
+--   case str of
+--     "" -> MkParseValue ((MkParseLoc 0 0, "", ()) :| [])
+--     (c:_) -> ParseError [(loc, "Expected end-of-file, found " ++ show c)]
+--
+-- parseSpace :: Parser Char
+-- parseSpace = withExpected "space" $
+--   parseOneOf "\t\n\r "
+--
 parseBracketed :: Parser a -> Parser a -> Parser b -> Parser b
 parseBracketed left right p = left *> p <* right
 
-parseList0 :: Parser a -> Parser b -> Parser [b]
-parseList0 sep p = go
-  where
-    go =
-      fmap (:[]) p
-        <|>
-      liftA2 (:) p (sep *> go)
+--
+-- parseList0 :: Parser a -> Parser b -> Parser [b]
+-- parseList0 sep p = go
+--   where
+--     go =
+--       liftA2 (:) p (sep *> go)
+--         <|>
+--       fmap (:[]) p
+--
+-- parseList :: Parser a -> Parser b -> Parser [b]
+-- parseList sep p = parseList0 (many parseSpace *> sep <* many parseSpace) p
+--
+-- parseSpaced :: Parser b -> Parser [b]
+-- parseSpaced = parseList0 (some parseSpace)
+--
+-- parseAlpha :: Parser Char
+-- parseAlpha = parseOneOf cs
+--   where
+--     cs = ['a'..'z'] ++ ['A'..'Z']
+--
+-- parseLowercase :: Parser Char
+-- parseLowercase = parseOneOf ['a'..'z']
+--
+-- parseUppercase :: Parser Char
+-- parseUppercase = parseOneOf ['A'..'Z']
+--
+-- parseDigit :: Parser Char
+-- parseDigit = withExpected "digit" $
+--   parseOneOf ['0'..'9']
+--
+-- parseAlphanum :: Parser Char
+-- parseAlphanum = parseAlpha <|> parseDigit
+--
 
-parseList :: Parser a -> Parser b -> Parser [b]
-parseList sep p = parseList0 (many parseSpace *> sep <* many parseSpace) p
+withExpected = label
 
-parseSpaced :: Parser b -> Parser [b]
-parseSpaced = parseList0 (some parseSpace)
-
-parseAlpha :: Parser Char
-parseAlpha = parseOneOf cs
-  where
-    cs = ['a'..'z'] ++ ['A'..'Z']
-
-parseLowercase :: Parser Char
-parseLowercase = parseOneOf ['a'..'z']
-
-parseUppercase :: Parser Char
-parseUppercase = parseOneOf ['A'..'Z']
-
-parseDigit :: Parser Char
-parseDigit = withExpected "digit" $
-  parseOneOf ['0'..'9']
-
-parseAlphanum :: Parser Char
-parseAlphanum = parseAlpha <|> parseDigit
+parseGuard :: Bool -> Maybe String -> String -> Parser ()
+parseGuard True _ _ = pure ()
+parseGuard False unexpected expected =
+  failure (fmap (Label . NonEmpty.fromList) unexpected) (Set.singleton (Label (NonEmpty.fromList expected)))
 
 parseNameTail :: Parser String
-parseNameTail = many (parseAlphanum <|> parseChar '_')
+parseNameTail = many (alphaNumChar <|> char '_')
 
 parseUppercaseName :: Parser String
-parseUppercaseName = liftA2 (:) parseUppercase parseNameTail
+parseUppercaseName = liftA2 (:) upperChar parseNameTail
 
 parseLowercaseName :: Parser String
-parseLowercaseName = liftA2 (:) parseLowercase parseNameTail
-
+parseLowercaseName = do
+  n <- liftA2 (:) lowerChar parseNameTail
+  parseGuard (n `notElem` keywords) (Just n) "identifier"
+    -- $ "Expected identifier, found keyword " ++ show n
+  pure n
+--
+--
 parseIdentifier :: Parser String
 parseIdentifier = withExpected "identifier" $
   parseLowercaseName
+
+keywords :: [String]
+keywords = ["lower", "instantiate", "not", "data"]
+
 
 parseConstructor :: Parser String
 parseConstructor = withExpected "constructor name" $
@@ -195,13 +283,37 @@ parseLayoutName = withExpected "layout name" $
 parseTypeName :: Parser String
 parseTypeName = withExpected "type name" $
   parseUppercaseName
-
+--
 parseOp :: String -> Parser String
 parseOp str = withExpected str $
-  many parseSpace *> parseString str <* many parseSpace
+  space *> string str <* space
+--
+-- optionalParse :: a -> Parser a -> Parser a
+-- optionalParse def p = p <|> pure def
+--
+-- atLineStart :: Parser ()
+-- atLineStart = MkParser $ \(loc@(MkParseLoc _ c), rest) ->
+--   if c /= 1
+--     then ParseError [(loc, "Expected to be at start of line")]
+--     else MkParseValue ((loc, rest, ()) :| [])
+--   -- parseGuard (c == 1) "Expected to be at start of line"
 
-optionalParse :: a -> Parser a -> Parser a
-optionalParse def p = p <|> pure def
+type Parser = Parsec Void String
+
+parse' :: Parser a -> String -> a
+parse' p str =
+  case parse p "<input>" str of
+    Left err -> error $ errorBundlePretty err
+    Right x -> x
+
+parseSpaced :: Parser a -> Parser [a]
+parseSpaced p = sepBy1 p spaceChar
+
+parseList0 :: Parser a -> Parser b -> Parser [b]
+parseList0 sep p = sepBy p sep
+
+parseList :: Parser a -> Parser b -> Parser [b]
+parseList sep p = parseList0 (many spaceChar *> sep <* many spaceChar) p
 
 -------
 
@@ -212,6 +324,7 @@ data ParsedFile =
   , fileLayouts :: [Layout]
   , fileDirectives :: [Directive]
   }
+  deriving (Show)
 
 instance Semigroup ParsedFile where
   MkParsedFile x y z w <> MkParsedFile x' y' z' w' =
@@ -235,38 +348,58 @@ oneFileDirective d = MkParsedFile [] [] [] [d]
 parseFile :: Parser ParsedFile
 parseFile = do
     directive <- parseDirective
-    some parseSpace
-    body <- mconcat <$> some go
+    some newline
 
-    pure (oneFileDirective directive <> body)
-  where
-    go =
-      (oneFileFnDef <$> parseFnDef)
-        <|>
-      (oneFileAdt <$> parseAdtDef)
-        <|>
-      (oneFileLayout <$> parseLayout)
+    adts <- parseSpaced parseAdtDef
+    some newline
+
+    layouts <- parseSpaced parseLayout
+    some newline
+
+    fns <- parseSpaced parseFnDef
+    many spaceChar
+
+    -- adts <- parseSpaced parseAdtDef
+    -- many parseSpace
+    --
+    -- layouts <- parseSpaced parseLayout
+    -- many parseSpace
+    --
+    -- fns <- parseSpaced parseFnDef
+    pure $ MkParsedFile fns adts layouts [directive]
+  --   some parseSpace
+  --   body <- mconcat <$> some (many parseSpace *> go)
+  --
+  --   pure (oneFileDirective directive <> body)
+  -- where
+  --   go =
+  --     (oneFileFnDef <$> parseFnDef)
+  --       <|>
+  --     (oneFileAdt <$> parseAdtDef)
+  --       <|>
+  --     (oneFileLayout <$> parseLayout)
 
 data Directive =
   InstantiateDef
     String   -- | fun-SuSLik function name
     [String] -- | Argument layouts
     String   -- | Result layout
+    deriving (Show)
 
 parseDirective :: Parser Directive
 parseDirective = parseInstantiateDirective
 
 parseInstantiateDirective :: Parser Directive
 parseInstantiateDirective = do
-  parseString "%instantiate"
-  some parseSpace
+  string "%instantiate"
+  some spaceChar
 
   fnName <- parseIdentifier
-  some parseSpace
+  some spaceChar
 
   argLayouts <- parseBracketed (parseOp "[") (parseOp "]")
-                  $ parseList (parseChar ',') parseLayoutName
-  some parseSpace
+                  $ parseList (char ',') parseLayoutName
+  some spaceChar
 
   resultLayout <- parseLayoutName
 
@@ -287,13 +420,16 @@ parseLayout = do
   parseOp ":"
   tyName <- parseTypeName
   parseOp ">->"
-  parseString "layout"
+  string "layout"
   parseOp "["
-  suslikParams <- parseList (parseChar ',') (fmap fsName parseIdentifier)
+  suslikParams <- parseList (char ',') (fmap fsName parseIdentifier)
   parseOp "]"
-  parseOp ";"
+  -- parseOp ";"
+  newline
+  many spaceChar
 
-  branches <- parseList (parseChar ';') (go name)
+  -- branches <- parseList (parseOp ";") (go name)
+  branches <- some (go name)
   parseOp ";"
   pure $ MkLayout
     { layoutName = name
@@ -305,10 +441,14 @@ parseLayout = do
     go :: String -> Parser (Pattern FsName, Assertion' FsName)
     go name = do
       name' <- parseLayoutName
-      guard (name' == name)
+      parseGuard (name' == name) (Just name) name'
+      some spaceChar
+
       pat <- parsePattern
       parseOp ":="
       rhs <- parseAssertion
+      -- parseOp ";"
+      many newline
       pure (pat, rhs)
 
 parsePattern :: Parser (Pattern FsName)
@@ -317,13 +457,13 @@ parsePattern =
     <|> do
       parseOp "("
       cName <- parseConstructor
-      pVars <- (some parseSpace *> parseSpaced (fmap fsName parseIdentifier)) <|> pure []
+      pVars <- (some spaceChar *> parseSpaced (fmap fsName parseIdentifier)) <|> pure []
       parseOp ")"
       pure $ MkPattern cName pVars
 
 parseAssertion :: Parser (Assertion' FsName)
 parseAssertion =
-  (parseString "emp" *> pure Emp)
+  (string "emp" *> pure Emp)
     <|>
   parsePointsTo parseAssertion
     <|>
@@ -334,14 +474,14 @@ parsePointsTo p = do
   loc <- parseLoc
   parseOp ":->"
   e <- parseExpr
-  PointsTo loc e <$> (optionalParse Emp (parseOp "," *> p))
+  PointsTo loc e <$> ((parseOp "," *> p) <|> pure Emp)
 
 parseHeapletApply :: Parser (Assertion' FsName) -> Parser (Assertion' FsName)
 parseHeapletApply p = do
   layoutName <- parseLayoutName
-  some parseSpace
+  some spaceChar
   args <- parseSpaced parseExpr
-  HeapletApply layoutName [] args <$> (optionalParse Emp (parseOp "," *> p))
+  HeapletApply layoutName [] args <$> ((parseOp "," *> p) <|> pure Emp)
 
 
 parseLoc :: Parser (Loc (Expr FsName))
@@ -351,7 +491,7 @@ parseLoc = fmap (Here . Var . fsName) parseIdentifier <|> go
       parseOp "("
       x <- parseIdentifier
       parseOp "+"
-      i <- read @Int <$> some parseDigit
+      i <- read @Int <$> some digitChar
       parseOp ")"
       pure (Var (fsName x) :+ i)
 
@@ -359,19 +499,17 @@ parseExpr' :: Parser (Expr FsName)
 parseExpr' =
   parseBracketed (parseOp "(") (parseOp ")") parseExpr
     <|>
-  ((IntLit . read) <$> some parseDigit)
+  ((IntLit . read) <$> some digitChar)
     <|>
-  (parseString "false" *> pure (BoolLit False))
+  (string "false" *> pure (BoolLit False))
     <|>
-  (parseString "true" *> pure (BoolLit True))
+  (string "true" *> pure (BoolLit True))
     <|>
-  parseVar
+  try parseVar
 
 parseExpr :: Parser (Expr FsName)
 parseExpr =
-  parseExpr'
-    <|>
-  (Not <$> (parseString "not" *> some parseSpace *> parseExpr'))
+  try (Not <$> (string "not" *> some spaceChar *> parseExpr'))
     <|>
   parseBinOp "&&" And
     <|>
@@ -389,30 +527,32 @@ parseExpr =
     <|>
   parseBinOp "<" Lt
     <|>
-  parseLower
+  try parseLower
     <|>
-  parseInstantiate
+  try parseInstantiate
     <|>
-  parseApp
+  try parseApp
     <|>
-  parseConstrApp
+  try parseConstrApp
+    <|>
+  try parseExpr'
 
 parseApp :: Parser (Expr FsName)
 parseApp = do
   f <- parseIdentifier
-  some parseSpace
+  some spaceChar
   args <- parseSpaced parseExpr'
   pure $ Apply f args
 
 parseConstrApp :: Parser (Expr FsName)
 parseConstrApp = do
   cName <- parseConstructor
-  args <- (some parseSpace *> parseSpaced parseExpr') <|> pure []
+  args <- (some spaceChar *> parseSpaced parseExpr') <|> pure []
   pure $ ConstrApply cName args
 
 parseBinOp :: String -> (Expr FsName -> Expr FsName -> Expr FsName) -> Parser (Expr FsName)
-parseBinOp opName build = do
-  x <- parseExpr'
+parseBinOp opName build = try $ do
+  x <- try parseExpr'
   parseOp opName
   y <- parseExpr
   pure $ build x y
@@ -420,58 +560,56 @@ parseBinOp opName build = do
 parseVar :: Parser (Expr FsName)
 parseVar = do
   str <- parseIdentifier
-  guard (str `notElem` keywords)
   pure $ Var (fsName str)
-  where
-    keywords = ["lower", "instantiate", "not"]
 
 parseLower :: Parser (Expr FsName)
 parseLower = do
-  parseString "lower"
+  string "lower"
 
-  some parseSpace
+  some spaceChar
   layoutName <- parseLayoutName
 
-  some parseSpace
+  some spaceChar
   e <- parseExpr'
 
   pure $ Lower layoutName [] e
 
 parseInstantiate :: Parser (Expr FsName)
 parseInstantiate = do
-  parseString "instantiate"
+  string "instantiate"
 
-  some parseSpace
+  some spaceChar
   layoutA <- parseLayoutName
 
-  some parseSpace
+  some spaceChar
   layoutB <- parseLayoutName
 
-  some parseSpace
+  some spaceChar
   e <- parseExpr'
 
   pure $ LiftLowerFn layoutA layoutB e
 
 parseAdtDef :: Parser Adt
 parseAdtDef = do
-  parseString "data"
+  -- breakpointM
+  string "data"
 
-  some parseSpace
+  some spaceChar
   name <- parseTypeName
 
-  many parseSpace
-  parseString ":="
+  many spaceChar
+  string ":="
 
-  many parseSpace
-  branches <- parseList (parseChar '|') parseAdtBranch
-  parseChar ';'
+  many spaceChar
+  branches <- parseList (char '|') parseAdtBranch
+  char ';'
 
   pure $ MkAdt { adtName = name, adtBranches = branches }
 
 parseAdtBranch :: Parser AdtBranch
 parseAdtBranch = do
   cName <- parseConstructor
-  fields <- optionalParse [] (some parseSpace *> parseSpaced parseType)
+  fields <- (some spaceChar *> parseSpaced parseType) <|> pure []
   pure $ MkAdtBranch { adtBranchConstr = cName, adtBranchFields = fields }
 
 parseFnDef :: Parser Def
@@ -481,57 +619,66 @@ parseFnDef = do
   parseOp ":"
 
   ty <- parseType
-  parseOp ";"
+  -- parseOp ";"
+  some newline
+  -- many parseSpace
 
-  branches <- some (parseFnBranch name)
+  branches <- parseSpaced (try $ parseFnBranch name)
 
-  pure $ MkDef name ty branches
+  let def = MkDef name ty branches
+  -- parseOp ";"
+
+  pure $ def
 
 parseFnBranch :: String -> Parser DefBranch
 parseFnBranch name0 = do
-  name <- parseIdentifier
-  guard (name == name0)
+  name <- try parseIdentifier
+  parseGuard (name == name0) (Just name) name0
+    -- $ "Expected " ++ show name0 ++ ", found " ++ show name
 
-  many parseSpace
+  many spaceChar
   pat <- parseSpaced parsePattern
 
-  guardeds <- some parseGuardedExpr
+  guardeds <- parseSpaced (try parseGuardedExpr)
+  -- parseOp ";;"
 
   -- parseOp ":="
   --
   -- body <- parseExpr
 
-  parseOp ";"
+  -- parseOp ";"
 
   pure $ MkDefBranch pat guardeds
 
 parseGuardedExpr :: Parser GuardedExpr
 parseGuardedExpr = do
-  cond <- optionalParse (BoolLit True) (parseOp "|" *> parseExpr)
+  cond <- try (parseOp "|" *> parseExpr) <|> pure (BoolLit True)
 
   parseOp ":="
   body <- parseExpr
+  string ";"
 
   pure $ MkGuardedExpr cond body
 
 parseType :: Parser Type
 parseType =
-  parseBaseType
+  try parseFnType
     <|>
-  parseFnType
+  parseBaseType
 
 -- TODO: Parse layout types
 parseBaseType :: Parser Type
 parseBaseType =
-  (parseString "Int" *> pure IntType)
+  (string "Int" *> pure IntType)
     <|>
-  (parseString "Bool" *> pure BoolType)
+  (string "Bool" *> pure BoolType)
     <|>
-  fmap AdtType go
+  (fmap AdtType go)
   where
     go = do
       str <- parseTypeName
-      guard (str `notElem` reservedTypes)
+      parseGuard (str `notElem` reservedTypes) (Just str) "non-reserved type name"
+        -- $ "Expected non-reserved type name, found " ++ show str
       pure str
 
     reservedTypes = ["Int", "Bool"]
@@ -539,9 +686,11 @@ parseBaseType =
 parseFnType :: Parser Type
 parseFnType = do
   dom <- leftType
-  parseOp "->"
+  some spaceChar
+  chunk "->"
+  some spaceChar
   cod <- parseType
   pure $ FnType dom cod
   where
-    leftType = parseBaseType <|> parseBracketed (parseChar '(') (parseChar ')') parseType
+    leftType = parseBaseType <|> parseBracketed (char '(') (char ')') parseType
 
