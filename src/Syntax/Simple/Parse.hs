@@ -217,7 +217,7 @@ parseLayout = do
   parseOp ">->"
   keyword "layout"
   parseOp "["
-  suslikParams <- parseList (char ',') (fmap fsName parseIdentifier)
+  suslikParams <- parseList (symbol ",") (fmap fsName parseIdentifier)
   parseOp "]"
   parseOp ";"
 
@@ -231,15 +231,14 @@ parseLayout = do
     }
   where
     go :: String -> Parser (Pattern FsName, Assertion' FsName)
-    go name = do
+    go name = try $ do
       name' <- parseLayoutName
-      parseGuard (name' == name) (Just name) name'
+      parseGuard (name' == name) (Just name') name
 
       pat <- parsePattern
       parseOp ":="
       rhs <- parseAssertion
       parseOp ";"
-      many newline
       pure (pat, rhs)
 
 parsePattern :: Parser (Pattern FsName)

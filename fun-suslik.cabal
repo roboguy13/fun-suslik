@@ -28,12 +28,16 @@ executable fun-suslik
 
     -- Modules included in this executable, other than Main.
     other-modules:
-      Backend.Emit
-      Backend.SuSLik.Layout
-      Backend.SuSLik.Monad
-      Backend.SuSLik.SSL
-      Backend.SuSLik.SuSLik
-      Syntax.Expr
+      Syntax.Simple.Def
+      Syntax.Simple.Expr
+      Syntax.Simple.Parse
+      Syntax.Simple.Shift
+      Syntax.Simple.SuSLik
+      Syntax.Simple.Test
+      Syntax.FreshGen
+      Syntax.Name
+      Syntax.Ppr
+      Syntax.Simple.Heaplet
 
 
     -- LANGUAGE extensions used by modules in this package.
