@@ -47,7 +47,7 @@ main = do
                         (lookupLayout layouts argLayout)
                         (lookupLayout layouts resultLayout)
                         (lookupDef fnDefs fnName)
-          getDirective (GenerateDef _ argLayouts _ ) =
+          doDirective (GenerateDef _ argLayouts _ ) =
             error $
               unlines
                 ["Given multiple layout arguments: " ++ show argLayouts
