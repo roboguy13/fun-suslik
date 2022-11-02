@@ -149,7 +149,7 @@ oneFileDirective d = MkParsedFile [] [] [] [d]
 
 parseFile :: Parser ParsedFile
 parseFile = do
-    directive <- parseDirective
+    directives <- some parseDirective
 
     adts <- some $ lexeme parseAdtDef
 
@@ -164,7 +164,7 @@ parseFile = do
     -- many parseSpace
     --
     -- fns <- parseSpaced parseFnDef
-    pure $ MkParsedFile fns adts layouts [directive]
+    pure $ MkParsedFile fns adts layouts directives
   --   some parseSpace
   --   body <- mconcat <$> some (many parseSpace *> go)
   --
@@ -178,7 +178,7 @@ parseFile = do
   --     (oneFileLayout <$> parseLayout)
 
 data Directive =
-  InstantiateDef
+  GenerateDef
     String   -- | fun-SuSLik function name
     [String] -- | Argument layouts
     String   -- | Result layout
@@ -188,7 +188,7 @@ parseDirective :: Parser Directive
 parseDirective = parseInstantiateDirective
 
 parseInstantiateDirective :: Parser Directive
-parseInstantiateDirective = do
+parseInstantiateDirective = lexeme $ do
   keyword "%generate"
 
   fnName <- parseIdentifier
@@ -198,7 +198,7 @@ parseInstantiateDirective = do
 
   resultLayout <- parseLayoutName
 
-  pure $ InstantiateDef fnName argLayouts resultLayout
+  pure $ GenerateDef fnName argLayouts resultLayout
 
 
 data GlobalItem where

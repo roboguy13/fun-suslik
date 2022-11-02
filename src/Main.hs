@@ -31,25 +31,28 @@ main = do
       -- print parsed
       -- print layouts
 
-      case fileDirectives parsed of
-        [InstantiateDef fnName [argLayout] resultLayout]
-          | isBaseTypeName resultLayout ->
-              mapM_ (putStrLn . ppr)
-                $ genBaseDefPreds
-                      layouts
-                      (lookupLayout layouts argLayout)
-                      (lookupDef fnDefs fnName)
-          | otherwise ->
-              mapM_ (putStrLn . ppr)
-                $ genDefPreds
-                      layouts
-                      (lookupLayout layouts argLayout)
-                      (lookupLayout layouts resultLayout)
-                      (lookupDef fnDefs fnName)
 
-        [InstantiateDef _ argLayouts _] ->
-          error $
-            unlines
-              ["Given multiple layout arguments: " ++ show argLayouts
-              ,"Only currently supports one layout argument and zero or more base type arguments."
-              ]
+      let doDirective :: Directive -> IO ()
+          doDirective (GenerateDef fnName [argLayout] resultLayout)
+            | isBaseTypeName resultLayout = 
+                mapM_ (putStrLn . ppr)
+                  $ genBaseDefPreds
+                        layouts
+                        (lookupLayout layouts argLayout)
+                        (lookupDef fnDefs fnName)
+            | otherwise =
+                mapM_ (putStrLn . ppr)
+                  $ genDefPreds
+                        layouts
+                        (lookupLayout layouts argLayout)
+                        (lookupLayout layouts resultLayout)
+                        (lookupDef fnDefs fnName)
+          getDirective (GenerateDef _ argLayouts _ ) =
+            error $
+              unlines
+                ["Given multiple layout arguments: " ++ show argLayouts
+                ,"Only currently supports one layout argument and zero or more base type arguments."
+                ]
+
+      mapM_ doDirective (fileDirectives parsed)
+
