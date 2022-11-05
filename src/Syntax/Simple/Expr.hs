@@ -196,7 +196,7 @@ getVar e = error $ "getVar: " ++ ppr e
 
 getLayoutSubstFn :: Int -> Layout -> (LayoutName -> [Expr FsName] -> Expr FsName -> Maybe (Assertion' FsName))
 getLayoutSubstFn level layout lName suslikArgs (ConstrApply cName xs) = do
-  guard (layoutName layout == lName)
+  guard (layoutName layout == genLayoutName lName)
   Just $ applyLayout level layout (map getVar suslikArgs) cName xs
 getLayoutSubstFn _ _ _ _ _ = Nothing
 
@@ -224,7 +224,7 @@ isConstrApp _ = False
 
 hasConstrApp :: Assertion' FsName -> Bool
 hasConstrApp Emp = False
-hasConstrApp (PointsTo _ _ rest) = hasConstrApp rest
+hasConstrApp (PointsTo _ _ _ rest) = hasConstrApp rest
 hasConstrApp (HeapletApply _ _ args rest) = any isConstrApp args || hasConstrApp rest
 -- hasConstrApp (HeapletApply _ _ _ rest) = hasConstrApp rest
 
@@ -238,9 +238,9 @@ toLowers defs = go
   where
     go :: Assertion' FsName -> FreshGen (Assertion' FsName)
     go Emp = pure Emp
-    go (PointsTo x y rest) = PointsTo x y <$> (go rest)
+    go (PointsTo mode x y rest) = PointsTo mode x y <$> (go rest)
     go (HeapletApply layoutName suslikParams [e] rest) = do
-      lower defs (lookupLayout defs layoutName) (map getVar suslikParams) e >>= \case
+      lower defs (lookupLayout defs (genLayoutName layoutName)) (map getVar suslikParams) e >>= \case
         Left {} -> error $ "toLowers: " ++ ppr e
         Right asn -> fmap (asn <>) (go rest)
     go _ = error "toLowers: Layout should have exactly one parameter"
@@ -251,11 +251,11 @@ pointsToIntermediate = go
   where
     go :: Assertion' FsName -> FreshGen (Assertion' FsName)
     go Emp = pure Emp
-    go (PointsTo x (Apply f e) rest) = do
+    go (PointsTo mode x (Apply f e) rest) = do
       v <- getFresh
       r <- go rest
-      pure $ PointsTo x (Var v) (HeapletApply f [Var v] e r)
-    go (PointsTo x y rest) = PointsTo x y <$> go rest
+      pure $ PointsTo mode x (Var v) (HeapletApply (MkLayoutName Nothing f) [Var v] e r)
+    go (PointsTo mode x y rest) = PointsTo mode x y <$> go rest
     go (HeapletApply f suslikParams e rest) =
       HeapletApply f suslikParams e <$> go rest
 
@@ -284,7 +284,7 @@ toSuSLikExpr_unsafe e =
 -- | Remove applications from layout expansion
 removeAppsLayout :: Assertion' FsName -> Assertion' FsName
 removeAppsLayout Emp = Emp
-removeAppsLayout (PointsTo x y rest) = PointsTo x y (removeAppsLayout rest)
+removeAppsLayout (PointsTo mode x y rest) = PointsTo mode x y (removeAppsLayout rest)
 removeAppsLayout (HeapletApply _ _ _ rest) = removeAppsLayout rest
 
 lower' :: HasCallStack => [Layout] -> Layout -> [SuSLikName] -> Expr FsName -> Assertion' FsName
@@ -332,7 +332,7 @@ lower defs layout suslikArgs = go 0
       -- pure $ Right $ applyLayout
 
     -- go level (Apply f (Apply g arg)) = undefined
-    go level (Apply f arg) = pure . Right $ HeapletApply f (map Var suslikArgs) arg Emp
+    go level (Apply f arg) = pure . Right $ HeapletApply (MkLayoutName Nothing f) (map Var suslikArgs) arg Emp
 
     lowerBinOp ::
       Int -> String -> (SuSLikExpr FsName -> SuSLikExpr FsName -> SuSLikExpr FsName)

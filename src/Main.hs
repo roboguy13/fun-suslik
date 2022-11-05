@@ -33,20 +33,25 @@ main = do
 
 
       let doDirective :: Directive -> IO ()
-          doDirective (GenerateDef fnName [argLayout] resultLayout)
-            | isBaseTypeName resultLayout = 
-                mapM_ (putStrLn . ppr)
-                  $ genBaseDefPreds
-                        layouts
-                        (lookupLayout layouts argLayout)
-                        (lookupDef fnDefs fnName)
-            | otherwise =
-                mapM_ (putStrLn . ppr)
-                  $ genDefPreds
-                        layouts
-                        (lookupLayout layouts argLayout)
-                        (lookupLayout layouts resultLayout)
-                        (lookupDef fnDefs fnName)
+          doDirective (GenerateDef fnName [argLayout] resultLayout) = do
+              if isBaseTypeName resultLayout
+                then
+                  mapM_ (putStrLn . ppr)
+                    $ genBaseDefPreds
+                          layouts
+                          (lookupLayout layouts argLayout)
+                          (lookupDef fnDefs fnName)
+                else
+                  mapM_ (putStrLn . ppr)
+                    $ genDefPreds
+                          layouts
+                          (lookupLayout layouts argLayout)
+                          (lookupLayout layouts resultLayout)
+                          (lookupDef fnDefs fnName)
+
+              putStrLn ""
+              putStrLn . ppr . genSig (lookupLayout layouts argLayout) $ lookupDef fnDefs fnName
+
           doDirective (GenerateDef _ argLayouts _ ) =
             error $
               unlines
@@ -54,5 +59,6 @@ main = do
                 ,"Only currently supports one layout argument and zero or more base type arguments."
                 ]
 
+      mapM_ (putStrLn . ppr . genLayoutPred) $ layouts
       mapM_ doDirective (fileDirectives parsed)
 

@@ -4,6 +4,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE PatternSynonyms #-}
 
 module Syntax.Simple.Heaplet
   where
@@ -42,7 +43,7 @@ data Expr a where
 
   ConstrApply :: ConstrName -> [Expr a] -> Expr a
 
-  Lower :: String -> [SuSLikName] -> Expr a -> Expr a
+  Lower :: String -> Expr a -> Expr a
 
     -- | Represents @lower L_1 . f . lift L_2@
   LiftLowerFn ::
@@ -82,8 +83,9 @@ instance Ppr a => Ppr (Expr a) where
   ppr (ConstrApply cName args) =
     "(" ++ cName ++ " " ++ unwords (map ppr args) ++ ")"
 
-  ppr (Lower str suslikArgs e) =
-    "(" ++ "lower" ++ "[" ++ intercalate ", " (map ppr suslikArgs) ++ "] " ++ unwords [str, ppr e] ++ ")"
+  ppr (Lower str e) =
+    "(" ++ "lower" ++ unwords [str, ppr e] ++ ")"
+    -- "(" ++ "lower" ++ "[" ++ intercalate ", " (map ppr suslikArgs) ++ "] " ++ unwords [str, ppr e] ++ ")"
   ppr (LiftLowerFn lName1 lName2 f) =
     "(" ++ unwords ["lower", lName1, ".", ppr f, ".", "lift", lName2] ++ ")"
 
@@ -91,20 +93,52 @@ fsName, suslikName :: String -> Name
 fsName = MkName
 suslikName = MkName
 
-type LayoutName = String
+data Mode = Input | Output
+  deriving (Show)
+
+data LayoutName =
+  MkLayoutName
+    (Maybe Mode) -- | This is Nothing if we are actually refering to a predicate generated for a function, rather than a layout
+    String
+  deriving (Show)
 
 data Assertion a where
   Emp :: Assertion a
-  PointsTo :: Loc a -> a -> Assertion a -> Assertion a
+  PointsTo :: Mode -> Loc a -> a -> Assertion a -> Assertion a
   HeapletApply :: LayoutName -> [a] -> [a] -> Assertion a -> Assertion a
   deriving (Functor, Show, Foldable)
 
+pattern PointsToI x y z = PointsTo Input x y z
+pattern PointsToO x y z = PointsTo Output x y z
+
+pattern HeapletApply' name xs ys rest = HeapletApply (MkLayoutName (Just Input) name) xs ys rest
+
+genLayoutName :: LayoutName -> String
+genLayoutName (MkLayoutName Nothing layoutName) = layoutName
+genLayoutName (MkLayoutName (Just Input) layoutName) = "ro_" <> layoutName
+genLayoutName (MkLayoutName (Just Output) layoutName) = "rw_" <> layoutName
+
+setLayoutNameMode :: Maybe Mode -> LayoutName -> LayoutName
+setLayoutNameMode mode (MkLayoutName _ name) = MkLayoutName mode name
+
+setAssertionMode :: Mode -> Assertion a -> Assertion a
+setAssertionMode mode = go
+  where
+    go Emp = Emp
+    go (PointsTo _ x y rest) = PointsTo mode x y (go rest)
+    go (HeapletApply name xs ys rest) = HeapletApply name xs ys (go rest)
+
 instance Ppr a => Ppr (Assertion a) where
   ppr Emp = "emp"
-  ppr (PointsTo x y rest) = unwords [ppr x, ":->", ppr y] ++ ", " ++ ppr rest
+  ppr (PointsTo mode x y rest) = unwords [ppr x, op, ppr y] ++ ", " ++ ppr rest
+    where
+      op =
+        case mode of
+          Input -> ":=>"
+          Output -> ":->"
   ppr (HeapletApply lName suslikArgs fsArg rest) =
     unwords
-      [lName ++ "[" ++ intercalate "," (map ppr suslikArgs) ++ "]"
+      [genLayoutName lName ++ "[" ++ intercalate "," (map ppr suslikArgs) ++ "]"
       ,unwords (map ppr fsArg)
       ] ++ ", " ++ ppr rest
 
@@ -119,7 +153,7 @@ type Assertion' a = Assertion (Expr a)
 
 instance Semigroup (Assertion a) where
   Emp <> b = b
-  PointsTo x y rest <> b = PointsTo x y (rest <> b)
+  PointsTo mode x y rest <> b = PointsTo mode x y (rest <> b)
   HeapletApply lName suslikArgs e rest <> b = HeapletApply lName suslikArgs e (rest <> b)
 
 instance Monoid (Assertion a) where
@@ -133,7 +167,7 @@ maybeToEndo f x =
 
 substLayoutAssertion :: Int -> (Int -> LayoutName -> [Expr FsName] -> [Expr FsName] -> Maybe (Assertion' FsName)) -> Assertion' FsName -> Assertion' FsName
 substLayoutAssertion _level _f Emp = Emp
-substLayoutAssertion level f (PointsTo x y rest) = PointsTo x y (substLayoutAssertion level f rest)
+substLayoutAssertion level f (PointsTo mode x y rest) = PointsTo mode x y (substLayoutAssertion level f rest)
 substLayoutAssertion level f (HeapletApply lName suslikArgs e rest) =
   case f level lName suslikArgs e of
     Nothing -> HeapletApply lName suslikArgs e (substLayoutAssertion level f rest)
@@ -209,7 +243,7 @@ instance Monad Expr where
 
   ConstrApply cName args >>= f = ConstrApply cName (map (>>= f) args)
 
-  Lower str suslikArgs x >>= f = Lower str suslikArgs (x >>= f)
+  Lower str x >>= f = Lower str (x >>= f)
 
   LiftLowerFn l1 l2 x >>= f = LiftLowerFn l1 l2 (x >>= f)
 

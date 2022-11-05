@@ -1,6 +1,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE PatternSynonyms #-}
 
 module Syntax.Simple.SuSLik
   where
@@ -77,16 +78,34 @@ data SuSLikBranch =
 instance Ppr SuSLikBranch where
   ppr (MkSuSLikBranch cond rhs) = unwords [ppr cond, "=>", "{", ppr rhs, "}"]
 
+data PointsToMutability = Unrestricted | ReadOnly | Temp
+  deriving (Show)
+
+modeToMutability :: Mode -> PointsToMutability
+modeToMutability Input = ReadOnly
+modeToMutability Output = Unrestricted
+
 data Heaplet a where
-  PointsToS :: Loc a -> SuSLikExpr a -> Heaplet a
+  PointsToS :: PointsToMutability -> Loc a -> SuSLikExpr a -> Heaplet a
   HeapletApplyS :: String -> [SuSLikExpr a] -> Heaplet a
   BlockS :: a -> Int -> Heaplet a
+  Func :: String -> [SuSLikExpr a] -> SuSLikExpr a -> Heaplet a
   deriving (Show, Functor)
 
+pointsToSymbol :: PointsToMutability -> String
+pointsToSymbol Unrestricted = ":->"
+pointsToSymbol ReadOnly = ":=>"
+pointsToSymbol Temp = ":~>"
+
+pattern PointsToS' x y = PointsToS ReadOnly x y
+
 instance Ppr a => Ppr (Heaplet a) where
-  ppr (PointsToS x y) = unwords [ppr x, ":->", ppr y]
+  ppr (PointsToS mut x y) = unwords [ppr x, pointsToSymbol mut, ppr y]
+
   ppr (HeapletApplyS f args) = f ++ "(" ++ intercalate ", " (map ppr args) ++ ")"
   ppr (BlockS x i) = "[" ++ ppr x ++ "," ++ show i ++ "]"
+
+  ppr (Func f args result) = "func " ++ f ++ "(" ++ intercalate ", " (map ppr (args ++ [result])) ++ ")"
 
 instance Ppr a => Ppr [Heaplet a] where
   ppr [] = "emp"

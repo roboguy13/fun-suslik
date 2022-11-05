@@ -32,11 +32,12 @@ findMaxIndex :: [Heaplet SuSLikName] -> SuSLikName -> Int
 findMaxIndex heaplets name = go 0 heaplets + 1
   where
     go curr [] = curr
-    go curr (PointsToS (Here _) _ : rest) = go curr rest
-    go curr (PointsToS (x :+ i) _ : rest)
+    go curr (PointsToS _ (Here _) _ : rest) = go curr rest
+    go curr (PointsToS _ (x :+ i) _ : rest)
       | x == name = go (max curr i) rest
       | otherwise = go curr rest
     go curr (HeapletApplyS _ _ : rest) = go curr rest
+    go curr (Func _ _ _ : rest) = go curr rest
     go curr (BlockS x i : rest) -- NOTE: This overrides everything else for now
       | x == name = i
       | otherwise = go curr rest
@@ -98,7 +99,7 @@ genBranchName str c = str <> "__" <> c
 
 pointsLhsNames :: Ppr a => Assertion' a -> [a]
 pointsLhsNames Emp = []
-pointsLhsNames (PointsTo x _ rest) = map getVar (toList x) ++ pointsLhsNames rest
+pointsLhsNames (PointsTo _mode x _ rest) = map getVar (toList x) ++ pointsLhsNames rest
 pointsLhsNames (HeapletApply _ _ _ rest) = pointsLhsNames rest
 
 genPatCond :: [SuSLikName] -> Assertion' FsName -> SuSLikExpr SuSLikName
@@ -132,6 +133,7 @@ connect e0@(Apply f es) k =
     go suslikEs = do
       newVar <- getFresh :: FreshGen (Name_ a)
       heaplets <- k (VarS (newVar))
+
       -- pure $ heaplets -- ++ [HeapletApplyS f [newVar]]
       -- pure $ heaplets ++ [HeapletApplyS f [VarS newVar, suslikE]]
       pure $ heaplets ++ [HeapletApplyS f (VarS newVar : suslikEs)]
@@ -158,6 +160,10 @@ connect e k =
   --   Just s -> k s
   --   Nothing -> error $ "connect: " ++ ppr e
 
+
+connects :: Ppr a => [Expr (Name_ a)]
+                      -> ([SuSLikExpr (Name_ a)] -> FreshGen [Heaplet (Name_ a)])
+                      -> FreshGen [Heaplet (Name_ a)]
 connects xs0 f = go [] xs0
   where
     go acc [] = f (reverse acc)
@@ -173,14 +179,17 @@ connectBinOp op x y k =
 
 toHeaplets :: (Ppr a) => Assertion' (Name_ a) -> FreshGen [Heaplet (Name_ a)]
 toHeaplets Emp = pure []
-toHeaplets (PointsTo x y rest) = do
-  here <- connect y $ \suslikY -> pure [PointsToS (fmap getVar x) suslikY]
+toHeaplets (PointsTo mode x y rest) = do
+  here <- connect y $ \suslikY -> pure [PointsToS (modeToMutability mode) (fmap getVar x) suslikY]
   fmap (here ++) (toHeaplets rest)
-toHeaplets (HeapletApply str suslikArgs [Var fsArg] rest) =
+toHeaplets (HeapletApply lName suslikArgs [Var fsArg] rest) =
+  let str = genLayoutName lName
+  in
     -- trace ("--------- " ++ unwords (map ppr suslikArgs) ++ "; " ++ ppr fsArg) $
   -- fmap (HeapletApplyS str (map getVar suslikArgs ++ [fsArg]) :) (toHeaplets rest)
   fmap (HeapletApplyS str (map toSuSLikExpr_unsafe suslikArgs ++ [VarS fsArg]) :) (toHeaplets rest)
-toHeaplets (HeapletApply str suslikArgs fsArg rest) = do
+toHeaplets (HeapletApply lName suslikArgs fsArg rest) = do
+  let str = genLayoutName lName
   -- here <- connect fsArg $ \suslikE -> fmap (HeapletApplyS str (map getVar suslikArgs ++ [suslikE]) :) (toHeaplets rest)
   -- traceM $ "\n*********toHeaplets: " ++ show (map ppr suslikArgs) ++ "; " ++ ppr fsArg
   -- let here = [HeapletApplyS str 
@@ -229,8 +238,8 @@ genBranch defs inputLayout outputLayoutMaybe suslikParams (guardedPat@(pats, _),
   let patHeaplets = concatMap toHeaplets' $ map removeAppsLayout (map (genPatternHeaplets inputLayout) pats)
       lowered =
         case outputLayoutMaybe of
-          Just outputLayout -> lower' defs outputLayout [retName] rhs
-          Nothing -> PointsTo (Here (Var retName)) rhs Emp
+          Just outputLayout -> setAssertionMode Output $ lower' defs outputLayout [retName] rhs
+          Nothing -> PointsTo Output (Here (Var retName)) rhs Emp
       rhs0 = patHeaplets <> toHeaplets' lowered
   in
   MkSuSLikBranch
@@ -290,8 +299,8 @@ genSig layout def =
   MkSuSLikSig
   { suslikSigName = defName def <> "_proc"
   , suslikSigParams = retParam : map (locParam . nameToString) suslikParams
-  , suslikSigPre = [PointsToS (Here (ppr retName)) (IntS 0), HeapletApplyS (layoutName layout) suslikParamsS]
-  , suslikSigPost = [PointsToS (Here (ppr retName)) (VarS retString), HeapletApplyS (defName def) (VarS retString : suslikParamsS)]
+  , suslikSigPre = [PointsToS Unrestricted (Here (ppr retName)) (IntS 0), HeapletApplyS (layoutName layout) suslikParamsS]
+  , suslikSigPost = [PointsToS Unrestricted (Here (ppr retName)) (VarS retString), HeapletApplyS (defName def) (VarS retString : suslikParamsS)]
   }
 
 genLayoutPred :: Layout -> InductivePred
@@ -317,7 +326,7 @@ removeSuSLikArgs :: Assertion' FsName -> Assertion' FsName
 removeSuSLikArgs = go
   where
     go Emp = Emp
-    go (PointsTo x y rest) = PointsTo x y (go rest)
+    go (PointsTo mode x y rest) = PointsTo mode x y (go rest)
     go (HeapletApply layoutName _ fsArg rest) = HeapletApply layoutName [] fsArg (go rest)
 
 ---- Tests ----
@@ -330,9 +339,9 @@ sllLayout =
     [suslikName "x"]
     [ (MkPattern "Nil" [], Emp)
     , (MkPattern "Cons" [fsName "head", fsName "tail"]
-        ,(PointsTo (Here $ Var $ suslikName "x") (Var (fsName "head"))
-         (PointsTo (Var (suslikName "x") :+ 1) (Var (suslikName "tail"))
-         (HeapletApply "sll" [] [Var (fsName "tail")] Emp)))
+        ,(PointsToI (Here $ Var $ suslikName "x") (Var (fsName "head"))
+         (PointsToI (Var (suslikName "x") :+ 1) (Var (suslikName "tail"))
+         (HeapletApply' "sll" [] [Var (fsName "tail")] Emp)))
       )
     ]
 
@@ -344,11 +353,11 @@ treeLayout =
     [suslikName "x"]
     [ (MkPattern "Leaf" [], Emp)
     , (MkPattern "Node" [fsName "payload", fsName "left", fsName "right"]
-        ,(PointsTo (Here $ Var $ suslikName "x") (Var (fsName "payload"))
-         (PointsTo (Var (suslikName "x") :+ 1) (Var (suslikName "left"))
-         (PointsTo (Var (suslikName "x") :+ 2) (Var (suslikName "right"))
-         (HeapletApply "treeLayout" [Var $ freeVar "leftX"] [Var (suslikName "left")]
-         (HeapletApply "treeLayout" [Var $ freeVar "rightX"] [Var (suslikName "right")] Emp))))))
+        ,(PointsToI (Here $ Var $ suslikName "x") (Var (fsName "payload"))
+         (PointsToI (Var (suslikName "x") :+ 1) (Var (suslikName "left"))
+         (PointsToI (Var (suslikName "x") :+ 2) (Var (suslikName "right"))
+         (HeapletApply' "treeLayout" [Var $ freeVar "leftX"] [Var (suslikName "left")]
+         (HeapletApply' "treeLayout" [Var $ freeVar "rightX"] [Var (suslikName "right")] Emp))))))
     ]
 
 test1 :: Def

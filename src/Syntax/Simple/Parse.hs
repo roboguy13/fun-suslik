@@ -264,14 +264,14 @@ parsePointsTo p = do
   loc <- parseLoc
   parseOp ":->"
   e <- parseExpr
-  PointsTo loc e <$> ((parseOp "," *> p) <|> pure Emp)
+  PointsToI loc e <$> ((parseOp "," *> p) <|> pure Emp)
 
 parseHeapletApply :: Parser (Assertion' FsName) -> Parser (Assertion' FsName)
 parseHeapletApply p = do
   layoutName <- parseLayoutName
   -- some spaceChar
   args <- some parseExpr'
-  HeapletApply layoutName [] args <$> ((parseOp "," *> p) <|> pure Emp)
+  HeapletApply (MkLayoutName (Just Input) layoutName) [] args <$> ((parseOp "," *> p) <|> pure Emp)
 
 
 parseLoc :: Parser (Loc (Expr FsName))
@@ -360,7 +360,7 @@ parseLower = do
 
   e <- parseExpr'
 
-  pure $ Lower layoutName [] e
+  pure $ Lower layoutName e
 
 parseInstantiate :: Parser (Expr FsName)
 parseInstantiate = do
