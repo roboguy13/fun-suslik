@@ -22,7 +22,8 @@ filterLt7 (Cons head tail)
 
 2. Elaboration
 
-This stage performs simple inference of layouts and generates SuSLik names for
+This stage performs simple inference of layouts (and elaborates by inserting
+`lower` and `instantiate` for the inferred layouts). Also generates SuSLik names for
 the layout parameters.
 
 ```
