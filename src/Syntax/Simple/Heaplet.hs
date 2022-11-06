@@ -193,6 +193,19 @@ type Def pat ty layoutNameTy = Def' pat (ExprX ty layoutNameTy FsName) (ExprX ty
 type DefBranch pat ty layoutNameTy = DefBranch' pat (ExprX ty layoutNameTy FsName) (ExprX ty layoutNameTy FsName) ty layoutNameTy
 type GuardedExpr ty layoutNameTy = GuardedExpr' (ExprX ty layoutNameTy FsName) (ExprX ty layoutNameTy FsName) ty layoutNameTy
 
+type GuardedExprWithAsn = Elaborated (GuardedExpr' (ElaboratedExpr FsName) (ExprWithAsn FsName))
+
+type AsnGuarded = Elaborated (GuardedExpr' (ElaboratedExpr FsName) (Assertion FsName))
+
+data ExprWithAsn a = MkExprWithAsn (Assertion a) (ElaboratedExpr a)
+  deriving (Show)
+
+type DefBranchWithAsn = Elaborated (DefBranch' ParametrizedLayoutName (ElaboratedExpr FsName) (ExprWithAsn FsName))
+type AsnDefBranch = Elaborated (DefBranch' ParametrizedLayoutName (ElaboratedExpr FsName) (ExprWithAsn FsName))
+
+type DefWithAsn = Elaborated (Def' ParametrizedLayoutName (ElaboratedExpr FsName) (ExprWithAsn FsName))
+type AsnDef = Elaborated (Def' ParametrizedLayoutName (ElaboratedExpr FsName) (Assertion FsName))
+
 lookupDef :: [Def pat ty layoutNameTy] -> String -> Def pat ty layoutNameTy
 lookupDef defs name =
   case find ((== name) . defName) defs of
@@ -253,17 +266,38 @@ data Layout =
   }
   deriving (Show)
 
+naiveSubst :: (Eq a, Functor f) => [(a, a)] -> f a -> f a
+naiveSubst [] fa = fa
+naiveSubst ((old, new):rest) fa = naiveSubst rest (fmap go fa)
+  where
+    go y
+      | y == old = new
+      | otherwise = y
+
+layoutMatch :: Show a => Layout -> Pattern' a -> Assertion SuSLikName
+layoutMatch layout e@(PatternVar {}) = error $ "layoutMatch: Pattern variable: " ++ show e
+layoutMatch layout (MkPattern _ cName args) = 
+  let (MkPattern _ _ params, asn) = lookupLayoutBranch layout cName
+  in
+  naiveSubst (zip params args) asn
+
+applyLayout :: Show a => Layout -> [String] -> Pattern' a -> Assertion SuSLikName
+applyLayout layout suslikParams pat =
+  naiveSubst
+    (zip (layoutSuSLikParams layout) suslikParams)
+    (layoutMatch layout pat)
+
 lookupLayout :: HasCallStack => [Layout] -> String -> Layout
 lookupLayout layoutDefs name =
   case find ((== name) . layoutName) layoutDefs of
     Nothing -> error $ "lookupLayout: Cannot find layout definition " ++ name
     Just def -> def
 
-lookupLayoutBranch :: Layout -> ConstrName -> Assertion FsName
+lookupLayoutBranch :: Layout -> ConstrName -> (Pattern, Assertion FsName)
 lookupLayoutBranch layout cName =
   case find (go . fst) $ layoutBranches layout of
     Nothing -> error $ "lookupLayoutBranch: Cannot find layout branch for " ++ show cName
-    Just (_, b) -> b
+    Just b -> b
   where
     go (MkPattern _ cName' _) = cName' == cName
     go (PatternVar {}) = True
@@ -325,6 +359,19 @@ data Assertion a where
   PointsTo :: Mode -> Loc a -> ExprX () Void a -> Assertion a -> Assertion a
   HeapletApply :: LayoutName -> [a] -> [ExprX () Void a] -> Assertion a -> Assertion a
   deriving (Functor, Show, Foldable)
+
+instance Semigroup (Assertion a) where
+  Emp <> x = x
+  x <> Emp = x
+
+  PointsTo mode loc e rest <> y =
+    PointsTo mode loc e (rest <> y)
+
+  HeapletApply lName params args rest <> y =
+    HeapletApply lName params args (rest <> y)
+
+instance Monoid (Assertion a) where
+  mempty = Emp
 
 pattern PointsToI x y z = PointsTo Input x y z
 pattern PointsToO x y z = PointsTo Output x y z

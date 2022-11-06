@@ -11,6 +11,8 @@ import           Syntax.Simple.TypeCheck
 import           Syntax.Simple.Heaplet
 import           Syntax.Ppr
 
+import           Syntax.Simple.TranslateLayoutMatch
+
 import           System.Environment
 
 isBaseTypeName :: String -> Bool
@@ -37,6 +39,7 @@ main = do
       let (GenerateDef fnName argLayouts resultLayout:_) = directives
       print fnName
       print $
+        defTranslateLayoutMatch layouts $
         runTypeCheck layouts adts fnDefs $
           instAndElaborate fnName argLayouts resultLayout $ lookupDef fnDefs fnName
 

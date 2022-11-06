@@ -229,7 +229,7 @@ inferLayoutPatVars layout adt (MkPattern _ cName params) =
   where
     go v IntType = (v, IntConcrete)
     go v BoolType = (v, BoolConcrete)
-    go v _ = (v, LayoutConcrete $ findLayoutApp v $ lookupLayoutBranch layout cName)
+    go v _ = (v, LayoutConcrete $ findLayoutApp v $ snd $ lookupLayoutBranch layout cName)
 
 findLayoutApp :: FsName -> Assertion FsName -> LayoutName
 findLayoutApp v = go
