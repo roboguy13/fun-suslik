@@ -76,6 +76,8 @@ Final step into SuSLik.
 By the time it reaches this stage, every
 application in a `layout` should be of the form `f[arg1, arg2, ..., argN | result] v1 v2 ... vM`, where
 `v1`, ..., `vM` are variables. `arg1`, ... `argN` and `result` are SuSLik names.
+Only the SuSLik names of an application will be needed for this final stage, not
+`v1`, ..., `vM`.
 
 The main work this stage performs is turning pattern
 matches into the corresponding SuSLik branch condition.
