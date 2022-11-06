@@ -25,10 +25,20 @@ filterLt7 (Cons head tail)
   | not (head < 7) := instantiate [Sll[readonly ; x]] Sll[r] filter tail;
 ```
 
+4. Unfold lowered constructor applications
+
+In "pseudo-code":
+
+```
+filterLt7 Nil      := layout{ emp }
+filterLt7 (Cons head tail)
+  | head < 7       := layout{ x :=> head, (x+1) :=> tail, r :-> head, r :-> nxt, filterLt7__Sll_Sll[nxt] tail));
+  | not (head < 7) := layout{ x :=> head, (x+1) :=> tail, filterLt7__Sll_Sll[r] tail));
+```
+
 3. Generation
 
-This unfolds layout definitions (where applicable) and uses temporary variables
-to connect nested function applications.
+Uses temporary variables to connect nested function applications and generates SuSLik
 
 ```
 inductive ro_Sll(loc x) {
@@ -41,13 +51,13 @@ inductive Sll() {
 | not (x == 0) => { x :-> head ** (x+1) :-> tail ** Sll(tail) }
 }
 
-inductive filterLt7(loc x, loc r) {
+inductive filterLt7__Sll_Sll(loc x, loc r) {
 | x == 0 => { emp }
 | not (x == 0) && head < 7 => {
-    x :=> head ** (x+1) :=> tail ** r :-> head ** (r+1) :-> nxt ** filterLt7(tail, nxt)
+    x :=> head ** (x+1) :=> tail ** r :-> head ** (r+1) :-> nxt ** filterLt7__Sll_Sll(tail, nxt)
   }
 | not (x == 0) && not (head < 7) => {
-    x :=> head ** (x+1) :=> tail ** filterLt7(tail, r)
+    x :=> head ** (x+1) :=> tail ** filterLt7__Sll_Sll(tail, r)
   }
 }
 ```
