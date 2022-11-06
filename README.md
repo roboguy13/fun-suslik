@@ -88,7 +88,7 @@ inductive Sll(loc x) {
 inductive filterLt7__Sll_Sll(loc x, loc r) {
 | x == 0 => { emp }
 | not (x == 0) && head < 7 => {
-    x :=> head ** (x+1) :=> tail ** r :-> head ** (r+1) :-> nxt ** filterLt7__Sll_Sll(tail, nxt)
+    x :=> head ** (x+1) :=> tail ** r :-> head ** (r+1) :-> y ** filterLt7__Sll_Sll(tail, y)
   }
 | not (x == 0) && not (head < 7) => {
     x :=> head ** (x+1) :=> tail ** filterLt7__Sll_Sll(tail, r)
