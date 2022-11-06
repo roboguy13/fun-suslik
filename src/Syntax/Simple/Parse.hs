@@ -79,9 +79,22 @@ parseConstructor :: Parser String
 parseConstructor = label "constructor name" $
   parseUppercaseName
 
-parseLayoutName :: Parser String
-parseLayoutName = label "layout name" $
+parseMode :: Parser Mode
+parseMode = label "mode" $
+  (keyword "readonly" *> pure Input) <|>
+  (keyword "mutable" *> pure Output)
+
+parseSimpleLayoutName :: Parser String
+parseSimpleLayoutName = label "layout name" $
   parseUppercaseName
+
+parseLayoutName :: Parser LayoutName
+parseLayoutName = label "moded layout name" $ do
+  name <- parseSimpleLayoutName
+  parseOp "["
+  mode <- parseMode
+  parseOp "]"
+  pure $ MkLayoutName (Just mode) name
 
 parseTypeName :: Parser String
 parseTypeName = label "type name" $
@@ -181,8 +194,8 @@ parseFile = do
 data Directive =
   GenerateDef
     String   -- | fun-SuSLik function name
-    [String] -- | Argument layouts
-    String   -- | Result layout
+    [LayoutName] -- | Argument layouts
+    LayoutName   -- | Result layout
     deriving (Show)
 
 parseDirective :: Parser Directive
@@ -197,9 +210,9 @@ parseInstantiateDirective = lexeme $ do
   argLayouts <- parseBracketed (parseOp "[") (parseOp "]")
                   $ parseList (char ',') parseLayoutName
 
-  resultLayout <- parseLayoutName
+  resultLayout <- parseSimpleLayoutName
 
-  pure $ GenerateDef fnName argLayouts resultLayout
+  pure $ GenerateDef fnName argLayouts (MkLayoutName (Just Output) resultLayout)
 
 
 data GlobalItem where
@@ -212,7 +225,7 @@ type GlobalEnv = [(String, GlobalItem)]
 
 parseLayout :: Parser Layout
 parseLayout = do
-  name <- parseLayoutName
+  name <- parseSimpleLayoutName
   parseOp ":"
   tyName <- parseTypeName
   parseOp ">->"
@@ -233,7 +246,7 @@ parseLayout = do
   where
     go :: String -> Parser (Pattern FsName, Assertion FsName)
     go name = try $ do
-      name' <- parseLayoutName
+      name' <- parseSimpleLayoutName
       parseGuard (name' == name) (Just name') name
 
       pat <- parsePattern
@@ -269,12 +282,13 @@ parsePointsTo p = do
 
 parseHeapletApply :: Parser (Assertion FsName) -> Parser (Assertion FsName)
 parseHeapletApply p = do
-  layoutName <- parseLayoutName
+  layoutName <- parseSimpleLayoutName
   -- some spaceChar
   -- args <- some parseExpr'
   arg <- fmap (Var ()) parseIdentifier
   let args = [arg]
   HeapletApply (MkLayoutName (Just Input) layoutName) [] args <$> ((parseOp "," *> p) <|> pure Emp)
+  -- HeapletApply (MkLayoutName (Just Input) layoutName) [] args <$> ((parseOp "," *> p) <|> pure Emp)
 
 
 parseLoc :: Parser (Loc FsName)

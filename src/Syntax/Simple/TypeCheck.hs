@@ -27,7 +27,7 @@ genLoweredType count name =
 
 toLoweredType :: [Layout] -> String -> ConcreteType -> (String, LoweredType)
 toLoweredType layouts v ty@(LayoutConcrete layoutName) =
-    let layout = lookupLayout layouts (genLayoutName layoutName)
+    let layout = lookupLayout layouts (baseLayoutName layoutName)
         params = map go $ layoutSuSLikParams layout
     in
     (v, MkLoweredType params ty)
@@ -67,22 +67,22 @@ requireType expected found =
 -- toConcrete (AdtType name) = Left $ "Expected concrete type, found ADT " ++ name
 -- toConcrete (LayoutType name _) = pure $ LayoutConcrete name
 
-toConcrete :: String -> ConcreteType
-toConcrete "Int" = IntConcrete
-toConcrete "Bool" = BoolConcrete
-toConcrete x = LayoutConcrete (MkLayoutName (Just Output) x)
+-- toConcrete :: String -> ConcreteType
+-- toConcrete "Int" = IntConcrete
+-- toConcrete "Bool" = BoolConcrete
+-- toConcrete x = LayoutConcrete (MkLayoutName (Just Output) x)
 
 -- | Get the predicate name for a function with the given layouts
 getPredName :: String -> [String] -> String -> String
 getPredName fnName argLayouts resultLayout =
   fnName <> "__" <> intercalate "__" (resultLayout : argLayouts)
 
-instAndElaborate :: [Layout] -> [Adt] -> [Parsed Def] -> String -> [String] -> String -> Parsed Def -> Elaborated Def
+instAndElaborate :: [Layout] -> [Adt] -> [Parsed Def] -> String -> [LayoutName] -> LayoutName -> Parsed Def -> Elaborated Def
 instAndElaborate layouts adts defs fnName argLayoutNames outLayoutName def =
   elaborateDef layouts adts defs argLayoutNames outLayoutName
     $ instDefCalls argLayoutNames outLayoutName def
 
-instDefCalls :: [String] -> String -> Parsed Def -> Parsed Def
+instDefCalls :: [LayoutName] -> LayoutName -> Parsed Def -> Parsed Def
 instDefCalls argLayoutNames outLayoutName def =
   def
     { defBranches = map goBranch (defBranches def)
@@ -101,7 +101,7 @@ instDefCalls argLayoutNames outLayoutName def =
 -- the given layouts. This is useful for recursive calls.
 -- If it encounters an application of the function that is instantiated
 -- to different layouts, it leaves that instantiation unchanged.
-instCall :: String -> [String] -> String -> Parsed ExprX String -> Parsed ExprX String
+instCall :: String -> [LayoutName] -> LayoutName -> Parsed ExprX String -> Parsed ExprX String
 instCall fnName argLayoutNames outLayoutName = go
   where
     instantiate = Instantiate argLayoutNames outLayoutName fnName
@@ -124,14 +124,14 @@ instCall fnName argLayoutNames outLayoutName = go
     go (Lower layout arg) = Lower layout (go arg)
     go (Instantiate xs ys f args) = Instantiate xs ys f (map go args)
 
-elaborateDef :: [Layout] -> [Adt] -> [Parsed Def] -> [String] -> String -> Parsed Def -> Elaborated Def
+elaborateDef :: [Layout] -> [Adt] -> [Parsed Def] -> [LayoutName] -> LayoutName -> Parsed Def -> Elaborated Def
 elaborateDef layouts adts defs inLayoutNames outLayoutName def =
   def { defBranches = map goBranch (defBranches def) }
   where
-    argLayouts = map (lookupLayout layouts) inLayoutNames
+    argLayouts = map (lookupLayout layouts . baseLayoutName) (inLayoutNames)
     argAdts = map (lookupAdt adts . layoutAdtName) argLayouts
 
-    outLayout = lookupLayout layouts outLayoutName
+    outLayout = lookupLayout layouts (baseLayoutName outLayoutName)
 
     goBranch defBranch =
       defBranch { defBranchGuardeds = map goGuarded (defBranchGuardeds defBranch) }
@@ -170,13 +170,13 @@ findLayoutApp v = go
     go Emp = error $ "findLayoutApp: Cannot find " ++ show v
     go (PointsTo _ _ _ rest) = go rest
     go (HeapletApply lName params [Var _ v'] rest)
-      | v' == v = lName --genLayoutName lName
+      | v' == v = lName
       | otherwise = go rest
     go (HeapletApply lName params _ rest) = go rest
 
 inferWith :: [Layout] -> [Parsed Def] -> TcEnv -> Layout -> Parsed ExprX String -> TypeCheck (ConcreteType, Elaborated ExprX String)
 inferWith layouts defs gamma layout e@(ConstrApply {}) =
-  inferExpr layouts defs gamma (Lower (layoutName layout) e)
+  inferExpr layouts defs gamma (Lower (MkLayoutName (Just Input) (layoutName layout)) e)
 inferWith layouts defs gamma layout e = inferExpr layouts defs gamma e
 
 checkExpr :: [Layout] -> [Parsed Def] -> TcEnv -> Parsed ExprX String -> ConcreteType -> TypeCheck (Elaborated ExprX String)
@@ -330,17 +330,17 @@ inferExpr layouts defs gamma e0@(Instantiate inLayoutNames outLayoutName f args)
       zipWith
         (checkExpr layouts defs gamma)
         args
-        (map toConcrete inLayoutNames)
+        (map LayoutConcrete inLayoutNames)
 
   let def = lookupDef defs f
 
-      outLayout = lookupLayout layouts outLayoutName
+      outLayout = lookupLayout layouts $ baseLayoutName outLayoutName
       outLayoutParams = layoutSuSLikParams outLayout
 
-  pure $ (LayoutConcrete (MkLayoutName (Just Output) outLayoutName)
+  pure $ (LayoutConcrete outLayoutName
          ,Apply
-          (getPredName f inLayoutNames outLayoutName) -- Name
-          (genLoweredType (length outLayoutParams) outLayoutName) -- Output layout
+          (getPredName f (map genLayoutName inLayoutNames) (genLayoutName outLayoutName)) -- Name
+          (genLoweredType (length outLayoutParams) (genLayoutName outLayoutName)) -- Output layout
           args' -- fun-SuSLik args
          )
 
@@ -351,10 +351,10 @@ inferExpr layouts defs gamma (Lower layoutName (Var () v)) = do
 inferExpr layouts defs gamma (Lower layoutName (ConstrApply ty' cName args)) = do
     -- TODO: Check that the ADT matches the layout
 
-  let layout = lookupLayout layouts layoutName
+  let layout = lookupLayout layouts (baseLayoutName layoutName)
       layoutParams = layoutSuSLikParams layout
 
-  let ty'' = genLoweredType (length layoutParams) layoutName
+  let ty'' = genLoweredType (length layoutParams) (genLayoutName layoutName)
 
   argsWithTys <- traverse (inferWith layouts defs gamma layout) args
 

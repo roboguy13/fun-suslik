@@ -93,10 +93,10 @@ data ExprX ty layoutNameTy a where
 instance (Show a, Show layoutNameTy, Show ty) => Ppr (ExprX ty layoutNameTy a) where
     ppr = show
 
-type ParsedExpr = ExprX () String
-type ElaboratedExpr = ExprX LoweredType Void
+type ParsedExpr = Parsed ExprX
+type ElaboratedExpr = Elaborated ExprX
 
-type Parsed f = f () String
+type Parsed f = f () LayoutName
 type Elaborated f = f LoweredType Void
 
 type Expr = Elaborated ExprX
@@ -271,6 +271,9 @@ data LayoutName =
     (Maybe Mode) -- | This is Nothing if we are actually refering to a predicate generated for a function, rather than a layout
     String
   deriving (Show, Eq, Ord)
+
+baseLayoutName :: LayoutName -> String
+baseLayoutName (MkLayoutName _ name) = name
 
 data Assertion a where
   Emp :: Assertion a

@@ -1,12 +1,12 @@
-%generate filterLt7 [Sll] Sll
-%generate leftList [TreeLayout] Sll
-%generate even [Sll] Sll
-%generate odd [Sll] Sll
-%generate sum [Sll] Int
-%generate sumTailRec [Sll] Int
-%generate consFn [Sll] Sll
-%generate car [Sll] Int
-%generate singleton [Int] Sll
+%generate filterLt7 [Sll[readonly]] Sll
+%generate leftList [TreeLayout[readonly]] Sll
+%generate even [Sll[readonly]] Sll
+%generate odd [Sll[readonly]] Sll
+%generate sum [Sll[readonly]] Int
+%generate sumTailRec [Sll[readonly]] Int
+%generate consFn [Sll[readonly]] Sll
+%generate car [Sll[readonly]] Int
+%generate singleton [Int[readonly]] Sll
 
 data List := Nil | Cons Int List;
 
