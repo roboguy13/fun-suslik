@@ -47,7 +47,7 @@ inductive filterLt7(loc x, loc r) {
     x :=> head ** (x+1) :=> tail ** r :-> head ** (r+1) :-> nxt ** filterLt7(tail, nxt)
   }
 | not (x == 0) && not (head < 7) => {
-    x :=> head ** (x+1) :=> tail ** filterLt7(tail, nxt)
+    x :=> head ** (x+1) :=> tail ** filterLt7(tail, r)
   }
 }
 ```
