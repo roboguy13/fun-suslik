@@ -46,7 +46,7 @@ inductive ro_Sll(loc x) {
 | not (x == 0) => { x :=> head ** (x+1) :=> tail ** ro_Sll(tail) }
 }
 
-inductive Sll() {
+inductive Sll(loc x) {
 | x == 0 => { emp }
 | not (x == 0) => { x :-> head ** (x+1) :-> tail ** Sll(tail) }
 }
