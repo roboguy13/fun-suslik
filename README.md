@@ -39,10 +39,10 @@ This stage performs simple inference of layouts (and elaborates by inserting
 the layout parameters. In this example, the generated names are `x` and `r`.
 
 ```
-filterLt7 Nil      := lower Sll[readonly ; x] Nil;
-filterLt7 (Cons head tail)
-  | head < 7       := lower Sll[readonly ; x] (Cons head (instantiate [Sll[readonly ; x]] Sll[r] filterLt7 tail));
-  | not (head < 7) := instantiate [Sll[readonly ; x]] Sll[r] filter tail;
+filterLt7 (Sll[readonly ; x] Nil) := lower Sll[readonly ; r] Nil;
+filterLt7 (Sll[readonly ; x] (Cons head tail))
+  | head < 7       := lower Sll[readonly ; r] (Cons head (instantiate [Sll[readonly ; tail]] Sll[y] filterLt7 tail));
+  | not (head < 7) := instantiate [Sll[readonly ; tail]] Sll[r] filter tail;
 ```
 
 4. Unfold lowered constructor applications
@@ -52,7 +52,7 @@ In "pseudo-code":
 ```
 filterLt7 Nil      := layout{ emp }
 filterLt7 (Cons head tail)
-  | head < 7       := layout{ x :=> head, (x+1) :=> tail, r :-> head, (r+1) :-> nxt, filterLt7__Sll_Sll[nxt] tail));
+  | head < 7       := layout{ x :=> head, (x+1) :=> tail, r :-> head, (r+1) :-> y, filterLt7__Sll_Sll[y] tail));
   | not (head < 7) := layout{ x :=> head, (x+1) :=> tail, filterLt7__Sll_Sll[r] tail));
 ```
 
