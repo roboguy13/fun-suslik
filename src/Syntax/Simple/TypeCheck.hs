@@ -23,7 +23,7 @@ import           Control.Monad.State
 -- elaborateExpr :: [Layout] -> [Parsed Def] -> Parsed ExprX a -> Elaborated ExprX a
 -- elaborateExpr layouts defs = undefined
 
-data TcGlobals = MkTcGlobals [Layout] [Adt] [Parsed Def]
+data TcGlobals = MkTcGlobals [Layout] [Adt] [Parsed (Def ())]
 
 data OutVar = InitialOutVar | SubOutVar
 
@@ -35,7 +35,7 @@ newtype TypeCheck a = MkTypeCheck (ReaderT TcGlobals (StateT OutVar (FreshGenT (
 instance MonadFail TypeCheck where
   fail = error
 
-runTypeCheck :: [Layout] -> [Adt] -> [Parsed Def] -> TypeCheck a -> a
+runTypeCheck :: [Layout] -> [Adt] -> [Parsed (Def ())] -> TypeCheck a -> a
 runTypeCheck layouts adts defs (MkTypeCheck tc) =
   let globals = MkTcGlobals layouts adts defs
   in
@@ -55,7 +55,7 @@ lookupAdtM name = do
   MkTcGlobals _ adts _ <- ask
   pure $ lookupAdt adts name
 
-lookupDefM :: String -> TypeCheck (Parsed Def)
+lookupDefM :: String -> TypeCheck (Parsed (Def ()))
 lookupDefM name = do
   MkTcGlobals _ _ defs <- ask
   pure $ lookupDef defs name
@@ -135,12 +135,12 @@ getPredName :: String -> [String] -> String -> String
 getPredName fnName argLayouts resultLayout =
   fnName <> "__" <> intercalate "__" (resultLayout : argLayouts)
 
-instAndElaborate :: String -> [LayoutName] -> LayoutName -> Parsed Def -> TypeCheck (Elaborated Def)
+instAndElaborate :: String -> [LayoutName] -> LayoutName -> ParsedDef -> TypeCheck ElaboratedDef
 instAndElaborate fnName argLayoutNames outLayoutName def =
   elaborateDef argLayoutNames outLayoutName
     $ instDefCalls argLayoutNames outLayoutName def
 
-instDefCalls :: [LayoutName] -> LayoutName -> Parsed Def -> Parsed Def
+instDefCalls :: [LayoutName] -> LayoutName -> ParsedDef -> ParsedDef
 instDefCalls argLayoutNames outLayoutName def =
   def
     { defBranches = map goBranch (defBranches def)
@@ -182,7 +182,7 @@ instCall fnName argLayoutNames outLayoutName = go
     go (Lower layout arg) = Lower layout (go arg)
     go (Instantiate xs ys f args) = Instantiate xs ys f (map go args)
 
-elaborateDef :: [LayoutName] -> LayoutName -> Parsed Def -> TypeCheck (Elaborated Def)
+elaborateDef :: [LayoutName] -> LayoutName -> ParsedDef -> TypeCheck (ElaboratedDef)
 elaborateDef inLayoutNames outLayoutName def = do
   argLayouts <- mapM (lookupLayoutM . baseLayoutName) inLayoutNames
   argAdts <- mapM (lookupAdtM . layoutAdtName) argLayouts
@@ -192,16 +192,7 @@ elaborateDef inLayoutNames outLayoutName def = do
   outParams <- genLayoutParamsWith "out_" outLayout
 
   let goBranch defBranch = do
-          let gamma = concat $ zipWith3 inferLayoutPatVars argLayouts argAdts $ defBranchPattern defBranch
-          -- gamma <-
-          --   mapM (uncurry toLoweredType) $
-          --   concat $
-          --   zipWith3 inferLayoutPatVars
-          --     argLayouts
-          --     argAdts
-          --       $ defBranchPattern defBranch
-
-          -- undefined
+          let gamma = concat $ zipWith3 inferLayoutPatVars argLayouts argAdts $ defBranchPatterns defBranch
 
 
           let goGuarded (MkGuardedExpr x y) = do
@@ -214,15 +205,24 @@ elaborateDef inLayoutNames outLayoutName def = do
                 pure e'
 
           guardeds <- mapM goGuarded (defBranchGuardeds defBranch)
-          pure $ defBranch { defBranchGuardeds = guardeds  }
+
+          let paramedLayouts = zipWith MkParametrizedLayoutName argParams inLayoutNames
+
+          pure $ defBranch
+            { defBranchPatterns = zipWith elaboratePattern (defBranchPatterns defBranch) paramedLayouts
+            , defBranchGuardeds = guardeds
+            }
           --
   defBranches' <- mapM goBranch (defBranches def)
 
   pure $ def { defBranches = defBranches' }
 
-inferLayoutPatVars :: Layout -> Adt -> Pattern FsName -> [(FsName, ConcreteType)]
-inferLayoutPatVars layout adt (PatternVar v) = [(v, LayoutConcrete (MkLayoutName (Just Input) (layoutName layout)))]
-inferLayoutPatVars layout adt (MkPattern cName params) =
+elaboratePattern :: Pattern -> ParametrizedLayoutName -> PatternWithLayout
+elaboratePattern = flip patternSet
+
+inferLayoutPatVars :: Layout -> Adt -> Pattern -> [(FsName, ConcreteType)]
+inferLayoutPatVars layout adt (PatternVar _ v) = [(v, LayoutConcrete (MkLayoutName (Just Input) (layoutName layout)))]
+inferLayoutPatVars layout adt (MkPattern _ cName params) =
     let adtFields = adtBranchFields $ findAdtBranch adt cName
     in
     zipWith go params adtFields

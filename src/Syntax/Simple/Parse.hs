@@ -135,7 +135,7 @@ parseList sep p = parseList0 (lexeme sep) p
 
 data ParsedFile =
   MkParsedFile
-  { fileFnDefs :: [Parsed Def]
+  { fileFnDefs :: [ParsedDef]
   , fileAdts :: [Adt]
   , fileLayouts :: [Layout]
   , fileDirectives :: [Directive]
@@ -149,7 +149,7 @@ instance Semigroup ParsedFile where
 instance Monoid ParsedFile where
   mempty = MkParsedFile [] [] [] []
 
-oneFileFnDef :: Parsed Def -> ParsedFile
+oneFileFnDef :: ParsedDef -> ParsedFile
 oneFileFnDef d = MkParsedFile [d] [] [] []
 
 oneFileAdt :: Adt -> ParsedFile
@@ -218,7 +218,7 @@ parseInstantiateDirective = lexeme $ do
 data GlobalItem where
   -- GlobalAdt :: Adt -> GlobalItem
   GlobalLayout :: Layout -> GlobalItem
-  GlobalFnDef :: Parsed Def -> GlobalItem
+  GlobalFnDef :: ParsedDef -> GlobalItem
   deriving (Show)
 
 type GlobalEnv = [(String, GlobalItem)]
@@ -244,7 +244,7 @@ parseLayout = do
     , layoutBranches = branches
     }
   where
-    go :: String -> Parser (Pattern FsName, Assertion FsName)
+    go :: String -> Parser (Pattern, Assertion FsName)
     go name = try $ do
       name' <- parseSimpleLayoutName
       parseGuard (name' == name) (Just name') name
@@ -255,15 +255,15 @@ parseLayout = do
       parseOp ";"
       pure (pat, rhs)
 
-parsePattern :: Parser (Pattern FsName)
+parsePattern :: Parser Pattern
 parsePattern =
-  fmap (PatternVar . fsName) parseIdentifier
+  fmap (PatternVar () . fsName) parseIdentifier
     <|> do
       parseOp "("
       cName <- parseConstructor
       pVars <- (some (fmap fsName parseIdentifier)) <|> pure []
       parseOp ")"
-      pure $ MkPattern cName pVars
+      pure $ MkPattern () cName pVars
 
 parseAssertion :: Parser (Assertion FsName)
 parseAssertion =
@@ -418,7 +418,7 @@ parseAdtBranch = do
   fields <- (some parseType) <|> pure []
   pure $ MkAdtBranch { adtBranchConstr = cName, adtBranchFields = fields }
 
-parseFnDef :: Parser (Parsed Def)
+parseFnDef :: Parser ParsedDef
 parseFnDef = do
   name <- parseIdentifier
 
@@ -436,7 +436,7 @@ parseFnDef = do
 
   pure $ def
 
-parseFnBranch :: String -> Parser (Parsed DefBranch)
+parseFnBranch :: String -> Parser (ParsedDefBranch)
 parseFnBranch name0 = try $ do
   name <- parseIdentifier
   parseGuard (name == name0) (Just name) name0

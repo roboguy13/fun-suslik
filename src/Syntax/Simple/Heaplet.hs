@@ -6,6 +6,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE LiberalTypeSynonyms #-}
 
 module Syntax.Simple.Heaplet
   where
@@ -122,30 +123,41 @@ type Elaborated f = f LoweredType Void
 
 type Expr = Elaborated ExprX
 
-data Pattern a = MkPattern ConstrName [FsName] | PatternVar FsName
+data Pattern' a = MkPattern a ConstrName [FsName] | PatternVar a FsName
   deriving (Show)
 
-getPatternVars :: Pattern a -> [FsName]
-getPatternVars (MkPattern _ vs) = vs
-getPatternVars (PatternVar v) = [v]
+type Pattern = Pattern' ()
 
-getBasicPatternVars :: [Pattern a] -> [FsName]
+type PatternWithLayout = Pattern' ParametrizedLayoutName
+
+patternSet :: b -> Pattern' a -> Pattern' b
+patternSet x (MkPattern _ cName params) = MkPattern x cName params
+patternSet x (PatternVar _ n) = PatternVar x n
+
+getPatternVars :: Pattern' a -> [FsName]
+getPatternVars (MkPattern _ _ vs) = vs
+getPatternVars (PatternVar _ v) = [v]
+
+getBasicPatternVars :: [Pattern' a] -> [FsName]
 getBasicPatternVars = concatMap go
   where
-    go (MkPattern _ _) = []
-    go (PatternVar v) = [v]
+    go (MkPattern _ _ _) = []
+    go (PatternVar _ v) = [v]
 
-isBasicPatternVar :: Pattern a -> Bool
-isBasicPatternVar (PatternVar v) = True
+isBasicPatternVar :: Pattern' a -> Bool
+isBasicPatternVar (PatternVar _ v) = True
 isBasicPatternVar _ = False
 
-data Def' cond body ty layoutNameTy =
+data Def' pat cond body ty layoutNameTy =
   MkDef
   { defName :: String
   , defType :: Type
-  , defBranches :: [DefBranch' cond body ty layoutNameTy]
+  , defBranches :: [DefBranch' pat cond body ty layoutNameTy]
   }
   deriving (Show)
+
+type ElaboratedDef = Elaborated (Def ParametrizedLayoutName)
+type ParsedDef = Parsed (Def ())
 
 -- fnArgTypes :: Type -> [Type]
 -- fnArgTypes (FnType x y) =
@@ -156,14 +168,18 @@ data Def' cond body ty layoutNameTy =
 -- fnResultType (FnType _ t) = fnResultType t
 -- fnResultType t = t
 
-data DefBranch' cond body ty layoutNameTy=
+data DefBranch' pat cond body ty layoutNameTy=
   MkDefBranch
-  { defBranchPattern :: [Pattern FsName]
+  { defBranchPatterns :: [Pattern' pat]
   , defBranchGuardeds :: [GuardedExpr' cond body ty layoutNameTy]
   }
   deriving (Show)
 
-getFirstBranch :: Def ty layoutNameTy -> DefBranch ty layoutNameTy
+type ElaboratedDefBranch = Elaborated (DefBranch ParametrizedLayoutName)
+type ParsedDefBranch = Parsed (DefBranch ())
+
+
+getFirstBranch :: Def pat ty layoutNameTy -> DefBranch pat ty layoutNameTy
 getFirstBranch MkDef{ defBranches = (b:_) } = b
 
 data GuardedExpr' cond body ty layoutNameTy =
@@ -173,11 +189,11 @@ data GuardedExpr' cond body ty layoutNameTy =
   }
   deriving (Show)
 
-type Def ty layoutNameTy = Def' (ExprX ty layoutNameTy FsName) (ExprX ty layoutNameTy FsName) ty layoutNameTy
-type DefBranch ty layoutNameTy = DefBranch' (ExprX ty layoutNameTy FsName) (ExprX ty layoutNameTy FsName) ty layoutNameTy
+type Def pat ty layoutNameTy = Def' pat (ExprX ty layoutNameTy FsName) (ExprX ty layoutNameTy FsName) ty layoutNameTy
+type DefBranch pat ty layoutNameTy = DefBranch' pat (ExprX ty layoutNameTy FsName) (ExprX ty layoutNameTy FsName) ty layoutNameTy
 type GuardedExpr ty layoutNameTy = GuardedExpr' (ExprX ty layoutNameTy FsName) (ExprX ty layoutNameTy FsName) ty layoutNameTy
 
-lookupDef :: [Def ty layoutNameTy] -> String -> Def ty layoutNameTy
+lookupDef :: [Def pat ty layoutNameTy] -> String -> Def pat ty layoutNameTy
 lookupDef defs name =
   case find ((== name) . defName) defs of
     Nothing -> error $ "Cannot find function " ++ show name
@@ -233,7 +249,7 @@ data Layout =
   { layoutName :: String
   , layoutAdtName :: String
   , layoutSuSLikParams :: [SuSLikName]
-  , layoutBranches :: [(Pattern FsName, Assertion FsName)]
+  , layoutBranches :: [(Pattern, Assertion FsName)]
   }
   deriving (Show)
 
@@ -249,7 +265,7 @@ lookupLayoutBranch layout cName =
     Nothing -> error $ "lookupLayoutBranch: Cannot find layout branch for " ++ show cName
     Just (_, b) -> b
   where
-    go (MkPattern cName' _) = cName' == cName
+    go (MkPattern _ cName' _) = cName' == cName
     go (PatternVar {}) = True
 
 

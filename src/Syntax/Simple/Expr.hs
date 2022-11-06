@@ -61,7 +61,7 @@ isVar (Var {}) = True
 isVar _ = False
 
 
-mkLayout :: String -> String -> [SuSLikName] -> [(Pattern FsName, Assertion FsName)] -> Layout
+mkLayout :: String -> String -> [SuSLikName] -> [(Pattern, Assertion FsName)] -> Layout
 mkLayout name adtName suslikParams branches =
   MkLayout
     { layoutName = name
