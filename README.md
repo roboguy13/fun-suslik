@@ -71,7 +71,8 @@ filterLt7 (Cons head tail)
 
 6. Generation
 
-Uses temporary variables to connect nested function applications and generates SuSLik
+Final step into SuSLik. The main work this stage performs is turning pattern
+matches into the corresponding SuSLik branch condition.
 
 ```
 inductive ro_Sll(loc x) {
