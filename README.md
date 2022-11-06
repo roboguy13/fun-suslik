@@ -3,7 +3,7 @@ Compiler Stages
 
 Demonstrated by showing how an example transforms in each stage.
 
-1. Parsing
+The running example is:
 
 ```
 %generate filterLt7 [Sll[readonly]] Sll
@@ -21,6 +21,11 @@ filter p (Cons head tail)
   | p head       := Cons head (filter p tail);
   | not (p head) := filter p tail;
 ```
+
+1. Parsing
+
+Self-explanatory
+
 
 2. Defunctionalization/lambda lifting
 
