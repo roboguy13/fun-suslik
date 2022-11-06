@@ -27,15 +27,35 @@ import           Data.Void
 
 type ConstrName = String
 
-data ConcreteType = IntConcrete | BoolConcrete | LayoutConcrete LayoutName
-  deriving (Show, Eq, Ord)
+data ConcreteType' a = IntConcrete | BoolConcrete | LayoutConcrete a
+  deriving (Show, Eq, Ord, Functor)
 
-data LoweredType =
-  MkLoweredType
-  { loweredParams :: [String]
-  , loweredType :: ConcreteType
-  }
-  deriving (Show, Eq)
+type ConcreteType = ConcreteType' LayoutName
+
+type LoweredType = ConcreteType' ParametrizedLayoutName
+
+withParams :: [String] -> ConcreteType -> LoweredType
+withParams _ IntConcrete = IntConcrete
+withParams _ BoolConcrete = BoolConcrete
+withParams params (LayoutConcrete name) = MkLowered params name
+
+forgetParams :: LoweredType -> ConcreteType
+forgetParams = fmap getParamedName
+
+loweredParams :: LoweredType -> [String]
+loweredParams IntConcrete = []
+loweredParams BoolConcrete = []
+loweredParams (LayoutConcrete (MkParametrizedLayoutName params _)) = params
+
+getParamedName :: ParametrizedLayoutName -> LayoutName
+getParamedName (MkParametrizedLayoutName _ name) = name
+
+-- data LoweredType =
+--   MkLoweredType
+--   { loweredParams :: [String]
+--   , loweredType :: ConcreteType
+--   }
+--   deriving (Show, Eq)
 
 data ExprX ty layoutNameTy a where
   Var :: ty -> a -> ExprX ty layoutNameTy a
@@ -58,6 +78,7 @@ data ExprX ty layoutNameTy a where
   Apply ::
     String ->   -- | This becomes the appropriate predicate name in the elaborated version of ExprX
     ty ->       -- | Output layout
+    [ty] ->     -- | Input layouts
     [ExprX ty layoutNameTy a] ->
     ExprX ty layoutNameTy a
 
@@ -271,6 +292,14 @@ data LayoutName =
     (Maybe Mode) -- | This is Nothing if we are actually refering to a predicate generated for a function, rather than a layout
     String
   deriving (Show, Eq, Ord)
+
+data ParametrizedLayoutName =
+  MkParametrizedLayoutName
+    [String]
+    LayoutName
+  deriving (Show, Eq, Ord)
+
+pattern MkLowered params name = LayoutConcrete (MkParametrizedLayoutName params name)
 
 baseLayoutName :: LayoutName -> String
 baseLayoutName (MkLayoutName _ name) = name

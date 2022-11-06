@@ -3,6 +3,7 @@
 --
 {-# LANGUAGE LiberalTypeSynonyms #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 
 {-# OPTIONS_GHC -Wincomplete-patterns #-}
 
@@ -17,25 +18,32 @@ import           Data.List
 import           Data.Void
 
 import           Control.Monad.Reader
+import           Control.Monad.State
 
 -- elaborateExpr :: [Layout] -> [Parsed Def] -> Parsed ExprX a -> Elaborated ExprX a
 -- elaborateExpr layouts defs = undefined
 
 data TcGlobals = MkTcGlobals [Layout] [Adt] [Parsed Def]
 
+data OutVar = InitialOutVar | SubOutVar
 
-newtype TypeCheck a = MkTypeCheck (ReaderT TcGlobals (Either String) a)
-  deriving (Functor, Applicative, Monad, MonadReader TcGlobals)
+type OutParams = [String]
+
+newtype TypeCheck a = MkTypeCheck (ReaderT TcGlobals (StateT OutVar (FreshGenT (Either String))) a)
+  deriving (Functor, Applicative, Monad, MonadReader TcGlobals, MonadState OutVar)
+
+instance MonadFail TypeCheck where
+  fail = error
 
 runTypeCheck :: [Layout] -> [Adt] -> [Parsed Def] -> TypeCheck a -> a
 runTypeCheck layouts adts defs (MkTypeCheck tc) =
   let globals = MkTcGlobals layouts adts defs
   in
-  case runReaderT tc globals of
+  case runFreshGenT $ flip evalStateT InitialOutVar $ runReaderT tc globals of
     Left err -> error err
-    Right x -> x
+    Right (_, x) -> x
 
-type TcEnv = [(String, LoweredType)]
+type TcEnv = [(String, ConcreteType)]
 
 lookupLayoutM :: String -> TypeCheck Layout
 lookupLayoutM name = do
@@ -52,34 +60,59 @@ lookupDefM name = do
   MkTcGlobals _ _ defs <- ask
   pure $ lookupDef defs name
 
+genLayoutParamsWith :: String -> Layout -> TypeCheck [String]
+genLayoutParamsWith prefix layout = do
+  mapM (MkTypeCheck . lift . lift . getFreshWith . (prefix <>))
+  $ layoutSuSLikParams layout
+
+genLayoutParams :: Layout -> TypeCheck [String]
+genLayoutParams = genLayoutParamsWith ""
+
+initialOutLayoutParams :: Layout -> OutParams
+initialOutLayoutParams =
+  map ("__r_" <>) . layoutSuSLikParams
+
+newOutVars :: Layout -> TypeCheck OutParams
+newOutVars layout =
+  get >>= \case
+    InitialOutVar -> put SubOutVar *> pure (initialOutLayoutParams layout)
+    SubOutVar -> genLayoutParams layout
+
 typeError :: String -> TypeCheck a
-typeError err = MkTypeCheck . lift $ Left err
+typeError err = MkTypeCheck . lift . lift . lift $ Left err
 
-genLoweredType :: Int -> String -> LoweredType
-genLoweredType count name =
-  MkLoweredType (map go [0..count]) $ LayoutConcrete $ MkLayoutName (Just Output) name -- TODO: Is this mode correct?
-  where
-    go n = name <> "__" <> show n
+-- genLoweredType :: Int -> String -> LoweredType
+-- genLoweredType count name =
+--   MkLoweredType (map go [0..count]) $ LayoutConcrete $ MkLayoutName (Just Output) name
+--   where
+--     go n = name <> "__" <> show n
 
-toLoweredType :: String -> ConcreteType -> TypeCheck (String, LoweredType)
-toLoweredType v ty@(LayoutConcrete layoutName) = do
-    layout <- lookupLayoutM (baseLayoutName layoutName)
+genLoweredType :: Layout -> TypeCheck LoweredType
+genLoweredType layout = do
+  params <- genLayoutParams layout
+  pure $ MkLowered params $ MkLayoutName (Just Output) (layoutName layout) -- TODO: Is this mode correct?
 
-    let params = map go $ layoutSuSLikParams layout
-
-    pure (v, MkLoweredType params ty)
-  where
-    go n = v <> "__" <> n
-toLoweredType v ty = pure (v, MkLoweredType [v] ty)
+-- toLoweredType :: String -> ConcreteType -> TypeCheck (String, LoweredType)
+-- toLoweredType v ty@(MkLowered _ layoutName) = do
+--     layout <- lookupLayoutM (baseLayoutName layoutName)
+--
+--     params <- genLayoutParams layout
+--
+--     -- let params = map go $ layoutSuSLikParams layout
+--
+--     pure (v, MkLowered params layoutName)
+--   -- where
+--   --   go n = v <> "__" <> n
+-- toLoweredType v ty = pure (v, MkLowered [v] ty)
 
 typeMatchesLowered :: Type -> LoweredType -> TypeCheck ()
 typeMatchesLowered = go
   where
-    go IntType (MkLoweredType [x] IntConcrete) = pure ()
-    go BoolType (MkLoweredType [x] BoolConcrete) = pure ()
+    go IntType IntConcrete = pure ()
+    go BoolType BoolConcrete = pure ()
     go (AdtType name) _ = typeError $ "ADT type not lowered: " ++ name
     go (LayoutType name arity)
-       (MkLoweredType params (LayoutConcrete name')) =
+       (MkLowered params name') =
          if genLayoutName name' /= name
            then typeError $ "Expected layout " ++ name ++ " found " ++ genLayoutName name'
            else
@@ -96,18 +129,6 @@ requireType expected found =
   if expected == found
     then pure ()
     else typeError $ "Expected type " ++ show expected ++ ", found " ++ show found
-
--- toConcrete :: Type -> TypeCheck ConcreteType
--- toConcrete IntType = pure IntConcrete
--- toConcrete BoolType = pure BoolConcrete
--- toConcrete FnType{} = error "toConcrete: Function type in elaboration stage"
--- toConcrete (AdtType name) = Left $ "Expected concrete type, found ADT " ++ name
--- toConcrete (LayoutType name _) = pure $ LayoutConcrete name
-
--- toConcrete :: String -> ConcreteType
--- toConcrete "Int" = IntConcrete
--- toConcrete "Bool" = BoolConcrete
--- toConcrete x = LayoutConcrete (MkLayoutName (Just Output) x)
 
 -- | Get the predicate name for a function with the given layouts
 getPredName :: String -> [String] -> String -> String
@@ -154,9 +175,9 @@ instCall fnName argLayoutNames outLayoutName = go
     go (Equal x y) = Equal (go x) (go y)
     go (Le x y) = Le (go x) (go y)
     go (Lt x y) = Lt (go x) (go y)
-    go (Apply f ty args)
+    go (Apply f ty argTys args) -- TODO: Put in a sanity check for the layouts
       | f == fnName = instantiate (map go args)
-      | otherwise = Apply f ty (map go args)
+      | otherwise = Apply f ty argTys (map go args)
     go (ConstrApply ty cName args) = ConstrApply ty cName (map go args)
     go (Lower layout arg) = Lower layout (go arg)
     go (Instantiate xs ys f args) = Instantiate xs ys f (map go args)
@@ -167,17 +188,25 @@ elaborateDef inLayoutNames outLayoutName def = do
   argAdts <- mapM (lookupAdtM . layoutAdtName) argLayouts
   outLayout <- lookupLayoutM (baseLayoutName outLayoutName)
 
+  argParams <- mapM genLayoutParams argLayouts
+  outParams <- genLayoutParamsWith "out_" outLayout
 
   let goBranch defBranch = do
-          gamma <-
-            mapM (uncurry toLoweredType) $ -- TODO: Fix this. We need some kind of proper association between fun-SuSLik variables and SuSLik 'loc's (like 'tail' and '(x+1)' in many of the list examples). This should be given by a layout definition.
-            concat $
-            zipWith3 inferLayoutPatVars
-              argLayouts
-              argAdts
-                $ defBranchPattern defBranch
+          let gamma = concat $ zipWith3 inferLayoutPatVars argLayouts argAdts $ defBranchPattern defBranch
+          -- gamma <-
+          --   mapM (uncurry toLoweredType) $
+          --   concat $
+          --   zipWith3 inferLayoutPatVars
+          --     argLayouts
+          --     argAdts
+          --       $ defBranchPattern defBranch
 
-          let goGuarded (MkGuardedExpr x y) =
+          -- undefined
+
+
+          let goGuarded (MkGuardedExpr x y) = do
+                put InitialOutVar
+
                 MkGuardedExpr <$> goExpr x <*> goExpr y
 
               goExpr e = do
@@ -186,7 +215,7 @@ elaborateDef inLayoutNames outLayoutName def = do
 
           guardeds <- mapM goGuarded (defBranchGuardeds defBranch)
           pure $ defBranch { defBranchGuardeds = guardeds  }
-
+          --
   defBranches' <- mapM goBranch (defBranches def)
 
   pure $ def { defBranches = defBranches' }
@@ -213,79 +242,79 @@ findLayoutApp v = go
       | otherwise = go rest
     go (HeapletApply lName params _ rest) = go rest
 
-inferWith :: TcEnv -> Layout -> Parsed ExprX String -> TypeCheck (ConcreteType, Elaborated ExprX String)
+inferWith :: TcEnv -> Layout -> Parsed ExprX String -> TypeCheck (LoweredType, Elaborated ExprX String)
 inferWith gamma layout e@(ConstrApply {}) =
   inferExpr gamma (Lower (MkLayoutName (Just Input) (layoutName layout)) e)
 inferWith gamma layout e = inferExpr gamma e
 
-checkExpr :: TcEnv -> Parsed ExprX String -> ConcreteType -> TypeCheck (Elaborated ExprX String)
-checkExpr gamma e@(Var () v) ty = do
+checkExpr :: TcEnv -> Parsed ExprX String -> ConcreteType -> TypeCheck (OutParams, Elaborated ExprX String)
+checkExpr gamma e@(Var {}) ty = do
   (ty', e') <- inferExpr gamma e
-  requireType ty ty'
-  pure e'
+  requireType ty $ forgetParams ty'
+  pure (loweredParams ty', e')
 
 checkExpr gamma (IntLit i) ty = do
   requireType ty IntConcrete
-  pure $ IntLit i
+  pure $ ([], IntLit i)
 
 checkExpr gamma (BoolLit b) ty = do
   requireType ty BoolConcrete
-  pure $ BoolLit b
+  pure $ ([], BoolLit b)
 
 checkExpr gamma e@(And {}) ty = do
   requireType ty BoolConcrete
   (ty', e') <- inferExpr gamma e
-  pure e'
+  pure (loweredParams ty', e')
 
 checkExpr gamma e@(Or {}) ty = do
   requireType ty BoolConcrete
   (ty', e') <- inferExpr gamma e
-  pure e'
+  pure (loweredParams ty', e')
 
 checkExpr gamma e@(Not {}) ty = do
   requireType ty BoolConcrete
   (ty', e') <- inferExpr gamma e
-  pure e'
+  pure (loweredParams ty', e')
 
 checkExpr gamma e@(Add {}) ty = do
   requireType ty IntConcrete
   (ty', e') <- inferExpr gamma e
-  pure e'
+  pure (loweredParams ty', e')
 
 checkExpr gamma e@(Sub {}) ty = do
   requireType ty IntConcrete
   (ty', e') <- inferExpr gamma e
-  pure e'
+  pure (loweredParams ty', e')
 
 checkExpr gamma e@(Mul {}) ty = do
   requireType ty IntConcrete
   (ty', e') <- inferExpr gamma e
-  pure e'
+  pure (loweredParams ty', e')
 
 checkExpr gamma e@(Equal x y) ty = do
   requireType ty BoolConcrete
   (ty', e') <- inferExpr gamma e
-  pure e'
+  pure (loweredParams ty', e')
 
 checkExpr gamma e@(Le x y) ty = do
   requireType ty BoolConcrete
   (ty', e') <- inferExpr gamma e
-  pure e'
+  pure (loweredParams ty', e')
 
 checkExpr gamma e@(Lt x y) ty = do
   requireType ty BoolConcrete
   (ty', e') <- inferExpr gamma e
-  pure e'
+  pure (loweredParams ty', e')
 
 checkExpr gamma e@(Instantiate inLayoutNames outLayoutName f args) ty = do
   (ty', e') <- inferExpr gamma e
-  requireType ty ty'
-  pure e'
+  requireType ty $ forgetParams ty'
+  pure (loweredParams ty', e')
 
 checkExpr gamma e@(Lower {}) ty = do
   (ty', e') <- inferExpr gamma e
-  requireType ty ty'
-  pure e'
+  requireType ty $ forgetParams ty'
+  pure (loweredParams ty', e')
 
 checkExpr gamma e@(ConstrApply {}) ty =
   typeError $
@@ -301,14 +330,16 @@ checkExpr gamma e@(Apply {}) ty =
     , "Expected concrete type " ++ show ty
     ]
 
-inferExpr :: TcEnv -> Parsed ExprX String -> TypeCheck (ConcreteType, Elaborated ExprX String)
+inferExpr :: TcEnv -> Parsed ExprX String -> TypeCheck (LoweredType, Elaborated ExprX String)
 inferExpr gamma (Var () v) =
   case lookup v gamma of
     Nothing -> error $ "inferExpr: variable not found in TcEnv: " ++ v
-    Just lowered -> do
+    Just concTy -> do
       -- typeMatchesLowered ty lowered
       -- requireType ty (loweredType lowered)
-      pure $ (loweredType lowered, Var lowered v)
+
+      let lowered = withParams [v] concTy
+      pure $ (lowered, Var lowered v)
 inferExpr gamma (IntLit i) = do
   pure (IntConcrete, IntLit i)
 
@@ -316,47 +347,47 @@ inferExpr gamma (BoolLit b) = do
   pure (BoolConcrete, BoolLit b)
 
 inferExpr gamma (And x y) = do
-  x' <- checkExpr gamma x BoolConcrete
-  y' <- checkExpr gamma y BoolConcrete
+  ([], x') <- checkExpr gamma x BoolConcrete
+  ([], y') <- checkExpr gamma y BoolConcrete
   pure $ (BoolConcrete, And x' y')
 
 inferExpr gamma (Or x y) = do
-  x' <- checkExpr gamma x BoolConcrete
-  y' <- checkExpr gamma y BoolConcrete
+  ([], x') <- checkExpr gamma x BoolConcrete
+  ([], y') <- checkExpr gamma y BoolConcrete
   pure $ (BoolConcrete, Or x' y')
 
 inferExpr gamma (Not x) = do
-  x' <- checkExpr gamma x BoolConcrete
+  ([], x') <- checkExpr gamma x BoolConcrete
   pure $ (BoolConcrete, Not x')
 
 inferExpr gamma (Add x y) = do
-  x' <- checkExpr gamma x IntConcrete
-  y' <- checkExpr gamma y IntConcrete
+  ([], x') <- checkExpr gamma x IntConcrete
+  ([], y') <- checkExpr gamma y IntConcrete
   pure $ (IntConcrete, Add x' y')
 
 inferExpr gamma (Sub x y) = do
-  x' <- checkExpr gamma x IntConcrete
-  y' <- checkExpr gamma y IntConcrete
+  ([], x') <- checkExpr gamma x IntConcrete
+  ([], y') <- checkExpr gamma y IntConcrete
   pure $ (IntConcrete, Sub x' y')
 
 inferExpr gamma (Mul x y) = do
-  x' <- checkExpr gamma x IntConcrete
-  y' <- checkExpr gamma y IntConcrete
+  ([], x') <- checkExpr gamma x IntConcrete
+  ([], y') <- checkExpr gamma y IntConcrete
   pure $ (IntConcrete, Mul x' y')
 
 inferExpr gamma (Equal x y) = do
-  x' <- checkExpr gamma x IntConcrete
-  y' <- checkExpr gamma y IntConcrete
+  ([], x') <- checkExpr gamma x IntConcrete
+  ([], y') <- checkExpr gamma y IntConcrete
   pure $ (BoolConcrete, Equal x' y')
 
 inferExpr gamma (Le x y) = do
-  x' <- checkExpr gamma x IntConcrete
-  y' <- checkExpr gamma y IntConcrete
+  ([], x') <- checkExpr gamma x IntConcrete
+  ([], y') <- checkExpr gamma y IntConcrete
   pure $ (BoolConcrete, Le x' y')
 
 inferExpr gamma (Lt x y) = do
-  x' <- checkExpr gamma x IntConcrete
-  y' <- checkExpr gamma y IntConcrete
+  ([], x') <- checkExpr gamma x IntConcrete
+  ([], y') <- checkExpr gamma y IntConcrete
   pure $ (BoolConcrete, Lt x' y')
 
 inferExpr gamma e0@(Instantiate inLayoutNames outLayoutName f args) = do
@@ -376,28 +407,39 @@ inferExpr gamma e0@(Instantiate inLayoutNames outLayoutName f args) = do
   outLayout <- lookupLayoutM $ baseLayoutName outLayoutName
   let outLayoutParams = layoutSuSLikParams outLayout
 
-  pure $ (LayoutConcrete outLayoutName
-         ,Apply
-          (getPredName f (map genLayoutName inLayoutNames) (genLayoutName outLayoutName)) -- Name
-          (genLoweredType (length outLayoutParams) (genLayoutName outLayoutName)) -- Output layout
-          args' -- fun-SuSLik args
+  -- loweredTy <- genLoweredType outLayout
+
+  outVars <- newOutVars outLayout
+
+  let loweredTy = MkLowered outVars outLayoutName
+
+  pure $ (loweredTy
+         ,
+          Apply
+            (getPredName f (map genLayoutName inLayoutNames) (genLayoutName outLayoutName)) -- Name
+            loweredTy -- Output layout
+            (zipWith MkLowered (map fst args') inLayoutNames)
+            (map snd args') -- fun-SuSLik args
          )
 
 inferExpr gamma (Lower layoutName (Var () v)) = do
   -- requireType ty $ LayoutConcrete layoutName
   inferExpr gamma (Var () v)
+    -- TODO: Does this need a copy (so, a different out var)?
 
 inferExpr gamma (Lower layoutName (ConstrApply ty' cName args)) = do
     -- TODO: Check that the ADT matches the layout
 
   layout <- lookupLayoutM (baseLayoutName layoutName)
-  let layoutParams = layoutSuSLikParams layout
 
-  let ty'' = genLoweredType (length layoutParams) (genLayoutName layoutName)
+  -- ty'' <- genLoweredType layout
+
+  outVars <- newOutVars layout
+  let ty'' = MkLowered outVars layoutName
 
   argsWithTys <- traverse (inferWith gamma layout) args
 
-  pure $ (loweredType ty'', ConstrApply ty'' cName (map snd argsWithTys))
+  pure $ (ty'', ConstrApply ty'' cName (map snd argsWithTys))
 
 inferExpr gamma e@(Lower {}) =
   typeError $ "'lower' expression with incorrect form. Should be of the form 'lower v' or 'lower (C ...)'. Found: " ++ show e

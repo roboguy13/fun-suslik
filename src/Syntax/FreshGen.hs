@@ -4,29 +4,35 @@ module Syntax.FreshGen
   where
 
 import           Control.Monad.State
+import           Control.Monad.Identity
 
 import           Syntax.Name
 
-newtype FreshGen a = FreshGen (State Int a)
-  deriving (Functor, Applicative, Monad, MonadState Int)
+newtype FreshGenT m a = FreshGen (StateT Int m a)
+  deriving (Functor, Applicative, Monad, MonadState Int, MonadTrans)
+
+type FreshGen = FreshGenT Identity
 
 runFreshGen :: FreshGen a -> ([Name_ b], a)
-runFreshGen (FreshGen m) =
-  case runState m 0 of
-    (r, maxUniq) -> (map MkInternal [0..maxUniq-1], r)
+runFreshGen = runIdentity . runFreshGenT
 
-getFresh :: FreshGen (Name_ b)
+runFreshGenT :: Monad m => FreshGenT m a -> m ([Name_ b], a)
+runFreshGenT (FreshGen m) = do
+  (r, maxUniq) <- runStateT m 0
+  pure (map MkInternal [0..maxUniq-1], r)
+
+getFresh :: Monad m => FreshGenT m (Name_ b)
 getFresh = do
   curr <- get
   modify succ
   return $ MkInternal curr
 
-getFreshWith :: String -> FreshGen String
+getFreshWith :: Monad m => String -> FreshGenT m String
 getFreshWith name = do
   i <- getUniq
   pure $ (name <> show i)
 
-getUniq :: FreshGen Int
+getUniq :: Monad m => FreshGenT m Int
 getUniq = do
   curr <- get
   modify succ

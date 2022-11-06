@@ -349,7 +349,7 @@ parseApp = do
   f <- parseIdentifier
   -- some spaceChar
   args <- some parseExpr'
-  pure $ Apply f () args
+  pure $ Apply f () (replicate (length args) ()) args
 
 parseConstrApp :: Parser (Parsed ExprX FsName)
 parseConstrApp = do
