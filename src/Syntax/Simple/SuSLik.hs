@@ -7,7 +7,7 @@ module Syntax.Simple.SuSLik
   where
 
 -- import           Syntax.Simple.Expr
-import           Syntax.Simple.Heaplet
+import           Syntax.Simple.Heaplet hiding (Type(..))
 import           Syntax.Name
 import           Syntax.Ppr
 

@@ -7,6 +7,7 @@ module Syntax.Name
   (Name_ (..)
   ,Name
   ,FsName
+  ,fsName
   ,SuSLikName
   ,ParamIndex (..)
   ,setNameIndex
@@ -59,8 +60,11 @@ data Name_ a where
 
 type Name = Name_ String
 
-type SuSLikName = Name
-type FsName = Name
+type SuSLikName = String --Name
+type FsName = String --Name
+
+fsName :: FsName -> String
+fsName = id
 
 maxUniq :: (Functor f, Foldable f) => f (Name_ a) -> Int
 maxUniq = fromMaybe 0 . maximum . fmap getNameIndex

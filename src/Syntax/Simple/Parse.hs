@@ -121,7 +121,7 @@ parseList sep p = parseList0 (lexeme sep) p
 
 data ParsedFile =
   MkParsedFile
-  { fileFnDefs :: [Def]
+  { fileFnDefs :: [Parsed Def]
   , fileAdts :: [Adt]
   , fileLayouts :: [Layout]
   , fileDirectives :: [Directive]
@@ -135,7 +135,7 @@ instance Semigroup ParsedFile where
 instance Monoid ParsedFile where
   mempty = MkParsedFile [] [] [] []
 
-oneFileFnDef :: Def -> ParsedFile
+oneFileFnDef :: Parsed Def -> ParsedFile
 oneFileFnDef d = MkParsedFile [d] [] [] []
 
 oneFileAdt :: Adt -> ParsedFile
@@ -204,7 +204,7 @@ parseInstantiateDirective = lexeme $ do
 data GlobalItem where
   -- GlobalAdt :: Adt -> GlobalItem
   GlobalLayout :: Layout -> GlobalItem
-  GlobalFnDef :: Def -> GlobalItem
+  GlobalFnDef :: Parsed Def -> GlobalItem
   deriving (Show)
 
 type GlobalEnv = [(String, GlobalItem)]
@@ -230,7 +230,7 @@ parseLayout = do
     , layoutBranches = branches
     }
   where
-    go :: String -> Parser (Pattern FsName, Assertion' FsName)
+    go :: String -> Parser (Pattern FsName, Assertion FsName)
     go name = try $ do
       name' <- parseLayoutName
       parseGuard (name' == name) (Just name') name
@@ -251,7 +251,7 @@ parsePattern =
       parseOp ")"
       pure $ MkPattern cName pVars
 
-parseAssertion :: Parser (Assertion' FsName)
+parseAssertion :: Parser (Assertion FsName)
 parseAssertion =
   (keyword "emp" *> pure Emp)
     <|>
@@ -259,23 +259,25 @@ parseAssertion =
     <|>
   parseHeapletApply parseAssertion
 
-parsePointsTo :: Parser (Assertion' FsName) -> Parser (Assertion' FsName)
+parsePointsTo :: Parser (Assertion FsName) -> Parser (Assertion FsName)
 parsePointsTo p = do
   loc <- parseLoc
   parseOp ":->"
-  e <- parseExpr
+  e <- fmap (Var ()) parseIdentifier
   PointsToI loc e <$> ((parseOp "," *> p) <|> pure Emp)
 
-parseHeapletApply :: Parser (Assertion' FsName) -> Parser (Assertion' FsName)
+parseHeapletApply :: Parser (Assertion FsName) -> Parser (Assertion FsName)
 parseHeapletApply p = do
   layoutName <- parseLayoutName
   -- some spaceChar
-  args <- some parseExpr'
+  -- args <- some parseExpr'
+  arg <- fmap (Var ()) parseIdentifier
+  let args = [arg]
   HeapletApply (MkLayoutName (Just Input) layoutName) [] args <$> ((parseOp "," *> p) <|> pure Emp)
 
 
-parseLoc :: Parser (Loc (Expr FsName))
-parseLoc = fmap (Here . Var . fsName) parseIdentifier <|> go
+parseLoc :: Parser (Loc FsName)
+parseLoc = fmap (Here . fsName) parseIdentifier <|> go
   where
     go = do
       parseOp "("
@@ -283,9 +285,9 @@ parseLoc = fmap (Here . Var . fsName) parseIdentifier <|> go
       parseOp "+"
       i <- read @Int <$> some digitChar
       parseOp ")"
-      pure (Var (fsName x) :+ i)
+      pure ((fsName x) :+ i)
 
-parseExpr' :: Parser (Expr FsName)
+parseExpr' :: Parser (Parsed ExprX FsName)
 parseExpr' = lexeme $
   parseBracketed (parseOp "(") (parseOp ")") parseExpr
     <|>
@@ -297,7 +299,7 @@ parseExpr' = lexeme $
     <|>
   try parseVar
 
-parseExpr :: Parser (Expr FsName)
+parseExpr :: Parser (Parsed ExprX FsName)
 parseExpr =
   try (Not <$> (keyword "not" *> parseExpr'))
     <|>
@@ -327,32 +329,32 @@ parseExpr =
     <|>
   try parseExpr'
 
-parseApp :: Parser (Expr FsName)
+parseApp :: Parser (Parsed ExprX FsName)
 parseApp = do
   f <- parseIdentifier
   -- some spaceChar
   args <- some parseExpr'
-  pure $ Apply f args
+  pure $ Apply f () args
 
-parseConstrApp :: Parser (Expr FsName)
+parseConstrApp :: Parser (Parsed ExprX FsName)
 parseConstrApp = do
   cName <- parseConstructor
   args <- (some (lexeme parseExpr')) <|> pure []
-  pure $ ConstrApply cName args
+  pure $ ConstrApply () cName args
 
-parseBinOp :: String -> (Expr FsName -> Expr FsName -> Expr FsName) -> Parser (Expr FsName)
+parseBinOp :: String -> (Parsed ExprX FsName -> Parsed ExprX FsName -> Parsed ExprX FsName) -> Parser (Parsed ExprX FsName)
 parseBinOp opName build = try $ do
   x <- try parseExpr'
   parseOp opName
   y <- parseExpr
   pure $ build x y
 
-parseVar :: Parser (Expr FsName)
+parseVar :: Parser (Parsed ExprX FsName)
 parseVar = do
   str <- parseIdentifier
-  pure $ Var (fsName str)
+  pure $ Var () (fsName str)
 
-parseLower :: Parser (Expr FsName)
+parseLower :: Parser (Parsed ExprX FsName)
 parseLower = do
   keyword "lower"
 
@@ -362,17 +364,24 @@ parseLower = do
 
   pure $ Lower layoutName e
 
-parseInstantiate :: Parser (Expr FsName)
+parseInstantiate :: Parser (Parsed ExprX FsName)
 parseInstantiate = do
   keyword "instantiate"
 
-  layoutA <- parseLayoutName
+  argLayouts <- parseBracketed (parseOp "[") (parseOp "]")
+                  $ parseList (char ',') parseLayoutName
 
-  layoutB <- parseLayoutName
+  resultLayout <- parseLayoutName
 
-  e <- parseExpr'
+  f <- parseIdentifier
 
-  pure $ LiftLowerFn layoutA layoutB e
+  args <- some parseExpr'
+
+  when (length args /= length argLayouts)
+    $ failure (Just (Label (NonEmpty.fromList (show (length args) ++ " arguments, " ++ show (length argLayouts) ++ " argument layouts"))))
+              (Set.singleton (Label (NonEmpty.fromList ("Same number of arguments and argument layouts"))))
+
+  pure $ Instantiate argLayouts resultLayout f args
 
 parseAdtDef :: Parser Adt
 parseAdtDef = do
@@ -394,7 +403,7 @@ parseAdtBranch = do
   fields <- (some parseType) <|> pure []
   pure $ MkAdtBranch { adtBranchConstr = cName, adtBranchFields = fields }
 
-parseFnDef :: Parser Def
+parseFnDef :: Parser (Parsed Def)
 parseFnDef = do
   name <- parseIdentifier
 
@@ -412,7 +421,7 @@ parseFnDef = do
 
   pure $ def
 
-parseFnBranch :: String -> Parser DefBranch
+parseFnBranch :: String -> Parser (Parsed DefBranch)
 parseFnBranch name0 = try $ do
   name <- parseIdentifier
   parseGuard (name == name0) (Just name) name0
@@ -432,7 +441,7 @@ parseFnBranch name0 = try $ do
 
   pure $ MkDefBranch pat guardeds
 
-parseGuardedExpr :: Parser GuardedExpr
+parseGuardedExpr :: Parser (Parsed GuardedExpr)
 parseGuardedExpr = lexeme $ do
   cond <- try (parseOp "|" *> parseExpr) <|> pure (BoolLit True)
 

@@ -21,6 +21,11 @@ getFresh = do
   modify succ
   return $ MkInternal curr
 
+getFreshWith :: String -> FreshGen String
+getFreshWith name = do
+  i <- getUniq
+  pure $ (name <> show i)
+
 getUniq :: FreshGen Int
 getUniq = do
   curr <- get
