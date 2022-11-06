@@ -6,7 +6,7 @@ Demonstrated by showing how an example transforms in each stage.
 1. Parsing
 
 ```
-%generate filterLt7 [Sll] Sll
+%generate filterLt7 [Sll[readonly]] Sll
 
 Sll : List -> layout[x];
 Sll Nil := emp;
