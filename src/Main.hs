@@ -37,8 +37,8 @@ main = do
       let (GenerateDef fnName argLayouts resultLayout:_) = directives
       print fnName
       print $
-        instAndElaborate layouts adts fnDefs
-          fnName argLayouts resultLayout $ lookupDef fnDefs fnName
+        runTypeCheck layouts adts fnDefs $
+          instAndElaborate fnName argLayouts resultLayout $ lookupDef fnDefs fnName
 
       -- print parsed
       -- print layouts
