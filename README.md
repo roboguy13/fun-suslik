@@ -45,18 +45,30 @@ filterLt7 (Sll[readonly ; x] (Cons head tail))
   | not (head < 7) := instantiate [Sll[readonly ; tail]] Sll[r] filter tail;
 ```
 
-4. Unfold lowered constructor applications
+4. Unfold layout for pattern matching
+
+```
+filterLt7 Nil      :=
+    layout{ emp } & lower Sll[readonly ; r] Nil;
+filterLt7 (Cons head tail)
+  | head < 7       :=
+        layout{ x :=> head, (x+1) :=> tail } & lower Sll[readonly ; r] (Cons head (instantiate [Sll[readonly ; tail]] Sll[y] filterLt7 tail));
+  | not (head < 7) := layout{ x :=> head, (x+1) :=> tail } & instantiate [Sll[readonly ; tail]] Sll[r] filter tail;
+```
+
+
+5. Unfold lowered constructor applications
 
 In "pseudo-code":
 
 ```
-filterLt7 Nil      := layout{ emp }
+filterLt7 Nil      := layout{ emp };
 filterLt7 (Cons head tail)
   | head < 7       := layout{ x :=> head, (x+1) :=> tail, r :-> head, (r+1) :-> y, filterLt7__Sll_Sll[tail | y] tail));
   | not (head < 7) := layout{ x :=> head, (x+1) :=> tail, filterLt7__Sll_Sll[tail | r] tail));
 ```
 
-5. Generation
+6. Generation
 
 Uses temporary variables to connect nested function applications and generates SuSLik
 
