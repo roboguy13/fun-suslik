@@ -40,7 +40,7 @@ In "pseudo-code":
 ```
 filterLt7 Nil      := layout{ emp }
 filterLt7 (Cons head tail)
-  | head < 7       := layout{ x :=> head, (x+1) :=> tail, r :-> head, r :-> nxt, filterLt7__Sll_Sll[nxt] tail));
+  | head < 7       := layout{ x :=> head, (x+1) :=> tail, r :-> head, (r+1) :-> nxt, filterLt7__Sll_Sll[nxt] tail));
   | not (head < 7) := layout{ x :=> head, (x+1) :=> tail, filterLt7__Sll_Sll[r] tail));
 ```
 
