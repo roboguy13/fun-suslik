@@ -8,6 +8,11 @@ Demonstrated by showing how an example transforms in each stage.
 ```
 %generate filterLt7 [Sll] Sll
 
+Sll : List -> layout[x];
+Sll Nil := emp;
+Sll (Cons head tail) := x :-> head, (x+1) :-> tail, Sll tail
+
+
 filterLt7 : List -> List;
 filterLt7 Nil      := Nil;
 filterLt7 (Cons head tail)
