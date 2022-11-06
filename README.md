@@ -24,7 +24,7 @@ filterLt7 (Cons head tail)
 
 This stage performs simple inference of layouts (and elaborates by inserting
 `lower` and `instantiate` for the inferred layouts). Also generates SuSLik names for
-the layout parameters.
+the layout parameters. In this example, the generated names are `x` and `r`.
 
 ```
 filterLt7 Nil      := lower Sll[readonly ; x] Nil;
