@@ -21,13 +21,13 @@ type TcEnv = [(String, LoweredType)]
 
 genLoweredType :: Int -> String -> LoweredType
 genLoweredType count name =
-  MkLoweredType (map go [0..count]) $ LayoutConcrete name
+  MkLoweredType (map go [0..count]) $ LayoutConcrete $ MkLayoutName (Just Output) name -- TODO: Is this mode correct?
   where
     go n = name <> "__" <> show n
 
 toLoweredType :: [Layout] -> String -> ConcreteType -> (String, LoweredType)
 toLoweredType layouts v ty@(LayoutConcrete layoutName) =
-    let layout = lookupLayout layouts layoutName
+    let layout = lookupLayout layouts (genLayoutName layoutName)
         params = map go $ layoutSuSLikParams layout
     in
     (v, MkLoweredType params ty)
@@ -43,8 +43,8 @@ typeMatchesLowered = go
     go (AdtType name) _ = Left $ "ADT type not lowered: " ++ name
     go (LayoutType name arity)
        (MkLoweredType params (LayoutConcrete name')) =
-         if name' /= name
-           then Left $ "Expected layout " ++ name ++ " found " ++ name'
+         if genLayoutName name' /= name
+           then Left $ "Expected layout " ++ name ++ " found " ++ genLayoutName name'
            else
              if arity /= length params
                then Left $ "Expected " ++ show arity ++ " arguments to layout " ++ name ++ ", found " ++ show (length params)
@@ -70,7 +70,7 @@ requireType expected found =
 toConcrete :: String -> ConcreteType
 toConcrete "Int" = IntConcrete
 toConcrete "Bool" = BoolConcrete
-toConcrete x = LayoutConcrete x
+toConcrete x = LayoutConcrete (MkLayoutName (Just Output) x)
 
 -- | Get the predicate name for a function with the given layouts
 getPredName :: String -> [String] -> String -> String
@@ -152,26 +152,27 @@ elaborateDef layouts adts defs inLayoutNames outLayoutName def =
             Left err -> error err
             Right (_, e') -> e'
 
--- inferLayoutPatVars :: [Layout] -> Layout -> Adt -> Pattern FsName -> [(FsName, ConcreteType)]
--- inferLayoutPatVars layouts layout adt (PatternVar v) = [(v, LayoutConcrete (layoutName layout))]
--- inferLayoutPatVars layouts layout adt (MkPattern cName params) =
---     let adtFields = adtBranchFields $ findAdtBranch adt cName
---     in
---     zipWith go params adtFields
---   where
---     go v IntType = (v, IntConcrete)
---     go v BoolType = (v, BoolConcrete)
---     go v _ = (v, LayoutConcrete $ findLayoutApp v $ lookupLayoutBranch layout cName)
+inferLayoutPatVars :: [Layout] -> Layout -> Adt -> Pattern FsName -> [(FsName, ConcreteType)]
+inferLayoutPatVars layouts layout adt (PatternVar v) = [(v, LayoutConcrete (MkLayoutName (Just Input) (layoutName layout)))]
+inferLayoutPatVars layouts layout adt (MkPattern cName params) =
+    let adtFields = adtBranchFields $ findAdtBranch adt cName
+    in
+    zipWith go params adtFields
+  where
+    go v IntType = (v, IntConcrete)
+    go v BoolType = (v, BoolConcrete)
+    go v _ = (v, LayoutConcrete $ findLayoutApp v $ lookupLayoutBranch layout cName)
 
-findLayoutApp :: FsName -> Assertion FsName -> String
+findLayoutApp :: FsName -> Assertion FsName -> LayoutName
 findLayoutApp v = go
   where
-  go Emp = error "findLayoutApp: Cannot find " ++ show v
-  go (PointsTo _ _ _ rest) = go rest
-  go (HeapletApply lName params [Var _ v'] rest)
-    | v' == v = genLayoutName lName
-    | otherwise = go rest
-  go (HeapletApply lName params _ rest) = go rest
+    go :: Assertion FsName -> LayoutName
+    go Emp = error $ "findLayoutApp: Cannot find " ++ show v
+    go (PointsTo _ _ _ rest) = go rest
+    go (HeapletApply lName params [Var _ v'] rest)
+      | v' == v = lName --genLayoutName lName
+      | otherwise = go rest
+    go (HeapletApply lName params _ rest) = go rest
 
 inferWith :: [Layout] -> [Parsed Def] -> TcEnv -> Layout -> Parsed ExprX String -> TypeCheck (ConcreteType, Elaborated ExprX String)
 inferWith layouts defs gamma layout e@(ConstrApply {}) =
@@ -336,7 +337,7 @@ inferExpr layouts defs gamma e0@(Instantiate inLayoutNames outLayoutName f args)
       outLayout = lookupLayout layouts outLayoutName
       outLayoutParams = layoutSuSLikParams outLayout
 
-  pure $ (LayoutConcrete outLayoutName
+  pure $ (LayoutConcrete (MkLayoutName (Just Output) outLayoutName)
          ,Apply
           (getPredName f inLayoutNames outLayoutName) -- Name
           (genLoweredType (length outLayoutParams) outLayoutName) -- Output layout

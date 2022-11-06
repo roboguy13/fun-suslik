@@ -1,4 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LiberalTypeSynonyms #-}
 
 module Main
   where

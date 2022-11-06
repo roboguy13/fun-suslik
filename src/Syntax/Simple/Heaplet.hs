@@ -27,7 +27,7 @@ import           Data.Void
 
 type ConstrName = String
 
-data ConcreteType = IntConcrete | BoolConcrete | LayoutConcrete String
+data ConcreteType = IntConcrete | BoolConcrete | LayoutConcrete LayoutName
   deriving (Show, Eq, Ord)
 
 data LoweredType =
@@ -264,13 +264,13 @@ lookupLayoutBranch layout cName =
 -- suslikName = MkName
 --
 data Mode = Input | Output
-  deriving (Show)
+  deriving (Show, Eq, Ord)
 
 data LayoutName =
   MkLayoutName
     (Maybe Mode) -- | This is Nothing if we are actually refering to a predicate generated for a function, rather than a layout
     String
-  deriving (Show)
+  deriving (Show, Eq, Ord)
 
 data Assertion a where
   Emp :: Assertion a
