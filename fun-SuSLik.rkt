@@ -535,7 +535,7 @@
 
   [(apply-layout Γ L [x ...] pat fs-assertion)
    (where (suslik-heaplet ...) ,(car (apply-reduction-relation* to-suslik-layout-apps (term fs-assertion))))
-   (where (suslik-heaplet_e ...) ,(car (apply-reduction-relation* lower->suslik-layout-app (term e))))
+   (where (suslik-heaplet_e ...) ,(car (apply-reduction-relation* to-suslik-layout-apps (car (apply-reduction-relation* lower->suslik-layout-app (term e))))))
    -----------------
    (gen-cond-branch Γ L [x ...] pat (bool-expr → e) (bool-expr ⇒ (true (suslik-heaplet ... suslik-heaplet_e ...))) #;(true fs-assertion) #;(true (substitute fs-assertion [L (get-pred-name f)])))
    ]
@@ -777,8 +777,11 @@
   (term
    ((left-list : (Tree → List))
     (
-     [(C-Leaf) (true → (lower [] L-sll (C-Nil)))]
-     [(C-Bin a left right) (true → (lower [] L-sll (C-Cons a (left-list left))))]
+     [(C-Leaf) (true →
+                     (lower [] L-sll (C-Nil)))]
+     
+     [(C-Bin a left right) (true →
+                                 (lower [] L-sll (C-Cons a (left-list left))))]
      ))))
 
 (define tree-ctx (term (extend · L-tree ,tree-layout)))

@@ -4,6 +4,9 @@
 %generate odd [Sll] Sll
 %generate sum [Sll] Int
 %generate sumTailRec [Sll] Int
+%generate consFn [Sll] Sll
+%generate car [Sll] Int
+%generate singleton [Int] Sll
 
 data List := Nil | Cons Int List;
 
@@ -21,6 +24,16 @@ TreeLayout (Node payload left right) :=
   (x+2) :-> right,
   TreeLayout left,
   TreeLayout right;
+
+consFn : Int -> List -> List;
+consFn x xs := Cons x xs;
+
+car : List -> Int;
+car (Nil) := 0;
+car (Cons x xs) := x;
+
+singleton : Int -> List;
+singleton x := Cons x (Nil);
 
 filterLt7 : List -> List;
 filterLt7 (Nil) := Nil;

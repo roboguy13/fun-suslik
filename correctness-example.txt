@@ -4,6 +4,9 @@ forall e, P, Q, [[e]] = (P, Q) ->
        forall arg, [arg] |= P -> [e(arg)] |= Q 
 
 
+       forall arg, e : A -> B, arg : A |- e(arg) : B -> [e(arg) |= Q ?
+
+
 - data D := C1 Int | C2 Int Int
   data List := Nil | Cons Int List
 
@@ -20,6 +23,7 @@ forall e, P, Q, [[e]] = (P, Q) ->
     case d of
       C1 a -> Cons a Nil
       C2 a b -> Cons a (Cons b Nil)
+
 
   arg : D
   arg := C2 10 100

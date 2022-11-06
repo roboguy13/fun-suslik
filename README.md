@@ -36,7 +36,7 @@ filterLt7 (Cons head tail)
   | not (head < 7) := layout{ x :=> head, (x+1) :=> tail, filterLt7__Sll_Sll[r] tail));
 ```
 
-3. Generation
+5. Generation
 
 Uses temporary variables to connect nested function applications and generates SuSLik
 

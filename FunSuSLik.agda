@@ -138,9 +138,16 @@ data SuSLik-Heaplet : Set where
   _·_ : Name → List SuSLik-Expr → SuSLik-Heaplet
   Temp : Addr → SuSLik-Heaplet
 
-→SuSLik-Heaplet : Heaplet → SuSLik-Heaplet
-→SuSLik-Heaplet (x :-> x₁) = x :-> Var x₁
-→SuSLik-Heaplet (x H· x₁) = x · [ Var x₁ ]
+→SuSLik-Heaplet-fn : Heaplet → SuSLik-Heaplet
+→SuSLik-Heaplet-fn (x :-> x₁) = x :-> Var x₁
+→SuSLik-Heaplet-fn (x H· x₁) = x · [ Var x₁ ]
+
+data →SuSLik-Heaplet : Heaplet → SuSLik-Heaplet → Set where
+  →SuSLik-Heaplet-points-to : ∀ {x y} →
+    →SuSLik-Heaplet (x :-> y) (x :-> Var y)
+
+  →SuSLik-Heaplet-H· : ∀ {p arg} →
+    →SuSLik-Heaplet (p H· arg) (p · [ Var arg ])
 
 data SuSLik-Asn : Set where
   _,,_ :
@@ -261,7 +268,40 @@ data FS-Any (P : Name → Set) : Fresh-Supply → Set where
     FS-Any P right →
     FS-Any P (FS-Branch xs left right)
 
-data _,,_▷_⇓[_,_]_ : Fresh-Supply → G-Env → Expr → Addr → Name → SuSLik-Asn → Set where
+data Name-Subst : Name → Name → Name → Name → Set where
+  Name-Subst-≢ : (old new curr : Name) →
+    old ≢ curr →
+    Name-Subst old new curr curr
+
+  Name-Subst-≡ : (old new : Name) →
+    Name-Subst old new old new
+
+data Addr-Name-Subst : Name → Name → Addr → Addr → Set where
+  AN-Subst : (old-name new-name : Name) (old-x new-x : Name) (i : ℕ) →
+    Name-Subst old-name new-name old-x new-x →
+    Addr-Name-Subst old-name new-name (old-x :+ i) (new-x :+ i)
+
+data Heaplet-Name-Subst : Name → Name → Heaplet → Heaplet → Set where
+  HN-Subst-:-> : (old-name new-name : Name) (old-x new-x : Addr) (old-y new-y : Name) →
+    Addr-Name-Subst old-name new-name old-x new-x →
+    Name-Subst old-name new-name old-y new-y →
+    Heaplet-Name-Subst old-name new-name (old-x :-> old-y) (new-x :-> new-y)
+
+  HN-Subst-H· : (old-name new-name : Name) (f : Name) (old-args new-args : Name) →
+    -- All (λ (old , new) → Name-Subst old-name new-name old new) (Data.List.zip old-args new-args) →
+    Name-Subst old-name new-name old-args new-args →
+    Heaplet-Name-Subst old-name new-name (f H· old-args) (f H· new-args)
+
+data _,,_▷_⇓[_,_]_ : Fresh-Supply → G-Env → Expr → Addr → Name → SuSLik-Asn → Set
+
+data _▷_,,_⟶constr_ : G-Env → List Layout-Branch → Expr → List SuSLik-Heaplet → Set where
+  -- TODO: This needs substitution
+  constr-reduce : ∀ {Δ A C args hs suslik-hs} →
+    (Mk-Layout-Branch C hs) ∈ A →
+    All (λ (h , suslik-h) → →SuSLik-Heaplet h suslik-h) (Data.List.zip hs suslik-hs) →
+    Δ ▷ A ,, (C C· args) ⟶constr suslik-hs
+
+data _,,_▷_⇓[_,_]_ where
   ⇓-Var : ∀ {Σ x r v} →
     FS-Empty ,, Σ ▷ Var x ⇓[ r , v ] ((Var v == Var x) ,, [ r :-> Var v ])
 
@@ -274,7 +314,7 @@ data _,,_▷_⇓[_,_]_ : Fresh-Supply → G-Env → Expr → Addr → Name → S
   ⇓-Add : ∀ {fr₁ fr₂ Σ e₁ e₂ r v v₁ v₂ s₁ s₂ s₃ s} →
     v₁ ≢ v →
     v₂ ≢ v →
-    v₁ ≢ v₂ →
+    v₂ ≢ v₁ →
     Combine-Asns s₁ s₂ s₃ →
     Combine-Asns ((Var v == Add (Var v₁) (Var v₂)) ,, []) s₃ s →
     fr₁ ,, Σ ▷ e₁ ⇓[ Unused-Addr , v₁ ] s₁ →
@@ -545,101 +585,6 @@ fresh-second : ∀ {x y rest} →
 fresh-second {x} {y} {rest} with proj₂ (fresh (x ∷ y ∷ rest))
 ... | _ ∷ py ∷ z = λ eq → py (sym eq)
 
-
-⇓-Total : ∀ {env e r v} →
-  Σ Fresh-Supply λ fr →
-  Σ SuSLik-Asn λ s →
-    fr ,, env ▷ e ⇓[ r , v ] s
-⇓-Total {env} {Var x} {r} {v} = FS-Empty , ((Var v == Var x) ,, ((r :-> Var v) ∷ [])) , ⇓-Var
-⇓-Total {env} {x C· x₁} {r} {v} = {!!}
-⇓-Total {env} {x · e} {r} {v} = {!!}
-⇓-Total {env} {Bool-Lit x} {r} {v} = FS-Empty , ((Var v == Bool-Lit x) ,, ((r :-> Var v) ∷ [])) , ⇓-Bool
-⇓-Total {env} {Int-Lit x} {r} {v} = FS-Empty , ((Var v == Int-Lit x) ,, ((r :-> Var v) ∷ [])) , ⇓-Int
-
-⇓-Total {env} {e == e₁} {r} {v} =
-  let v₁ , v₁-prf = fresh [ v ]
-      v₂ , v₂-prf = fresh (v ∷ v₁ ∷ [])
-
-      left = ⇓-Total {env} {e} {Unused-Addr} {v₁}
-      right = ⇓-Total {env} {e₁} {Unused-Addr} {v₂}
-
-      s₁ = proj₁ (proj₂ left)
-      s₂ = proj₁ (proj₂ right)
-
-      asn = ((Var v == ((Var v₁) == (Var v₂))) ,, []) <> s₁ <> s₂
-  in
-  FS-Branch (v₁ ∷ v₂ ∷ []) (proj₁ left) (proj₁ right) , asn , ⇓-== fresh-first fresh-first fresh-second Combine-Asns-exists Combine-Asns-exists (proj₂ (proj₂ left)) (proj₂ (proj₂ right))
-⇓-Total {env} {Add e e₁} {r} {v} = {!!}
-⇓-Total {env} {Lower x e} {r} {v} = {!!}
-⇓-Total {env} {Instantiate x x₁ x₂ e} {r} {v} = {!!}
-⇓-Total {env} {Lift x} {r} {v} = FS-Empty ,
-                                   (((Var v == Addr-Var r) && (Addr-Var r == Addr-Var x)) ,, []) ,
-                                   ⇓-Lift
-
-Exprs-FVs : Name → List Expr → List Name
-
-Expr-FVs : Name → Expr → List Name
-Expr-FVs param (Var x) with Name-eq-dec {param} {x}
-... | inj₁ refl = []
-... | inj₂ y = [ x ]
-Expr-FVs param (x C· x₁) = Exprs-FVs param x₁
-Expr-FVs param (x · e) = Expr-FVs param e
-Expr-FVs param (Bool-Lit x) = []
-Expr-FVs param (Int-Lit x) = []
-Expr-FVs param (e == e₁) = Expr-FVs param e ++ Expr-FVs param e₁
-Expr-FVs param (Add e e₁) = Expr-FVs param e ++ Expr-FVs param e₁
-Expr-FVs param (Lower x e) = Expr-FVs param e
-Expr-FVs param (Instantiate x x₁ x₂ e) = Expr-FVs param e
-Expr-FVs param (Lift x) = []
-
-Exprs-FVs param [] = []
-Exprs-FVs param (x ∷ exprs) = Expr-FVs param x ++ Exprs-FVs param exprs
-
-Name-without : Name → Name → List Name
-Name-without param x with Name-eq-dec {param} {x}
-... | inj₁ refl = []
-... | inj₂ y = [ x ]
-
-
-Heaplet-FVs : Name → Heaplet → List Name
-Heaplet-FVs param ((x :+ x₂) :-> x₁) = Name-without param x ++ Name-without param x₁
-Heaplet-FVs param (Unused-Addr :-> x₁) = Name-without param x₁
-Heaplet-FVs param (x H· x₁) = Name-without param x₁
-
-
-Layout-Branch-FVs : Name → Layout-Branch → List Name
-Layout-Branch-FVs param (Mk-Layout-Branch x x₁) = concatMap (Heaplet-FVs param) x₁
-
-Layout-FVs : Layout → List Name
-Layout-FVs (Mk-Layout x (fst , param) branches) = concatMap (Layout-Branch-FVs param) branches
-
-Name-subst : Name → Name → Name → Name
-Name-subst old new x with Name-eq-dec {old} {x}
-... | inj₁ refl = new
-... | inj₂ p = x
-
-Name-subst-Heaplet : Name → Name → Heaplet → Heaplet
-Name-subst-Heaplet old new ((x :+ x₂) :-> x₁) = (Name-subst old new x :+ x₂) :-> (Name-subst old new x₁)
-Name-subst-Heaplet old new (Unused-Addr :-> x₁) = Unused-Addr :-> Name-subst old new x₁
-Name-subst-Heaplet old new (x H· x₁) = x H· Name-subst old new x₁
-
-Layout-Branch-Heaplets : Layout-Branch → List Heaplet
-Layout-Branch-Heaplets (Mk-Layout-Branch x x₁) = x₁
-
-S[_,_]⟦_⟧_ : Name  → Name → Expr → G-Env → SuSLik-Asn
-S[ r-name , v ]⟦ e ⟧ env with ⇓-Total {env} {e} {r-name :+ 0} {v}
-... | fst , fst₁ , snd = fst₁
-
-T[_]⟦_⟧_ : (arg : Name) → (layout : Layout) → ¬ (arg ∈ Layout-FVs layout) → List (List SuSLik-Heaplet)
-T[ r-name ]⟦ Mk-Layout x (x₁ , param) x₂ ⟧ prf = (Data.List.map (λ x₃ → (Data.List.map →SuSLik-Heaplet (Data.List.map (Name-subst-Heaplet param r-name) (Layout-Branch-Heaplets x₃)))) x₂)
-
--- TODO: Is this how we should deal with the guards?
--- Also, is it okay to do naive substitution here? It seems like Fn-Defs shouldn't have any free variables that could be captured
-Fn-Def-Apply : (fn-def : Fn-Def) → Name → List Expr → List Guard-Branch
-Fn-Def-Apply fn-def C C-args = {!!}
-
--- TODO: Add a thing to check that a global environment is valid and well-typed
-
 data _,,_▷_∶_ : G-Env → Ty-Env → Expr → Type → Set where
   Type-of-Var : ∀ {Δ Γ n τ} →
     (n , τ) ∈ Γ →
@@ -704,66 +649,259 @@ data _,,_▷_∶_ : G-Env → Ty-Env → Expr → Type → Set where
     ---------
     Δ ,, Γ ▷ (Instantiate A B f-name e) ∶ (Layout-Type B)
 
--- data G-Env-Valid : G-Env → G-Env → Set where
-
 _▷_∶_ : G-Env → Expr → Type → Set
 Δ ▷ e ∶ τ = Δ ,, [] ▷ e ∶ τ
 
--- A simplified version
-data _-*_ : List SuSLik-Heaplet → List SuSLik-Heaplet → Set where
-  wand-emp : ∀ {hs} → [] -* hs
-  wand-cons : ∀ {h hs hs₂} →
-    h ∈ hs₂ →
-    hs -* hs₂ →
-    (h ∷ hs) -* hs₂
+data _,,_▷_⇒_ : G-Env → Ty-Env → Expr → Type → Set where
+  Conc-Type-of-Lower-C· : ∀ {Δ Γ A C args adt-name adt branches τs} →
+    (adt-name , G-Adt-Def adt) ∈ Δ →
+    Mk-Adt-Branch C τs ∈ branches →
+    All (λ (arg , τ) → Δ ,, Γ ▷ arg ⇒ τ) (Data.List.zip args τs) →
+    Δ ,, Γ ▷ Lower A (C C· args) ⇒ Layout-Type A
 
-data _▷_÷_ : G-Env → SuSLik-Asn → List (List SuSLik-Heaplet) → Set where
-  LL-Type-of-exists : ∀ {Δ pure-part spatial-part hs hss} →
-    hs ∈ hss →
-    hs -* spatial-part →
-    Δ ▷ (pure-part ,, spatial-part) ÷ hss
+  Conc-Type-of-Instantiate : ∀ {Δ Γ A B Adt-Name-A Adt-Name-B adt-def-A adt-def-B SuSLik-params-A SuSLik-params-B branches-A branches-B f-branches f-name e} →
+    (A , G-Layout-Def (Mk-Layout A (Adt-Name-A , SuSLik-params-A) branches-A)) ∈ Δ →
+    (Adt-Name-A , G-Adt-Def adt-def-A) ∈ Δ →
 
-high→low-level : ∀ {Δ e r v layout-name layout} →
-  (layout-name , G-Layout-Def layout) ∈ Δ →
-  (prf : ¬ (r ∈ Layout-FVs layout)) →
+    (B , G-Layout-Def (Mk-Layout B (Adt-Name-B , SuSLik-params-B) branches-B)) ∈ Δ →
+    (Adt-Name-B , G-Adt-Def adt-def-B) ∈ Δ →
 
-  Δ ▷ e ∶ Layout-Type layout-name →
-  Δ ▷ (S[ r , v ]⟦ e ⟧ Δ) ÷ (T[ r ]⟦ layout ⟧ prf)
--- high→low-level {Δ} {_} {r} {v} prf1 prf2 (Type-of-· {_} {_} {f-name} {_} {arg} x prf3) with S[ r , v ]⟦ f-name · arg ⟧ Δ
--- ... | x₁ ,, x₂ = {!!} --LL-Type-of-exists {!!} {!!}
-high→low-level {Δ} {e} {r} {v} prf1 prf2 (Type-of-· {_} {_} {f-name} {_} {arg} x prf3) with ⇓-Total {Δ} {e} {r :+ 0} {v}
-... | ()
-high→low-level {((layout-name , G-Layout-Def layout) ∷ xs)} {Lower layout-name e} {r} {v} {layout-name} (here refl) prf2 (Type-of-Lower x y prf3)
-  with ⇓-Total {(layout-name , G-Layout-Def layout) ∷ xs} {e} {r :+ 0} {v}
-... | fst , fst₁ , snd = LL-Type-of-exists {!!} {!!}
-high→low-level {.(_ ∷ _)} {Lower layout-name e} {r} {v} {layout-name} (there prf1) prf2 (Type-of-Lower x y prf3) = {!!}
--- ... | .FS-Empty , .((Var v == Var _) ,, [ (r :+ 0) :-> Var v ]) , ⇓-Var = LL-Type-of-exists {!!} {!!}
--- ... | x₁ ,, x₂ = {!!} -- LL-Type-of-exists {!!} {!!}
-high→low-level prf1 prf2 (Type-of-Instantiate x x₁ x₂ x₃ x₄ prf3) = {!!}
+    (f-name , G-Fn-Def (Mk-Fn-Def (Adt-Type Adt-Name-A) (Adt-Type Adt-Name-B) f-branches)) ∈ Δ →
 
-data _,,_▷_⟼_ : G-Env → Ty-Env → Expr → Expr → Set where
-  Small-step-· : ∀ {Δ Γ f fn-def C es} →
-    (f , G-Fn-Def fn-def) ∈ Δ →
-    Δ ,, Γ ▷ (f · (C C· es)) ⟼ {!!}
+    Δ ,, Γ ▷ e ⇒ (Layout-Type A) →
+    ---------
+    Δ ,, Γ ▷ (Instantiate A B f-name e) ⇒ (Layout-Type B)
 
-  Small-step-Add : ∀ {Δ Γ i j} →
-    Δ ,, Γ ▷ Add (Int-Lit i) (Int-Lit j) ⟼ Int-Lit (i Data.Integer.+ j)
 
-  Small-step-== : ∀ {Δ Γ i j} →
-    Δ ,, Γ ▷ (Int-Lit i == Int-Lit j) ⟼ Bool-Lit (isYes (i Data.Integer.≟ j))
+  -- Type-of-· : ∀ {Δ Γ f-name branches arg τ₁ τ₂} →
+  --   (f-name , G-Fn-Def (Mk-Fn-Def τ₁ τ₂ branches)) ∈ Δ →
+  --   Δ ,, Γ ▷ arg ⇒ τ₁ →
+  --   ---------
+  --   Δ ,, Γ ▷ (f-name · arg) ⇒ τ₂
 
-  Small-step-Instantiate : ∀ {Δ Γ f A B e} →
-    Δ ,, Γ ▷ (Instantiate A B f e) ⟼ (f · e)
+  Type-of-Int-Lit : ∀ {Δ Γ i} →
+    ---------
+    Δ ,, Γ ▷ Int-Lit i ⇒ Int-Type
 
-  Small-step-Lower : ∀ {Δ Γ A e} →
-    Δ ,, Γ ▷ (Lower A e) ⟼ e
+  Type-of-Bool-Lit : ∀ {Δ Γ b} →
+    ---------
+    Δ ,, Γ ▷ Bool-Lit b ⇒ Bool-Type
 
-data _,,_▷_⟼*_ : G-Env → Ty-Env → Expr → Expr → Set where
-  Small-steps-refl : ∀ {Δ Γ e} →
-    Δ ,, Γ ▷ e ⟼* e
+  Type-of-==-Int : ∀ {Δ Γ e₁ e₂} →
+    Δ ,, Γ ▷ e₁ ⇒ Int-Type →
+    Δ ,, Γ ▷ e₂ ⇒ Int-Type →
+    ---------
+    Δ ,, Γ ▷ (e₁ == e₂) ⇒ Int-Type
 
-  Small-steps-trans : ∀ {Δ Γ e e′ e′′} →
-    Δ ,, Γ ▷ e ⟼ e′ →
-    Δ ,, Γ ▷ e′ ⟼* e′′ →
-    Δ ,, Γ ▷ e ⟼* e′′
+  Type-of-Add : ∀ {Δ Γ e₁ e₂} →
+    Δ ,, Γ ▷ e₁ ⇒ Int-Type →
+    Δ ,, Γ ▷ e₂ ⇒ Int-Type →
+    ---------
+    Δ ,, Γ ▷ Add e₁ e₂ ⇒ Int-Type
+
+  -- Conc-Type-base : ∀ {Δ Γ e} →
+  --   Type-of
+
+_▷_⇒_ : G-Env → Expr → Type → Set
+Δ ▷ e ⇒ τ = Δ ,, [] ▷ e ⇒ τ
+
+data Concrete-Type : Type → Set where
+  Layout-Concrete : ∀ {n} → Concrete-Type (Layout-Type n)
+  Bool-Concrete : Concrete-Type Bool-Type
+  Int-Concrete : Concrete-Type Int-Type
+
+
+is-Concrete-Type : ∀ {Δ Γ e τ} →
+  Δ ,, Γ ▷ e ⇒ τ →
+  Concrete-Type τ
+is-Concrete-Type {_} {_} {e} {Int-Type} prf = Int-Concrete
+is-Concrete-Type {_} {_} {e} {Bool-Type} prf = Bool-Concrete
+is-Concrete-Type {_} {_} {e} {τ ⟶ τ₁} ()
+is-Concrete-Type {_} {_} {e} {Adt-Type x} ()
+is-Concrete-Type {_} {_} {e} {Layout-Type x} prf = Layout-Concrete
+
+⇓-Total : ∀ {env e r v τ} →
+  env ▷ e ⇒ τ →
+  Σ Fresh-Supply λ fr →
+  Σ SuSLik-Asn λ s →
+    fr ,, env ▷ e ⇓[ r , v ] s
+⇓-Total {env} {Bool-Lit x} {r} {v} {τ} prf = FS-Empty , ((Var v == Bool-Lit x) ,, ((r :-> Var v) ∷ [])) , ⇓-Bool
+⇓-Total {env} {Int-Lit x} {r} {v} {τ} prf = FS-Empty , ((Var v == Int-Lit x) ,, ((r :-> Var v) ∷ [])) , ⇓-Int
+⇓-Total {env} {e == e₁} {r} {v} {.Int-Type} (Type-of-==-Int prf prf₁) =
+  let v₁ , v₁-prf = fresh [ v ]
+      v₂ , v₂-prf = fresh (v ∷ v₁ ∷ [])
+
+      left = ⇓-Total {env} {e} {Unused-Addr} {v₁} prf
+      right = ⇓-Total {env} {e₁} {Unused-Addr} {v₂} prf₁
+
+      s₁ = proj₁ (proj₂ left)
+      s₂ = proj₁ (proj₂ right)
+
+      asn = ((Var v == ((Var v₁) == (Var v₂))) ,, []) <> s₁ <> s₂
+  in
+  FS-Branch (v₁ ∷ v₂ ∷ []) (proj₁ left) (proj₁ right) , asn , ⇓-== fresh-first fresh-first fresh-second Combine-Asns-exists Combine-Asns-exists (proj₂ (proj₂ left)) (proj₂ (proj₂ right))
+⇓-Total {env} {Add e e₁} {r} {v} {.Int-Type} (Type-of-Add prf prf₁) =
+  let v₁ , v₁-prf = fresh [ v ]
+      v₂ , v₂-prf = fresh (v ∷ v₁ ∷ [])
+
+      left = ⇓-Total {env} {e} {Unused-Addr} {v₁} prf
+      right = ⇓-Total {env} {e₁} {Unused-Addr} {v₂} prf₁
+
+      s₁ = proj₁ (proj₂ left)
+      s₂ = proj₁ (proj₂ right)
+
+      asn = ((Var v == (Add (Var v₁) (Var v₂))) ,, []) <> s₁ <> s₂
+  in
+  FS-Branch (v₁ ∷ v₂ ∷ []) (proj₁ left) (proj₁ right) , asn , ⇓-Add fresh-first fresh-first fresh-second Combine-Asns-exists Combine-Asns-exists (proj₂ (proj₂ left)) (proj₂ (proj₂ right))
+⇓-Total {env} {Lower x (x₁ C· x₂)} {r} {v} {τ} prf = {!!} , ({!!} , {!!})
+⇓-Total {env} {Instantiate x x₁ x₂ e} {r} {v} {τ} prf = {!!}
+-- ⇓-Total {env} {Var x} {r} {v} prf = FS-Empty , ((Var v == Var x) ,, ((r :-> Var v) ∷ [])) , ⇓-Var
+-- ⇓-Total {env} {x C· x₁} {r} {v} (Type-of-C· x₂ x₃ x₄) = {!!}
+-- ⇓-Total {env} {x · e} {r} {v} prf = {!!}
+-- ⇓-Total {env} {Bool-Lit x} {r} {v} prf = FS-Empty , ((Var v == Bool-Lit x) ,, ((r :-> Var v) ∷ [])) , ⇓-Bool
+-- ⇓-Total {env} {Int-Lit x} {r} {v} prf = FS-Empty , ((Var v == Int-Lit x) ,, ((r :-> Var v) ∷ [])) , ⇓-Int
+
+-- ⇓-Total {env} {e == e₁} {r} {v} (Type-of-==-Int prf prf₁) =
+--   let v₁ , v₁-prf = fresh [ v ]
+--       v₂ , v₂-prf = fresh (v ∷ v₁ ∷ [])
+
+--       left = ⇓-Total {env} {e} {Unused-Addr} {v₁} prf
+--       right = ⇓-Total {env} {e₁} {Unused-Addr} {v₂} prf₁
+
+--       s₁ = proj₁ (proj₂ left)
+--       s₂ = proj₁ (proj₂ right)
+
+--       asn = ((Var v == ((Var v₁) == (Var v₂))) ,, []) <> s₁ <> s₂
+--   in
+--   FS-Branch (v₁ ∷ v₂ ∷ []) (proj₁ left) (proj₁ right) , asn , ⇓-== fresh-first fresh-first fresh-second Combine-Asns-exists Combine-Asns-exists (proj₂ (proj₂ left)) (proj₂ (proj₂ right))
+-- ⇓-Total {env} {Add e e₁} {r} {v} prf = {!!}
+-- ⇓-Total {env} {Lower x e} {r} {v} prf = {!!}
+-- ⇓-Total {env} {Instantiate x x₁ x₂ e} {r} {v} prf = {!!}
+-- ⇓-Total {env} {Lift x} {r} {v} prf = FS-Empty ,
+--                                    (((Var v == Addr-Var r) && (Addr-Var r == Addr-Var x)) ,, []) ,
+--                                    ⇓-Lift
+
+-- Exprs-FVs : Name → List Expr → List Name
+
+-- Expr-FVs : Name → Expr → List Name
+-- Expr-FVs param (Var x) with Name-eq-dec {param} {x}
+-- ... | inj₁ refl = []
+-- ... | inj₂ y = [ x ]
+-- Expr-FVs param (x C· x₁) = Exprs-FVs param x₁
+-- Expr-FVs param (x · e) = Expr-FVs param e
+-- Expr-FVs param (Bool-Lit x) = []
+-- Expr-FVs param (Int-Lit x) = []
+-- Expr-FVs param (e == e₁) = Expr-FVs param e ++ Expr-FVs param e₁
+-- Expr-FVs param (Add e e₁) = Expr-FVs param e ++ Expr-FVs param e₁
+-- Expr-FVs param (Lower x e) = Expr-FVs param e
+-- Expr-FVs param (Instantiate x x₁ x₂ e) = Expr-FVs param e
+-- Expr-FVs param (Lift x) = []
+
+-- Exprs-FVs param [] = []
+-- Exprs-FVs param (x ∷ exprs) = Expr-FVs param x ++ Exprs-FVs param exprs
+
+-- Name-without : Name → Name → List Name
+-- Name-without param x with Name-eq-dec {param} {x}
+-- ... | inj₁ refl = []
+-- ... | inj₂ y = [ x ]
+
+
+-- Heaplet-FVs : Name → Heaplet → List Name
+-- Heaplet-FVs param ((x :+ x₂) :-> x₁) = Name-without param x ++ Name-without param x₁
+-- Heaplet-FVs param (Unused-Addr :-> x₁) = Name-without param x₁
+-- Heaplet-FVs param (x H· x₁) = Name-without param x₁
+
+
+-- Layout-Branch-FVs : Name → Layout-Branch → List Name
+-- Layout-Branch-FVs param (Mk-Layout-Branch x x₁) = concatMap (Heaplet-FVs param) x₁
+
+-- Layout-FVs : Layout → List Name
+-- Layout-FVs (Mk-Layout x (fst , param) branches) = concatMap (Layout-Branch-FVs param) branches
+
+-- Name-subst : Name → Name → Name → Name
+-- Name-subst old new x with Name-eq-dec {old} {x}
+-- ... | inj₁ refl = new
+-- ... | inj₂ p = x
+
+-- Name-subst-Heaplet : Name → Name → Heaplet → Heaplet
+-- Name-subst-Heaplet old new ((x :+ x₂) :-> x₁) = (Name-subst old new x :+ x₂) :-> (Name-subst old new x₁)
+-- Name-subst-Heaplet old new (Unused-Addr :-> x₁) = Unused-Addr :-> Name-subst old new x₁
+-- Name-subst-Heaplet old new (x H· x₁) = x H· Name-subst old new x₁
+
+-- Layout-Branch-Heaplets : Layout-Branch → List Heaplet
+-- Layout-Branch-Heaplets (Mk-Layout-Branch x x₁) = x₁
+
+-- S[_,_]⟦_⟧_ : Name  → Name → Expr → G-Env → SuSLik-Asn
+-- S[ r-name , v ]⟦ e ⟧ env with ⇓-Total {env} {e} {r-name :+ 0} {v} {!!}
+-- ... | fst , fst₁ , snd = fst₁
+
+-- T[_]⟦_⟧_ : (arg : Name) → (layout : Layout) → ¬ (arg ∈ Layout-FVs layout) → List (List SuSLik-Heaplet)
+-- T[ r-name ]⟦ Mk-Layout x (x₁ , param) x₂ ⟧ prf = (Data.List.map (λ x₃ → (Data.List.map →SuSLik-Heaplet (Data.List.map (Name-subst-Heaplet param r-name) (Layout-Branch-Heaplets x₃)))) x₂)
+
+-- -- TODO: Is this how we should deal with the guards?
+-- -- Also, is it okay to do naive substitution here? It seems like Fn-Defs shouldn't have any free variables that could be captured
+-- Fn-Def-Apply : (fn-def : Fn-Def) → Name → List Expr → List Guard-Branch
+-- Fn-Def-Apply fn-def C C-args = {!!}
+
+-- -- TODO: Add a thing to check that a global environment is valid and well-typed
+
+-- -- data G-Env-Valid : G-Env → G-Env → Set where
+
+-- -- A simplified version
+-- data _-*_ : List SuSLik-Heaplet → List SuSLik-Heaplet → Set where
+--   wand-emp : ∀ {hs} → [] -* hs
+--   wand-cons : ∀ {h hs hs₂} →
+--     h ∈ hs₂ →
+--     hs -* hs₂ →
+--     (h ∷ hs) -* hs₂
+
+-- data _▷_÷_ : G-Env → SuSLik-Asn → List (List SuSLik-Heaplet) → Set where
+--   LL-Type-of-exists : ∀ {Δ pure-part spatial-part hs hss} →
+--     hs ∈ hss →
+--     hs -* spatial-part →
+--     Δ ▷ (pure-part ,, spatial-part) ÷ hss
+
+-- high→low-level : ∀ {Δ e r v layout-name layout} →
+--   (layout-name , G-Layout-Def layout) ∈ Δ →
+--   (prf : ¬ (r ∈ Layout-FVs layout)) →
+
+--   Δ ▷ e ∶ Layout-Type layout-name →
+--   Δ ▷ (S[ r , v ]⟦ e ⟧ Δ) ÷ (T[ r ]⟦ layout ⟧ prf)
+-- -- high→low-level {Δ} {_} {r} {v} prf1 prf2 (Type-of-· {_} {_} {f-name} {_} {arg} x prf3) with S[ r , v ]⟦ f-name · arg ⟧ Δ
+-- -- ... | x₁ ,, x₂ = {!!} --LL-Type-of-exists {!!} {!!}
+-- high→low-level {Δ} {e} {r} {v} prf1 prf2 (Type-of-· {_} {_} {f-name} {_} {arg} x prf3) with ⇓-Total {Δ} {e} {r :+ 0} {v} {!!}
+-- ... | ()
+-- high→low-level {((layout-name , G-Layout-Def layout) ∷ xs)} {Lower layout-name e} {r} {v} {layout-name} (here refl) prf2 (Type-of-Lower x y prf3)
+--   with ⇓-Total {(layout-name , G-Layout-Def layout) ∷ xs} {e} {r :+ 0} {v} {!!}
+-- ... | fst , fst₁ , snd = LL-Type-of-exists {!!} {!!}
+-- high→low-level {.(_ ∷ _)} {Lower layout-name e} {r} {v} {layout-name} (there prf1) prf2 (Type-of-Lower x y prf3) = {!!}
+-- -- ... | .FS-Empty , .((Var v == Var _) ,, [ (r :+ 0) :-> Var v ]) , ⇓-Var = LL-Type-of-exists {!!} {!!}
+-- -- ... | x₁ ,, x₂ = {!!} -- LL-Type-of-exists {!!} {!!}
+-- high→low-level prf1 prf2 (Type-of-Instantiate x x₁ x₂ x₃ x₄ prf3) = {!!}
+
+-- data _,,_▷_⟼_ : G-Env → Ty-Env → Expr → Expr → Set where
+--   Small-step-· : ∀ {Δ Γ f fn-def C es} →
+--     (f , G-Fn-Def fn-def) ∈ Δ →
+--     Δ ,, Γ ▷ (f · (C C· es)) ⟼ {!!}
+
+--   Small-step-Add : ∀ {Δ Γ i j} →
+--     Δ ,, Γ ▷ Add (Int-Lit i) (Int-Lit j) ⟼ Int-Lit (i Data.Integer.+ j)
+
+--   Small-step-== : ∀ {Δ Γ i j} →
+--     Δ ,, Γ ▷ (Int-Lit i == Int-Lit j) ⟼ Bool-Lit (isYes (i Data.Integer.≟ j))
+
+--   Small-step-Instantiate : ∀ {Δ Γ f A B e} →
+--     Δ ,, Γ ▷ (Instantiate A B f e) ⟼ (f · e)
+
+--   Small-step-Lower : ∀ {Δ Γ A e} →
+--     Δ ,, Γ ▷ (Lower A e) ⟼ e
+
+-- data _,,_▷_⟼*_ : G-Env → Ty-Env → Expr → Expr → Set where
+--   Small-steps-refl : ∀ {Δ Γ e} →
+--     Δ ,, Γ ▷ e ⟼* e
+
+--   Small-steps-trans : ∀ {Δ Γ e e′ e′′} →
+--     Δ ,, Γ ▷ e ⟼ e′ →
+--     Δ ,, Γ ▷ e′ ⟼* e′′ →
+--     Δ ,, Γ ▷ e ⟼* e′′
 

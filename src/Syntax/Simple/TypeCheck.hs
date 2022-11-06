@@ -135,7 +135,7 @@ elaborateDef layouts adts defs inLayoutNames outLayoutName def =
       defBranch { defBranchGuardeds = map goGuarded (defBranchGuardeds defBranch) }
       where
         gamma =
-          map (uncurry $ toLoweredType layouts) $ -- TODO: Fix this. We need some kind of proper association between fun-SuSLik variables and SuSLik 'loc's (like 'tail' and '(x+1)' in many of the list examples)
+          map (uncurry $ toLoweredType layouts) $ -- TODO: Fix this. We need some kind of proper association between fun-SuSLik variables and SuSLik 'loc's (like 'tail' and '(x+1)' in many of the list examples). This should be given by a layout definition.
           concat $
           zipWith3 (inferLayoutPatVars layouts)
             argLayouts

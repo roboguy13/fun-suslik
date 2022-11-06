@@ -33,7 +33,7 @@ executable fun-suslik
       Syntax.Simple.Parse
       Syntax.Simple.Shift
       Syntax.Simple.SuSLik
-      Syntax.Simple.Test
+      Syntax.Simple.TypeCheck
       Syntax.FreshGen
       Syntax.Name
       Syntax.Ppr
