@@ -52,8 +52,8 @@ In "pseudo-code":
 ```
 filterLt7 Nil      := layout{ emp }
 filterLt7 (Cons head tail)
-  | head < 7       := layout{ x :=> head, (x+1) :=> tail, r :-> head, (r+1) :-> y, filterLt7__Sll_Sll[y] tail));
-  | not (head < 7) := layout{ x :=> head, (x+1) :=> tail, filterLt7__Sll_Sll[r] tail));
+  | head < 7       := layout{ x :=> head, (x+1) :=> tail, r :-> head, (r+1) :-> y, filterLt7__Sll_Sll[tail | y] tail));
+  | not (head < 7) := layout{ x :=> head, (x+1) :=> tail, filterLt7__Sll_Sll[tail | r] tail));
 ```
 
 5. Generation
