@@ -16,7 +16,7 @@ filterLt7 (Cons head tail)
 2. Elaboration
 
 This stage performs simple inference of layouts and generates SuSLik names for
-them.
+the layout parameters.
 
 ```
 filterLt7 Nil      := lower Sll[readonly ; x] Nil;
