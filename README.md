@@ -71,7 +71,13 @@ filterLt7 (Cons head tail)
 
 6. Generation
 
-Final step into SuSLik. The main work this stage performs is turning pattern
+Final step into SuSLik.
+
+By the time it reaches this stage, every
+application in a `layout` should be of the form `f[arg1, arg2, ..., argN | result] v1 v2 ... vM`, where
+`v1`, ..., `vM` are variables. `arg1`, ... `argN` and `result` are SuSLik names.
+
+The main work this stage performs is turning pattern
 matches into the corresponding SuSLik branch condition.
 
 ```
