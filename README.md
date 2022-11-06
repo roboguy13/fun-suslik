@@ -53,7 +53,8 @@ filterLt7 Nil      :=
 filterLt7 (Cons head tail)
   | head < 7       :=
         layout{ x :=> head, (x+1) :=> tail } & lower Sll[readonly ; r] (Cons head (instantiate [Sll[readonly ; tail]] Sll[y] filterLt7 tail));
-  | not (head < 7) := layout{ x :=> head, (x+1) :=> tail } & instantiate [Sll[readonly ; tail]] Sll[r] filter tail;
+  | not (head < 7) :=
+        layout{ x :=> head, (x+1) :=> tail } & instantiate [Sll[readonly ; tail]] Sll[r] filter tail;
 ```
 
 
