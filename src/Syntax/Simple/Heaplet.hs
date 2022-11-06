@@ -118,11 +118,11 @@ isBasicPatternVar :: Pattern a -> Bool
 isBasicPatternVar (PatternVar v) = True
 isBasicPatternVar _ = False
 
-data Def ty layoutNameTy =
+data Def' cond body ty layoutNameTy =
   MkDef
   { defName :: String
   , defType :: Type
-  , defBranches :: [DefBranch ty layoutNameTy]
+  , defBranches :: [DefBranch' cond body ty layoutNameTy]
   }
   deriving (Show)
 
@@ -135,22 +135,26 @@ data Def ty layoutNameTy =
 -- fnResultType (FnType _ t) = fnResultType t
 -- fnResultType t = t
 
-data DefBranch  ty layoutNameTy=
+data DefBranch' cond body ty layoutNameTy=
   MkDefBranch
   { defBranchPattern :: [Pattern FsName]
-  , defBranchGuardeds :: [GuardedExpr ty layoutNameTy]
+  , defBranchGuardeds :: [GuardedExpr' cond body ty layoutNameTy]
   }
   deriving (Show)
 
 getFirstBranch :: Def ty layoutNameTy -> DefBranch ty layoutNameTy
 getFirstBranch MkDef{ defBranches = (b:_) } = b
 
-data GuardedExpr  ty layoutNameTy =
+data GuardedExpr' cond body ty layoutNameTy =
   MkGuardedExpr
-  { guardedCond :: ExprX ty layoutNameTy FsName
-  , guardedBody :: ExprX ty layoutNameTy FsName
+  { guardedCond :: cond
+  , guardedBody :: body
   }
   deriving (Show)
+
+type Def ty layoutNameTy = Def' (ExprX ty layoutNameTy FsName) (ExprX ty layoutNameTy FsName) ty layoutNameTy
+type DefBranch ty layoutNameTy = DefBranch' (ExprX ty layoutNameTy FsName) (ExprX ty layoutNameTy FsName) ty layoutNameTy
+type GuardedExpr ty layoutNameTy = GuardedExpr' (ExprX ty layoutNameTy FsName) (ExprX ty layoutNameTy FsName) ty layoutNameTy
 
 lookupDef :: [Def ty layoutNameTy] -> String -> Def ty layoutNameTy
 lookupDef defs name =

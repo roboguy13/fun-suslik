@@ -1,3 +1,5 @@
+{-# LANGUAGE LiberalTypeSynonyms #-}
+
 {-# OPTIONS_GHC -Wincomplete-patterns #-}
 
 module Syntax.Simple.TypeCheck

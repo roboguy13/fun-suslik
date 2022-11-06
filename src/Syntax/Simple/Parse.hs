@@ -3,6 +3,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE LiberalTypeSynonyms #-}
 
 -- {-# OPTIONS_GHC -fplugin Debug.Breakpoint #-}
 
