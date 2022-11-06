@@ -135,7 +135,7 @@ elaborateDef layouts adts defs inLayoutNames outLayoutName def =
       defBranch { defBranchGuardeds = map goGuarded (defBranchGuardeds defBranch) }
       where
         gamma =
-          map (uncurry $ toLoweredType layouts) $
+          map (uncurry $ toLoweredType layouts) $ -- TODO: Fix this. We need some kind of proper association between fun-SuSLik variables and SuSLik 'loc's (like 'tail' and '(x+1)' in many of the list examples)
           concat $
           zipWith3 (inferLayoutPatVars layouts)
             argLayouts
@@ -150,16 +150,16 @@ elaborateDef layouts adts defs inLayoutNames outLayoutName def =
             Left err -> error err
             Right (_, e') -> e'
 
-inferLayoutPatVars :: [Layout] -> Layout -> Adt -> Pattern FsName -> [(FsName, ConcreteType)]
-inferLayoutPatVars layouts layout adt (PatternVar v) = [(v, LayoutConcrete (layoutName layout))]
-inferLayoutPatVars layouts layout adt (MkPattern cName params) =
-    let adtFields = adtBranchFields $ findAdtBranch adt cName
-    in
-    zipWith go params adtFields
-  where
-    go v IntType = (v, IntConcrete)
-    go v BoolType = (v, BoolConcrete)
-    go v _ = (v, LayoutConcrete $ findLayoutApp v $ lookupLayoutBranch layout cName)
+-- inferLayoutPatVars :: [Layout] -> Layout -> Adt -> Pattern FsName -> [(FsName, ConcreteType)]
+-- inferLayoutPatVars layouts layout adt (PatternVar v) = [(v, LayoutConcrete (layoutName layout))]
+-- inferLayoutPatVars layouts layout adt (MkPattern cName params) =
+--     let adtFields = adtBranchFields $ findAdtBranch adt cName
+--     in
+--     zipWith go params adtFields
+--   where
+--     go v IntType = (v, IntConcrete)
+--     go v BoolType = (v, BoolConcrete)
+--     go v _ = (v, LayoutConcrete $ findLayoutApp v $ lookupLayoutBranch layout cName)
 
 findLayoutApp :: FsName -> Assertion FsName -> String
 findLayoutApp v = go
