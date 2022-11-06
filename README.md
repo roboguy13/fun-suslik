@@ -12,7 +12,19 @@ Sll : List -> layout[x];
 Sll Nil := emp;
 Sll (Cons head tail) := x :-> head, (x+1) :-> tail, Sll tail
 
+filterLt7 : List -> List;
+filterLt7 := filter (\v. v < 7)
 
+filter : (Int -> Bool) -> List -> List;
+filter p Nil      := Nil;
+filter p (Cons head tail)
+  | p head       := Cons head (filter p tail);
+  | not (p head) := filter p tail;
+```
+
+2. Defunctionalization/lambda lifting
+
+```
 filterLt7 : List -> List;
 filterLt7 Nil      := Nil;
 filterLt7 (Cons head tail)
@@ -20,7 +32,7 @@ filterLt7 (Cons head tail)
   | not (head < 7) := filterLt7 tail;
 ```
 
-2. Elaboration
+3. Elaboration
 
 This stage performs simple inference of layouts (and elaborates by inserting
 `lower` and `instantiate` for the inferred layouts). Also generates SuSLik names for
