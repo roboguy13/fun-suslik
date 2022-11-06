@@ -1,6 +1,8 @@
 Compiler Stages
 ---
 
+Demonstrated by showing how an example transforms in each stage.
+
 1. Parsing
 
 ```
