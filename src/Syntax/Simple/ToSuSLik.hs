@@ -18,6 +18,8 @@ import           Data.List
 
 import qualified Data.Set as Set
 
+import Debug.Trace
+
 fastNub :: Ord a => [a] -> [a]
 fastNub = Set.toList . Set.fromList
 
@@ -30,6 +32,7 @@ defToSuSLik def =
       -- predParams = map (`MkSuSLikParam` LocType) argParams
       --                       ++ map (`MkSuSLikParam` LocType) resultParams
   in
+  trace ("outParams = " ++ show resultParams) $
   MkInductivePred
   { inductivePredName = defName def
   , inductivePredParams = map (`MkSuSLikParam` LocType) predParams
@@ -70,8 +73,8 @@ patCondForBranch inParams outParams branch =
 
     paramsUsed :: [SuSLikName]
     paramsUsed =
-      fastNub (concatMap collectParamsAsn (getDefBranchRhs's branch))
-        `intersect` inParams
+      (fastNub (concatMap collectParamsAsn (getDefBranchRhs's branch) \\ outParams)
+        `intersect` inParams) \\ outParams
 
 varEqZero :: SuSLikName -> SuSLikExpr SuSLikName
 varEqZero n = EqualS (VarS n) (IntS 0)

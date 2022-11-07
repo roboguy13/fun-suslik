@@ -20,6 +20,8 @@ import           Data.Void
 import           Control.Monad.Reader
 import           Control.Monad.State
 
+import Debug.Trace
+
 -- elaborateExpr :: [Layout] -> [Parsed Def] -> Parsed ExprX a -> Elaborated ExprX a
 -- elaborateExpr layouts defs = undefined
 
@@ -343,7 +345,7 @@ checkExpr gamma e@(Apply {}) ty =
 inferExpr :: TcEnv -> Parsed ExprX String -> TypeCheck (LoweredType, Elaborated ExprX String)
 inferExpr gamma (Var () v) =
   case lookup v gamma of
-    Nothing -> error $ "inferExpr: variable not found in TcEnv: " ++ v
+    Nothing -> error $ "inferExpr: variable not found in TcEnv: " ++ v ++ "TcEnv = " ++ show gamma
     Just concTy -> do
       -- typeMatchesLowered ty lowered
       -- requireType ty (loweredType lowered)
