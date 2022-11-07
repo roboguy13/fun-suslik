@@ -105,20 +105,25 @@ type ConcreteType = ConcreteType' LayoutName
 
 type LoweredType = ConcreteType' ParametrizedLayoutName
 
-data FsParam = IntParam String | BoolParam String | LayoutParam LayoutName [String]
+-- data FsParam = IntParam String | BoolParam String | LayoutParam LayoutName [String]
 
-withParams :: [String] -> ConcreteType -> LoweredType
-withParams _ IntConcrete = IntConcrete
-withParams _ BoolConcrete = BoolConcrete
-withParams params (LayoutConcrete name) = MkLowered params name
+withParams :: [String] -> ParamType -> ParamTypeP
+withParams _ IntParam = IntParam
+withParams _ BoolParam = BoolParam
+withParams params (LayoutParam name) = LayoutParam $ MkParametrizedLayoutName params name
 
 forgetParams :: LoweredType -> ConcreteType
 forgetParams = fmap getParamedName
 
-loweredParams :: LoweredType -> [String]
-loweredParams IntConcrete = []
-loweredParams BoolConcrete = []
-loweredParams (LayoutConcrete (MkParametrizedLayoutName params _)) = params
+-- loweredParams :: LoweredType -> [String]
+-- loweredParams IntConcrete = []
+-- loweredParams BoolConcrete = []
+-- loweredParams (LayoutConcrete (MkParametrizedLayoutName params _)) = params
+
+loweredParams :: ParamTypeP -> [String]
+loweredParams IntParam = []
+loweredParams BoolParam = []
+loweredParams (LayoutParam (MkParametrizedLayoutName params _)) = params
 
 getParamedName :: ParametrizedLayoutName -> LayoutName
 getParamedName (MkParametrizedLayoutName _ name) = name
@@ -132,6 +137,21 @@ getParamedNameParams (MkParametrizedLayoutName params _) = params
 --   , loweredType :: ConcreteType
 --   }
 --   deriving (Show, Eq)
+
+data ParamType' a = IntParam | BoolParam | LayoutParam a
+  deriving (Functor, Show, Eq, Ord)
+
+type ParamType = ParamType' LayoutName
+
+genParamTypeName :: ParamType -> String
+genParamTypeName IntParam = "Int"
+genParamTypeName BoolParam = "Bool"
+genParamTypeName (LayoutParam layoutName) = genLayoutName layoutName
+
+paramTypeToConcrete :: ParamType' a -> ConcreteType' a
+paramTypeToConcrete IntParam = IntConcrete
+paramTypeToConcrete BoolParam = BoolConcrete
+paramTypeToConcrete (LayoutParam x) = LayoutConcrete x
 
 data ExprX ty layoutNameTy a where
   Var :: ty -> a -> ExprX ty layoutNameTy a
@@ -193,8 +213,8 @@ instance (Show a, Show layoutNameTy, Show ty) => Ppr (ExprX ty layoutNameTy a) w
 type ParsedExpr = Parsed ExprX
 type ElaboratedExpr = Elaborated ExprX
 
-type Parsed f = f () LayoutName
-type Elaborated f = f LoweredType Void
+type Parsed f = f () ParamType
+type Elaborated f = f ParamTypeP Void
 
 type Expr = Elaborated ExprX
 
@@ -227,6 +247,11 @@ isBasicPatternVar :: Pattern' a -> Bool
 isBasicPatternVar (PatternVar _ v) = True
 isBasicPatternVar _ = False
 
+type ParamTypeP = ParamType' ParametrizedLayoutName
+
+mkParamTypeP :: [String] -> ParamType -> ParamTypeP
+mkParamTypeP params = fmap (MkParametrizedLayoutName params)
+
 data Def' defTy pat cond body ty layoutNameTy =
   MkDef
   { defName :: String
@@ -238,7 +263,7 @@ data Def' defTy pat cond body ty layoutNameTy =
 -- TODO: Implement base type parameters:
 -- type ElaboratedDef = Elaborated (DefT ([FsParam], FsParam) ParametrizedLayoutName)
 
-type ElaboratedDef = Elaborated (DefT ([LoweredType], LoweredType) ParametrizedLayoutName)
+type ElaboratedDef = Elaborated (DefT ([ParamTypeP], ParamTypeP) ParamTypeP)
 type ParsedDef = Parsed (Def ())
 
 -- fnArgTypes :: Type -> [Type]
@@ -257,7 +282,7 @@ data DefBranch' pat cond body ty layoutNameTy=
   }
   deriving (Show)
 
-type ElaboratedDefBranch = Elaborated (DefBranch ParametrizedLayoutName)
+type ElaboratedDefBranch = Elaborated (DefBranch ParamTypeP)
 type ParsedDefBranch = Parsed (DefBranch ())
 
 
@@ -285,11 +310,11 @@ type AsnGuarded = Elaborated (GuardedExpr' (ElaboratedExpr FsName) (Assertion Fs
 data ExprWithAsn a = MkExprWithAsn (Assertion a) (ElaboratedExpr a)
   deriving (Show)
 
-type DefBranchWithAsn = Elaborated (DefBranch' ParametrizedLayoutName (ElaboratedExpr FsName) (ExprWithAsn FsName))
-type AsnDefBranch = Elaborated (DefBranch' ParametrizedLayoutName (ElaboratedExpr FsName) (Assertion SuSLikName))
+type DefBranchWithAsn = Elaborated (DefBranch' ParamTypeP (ElaboratedExpr FsName) (ExprWithAsn FsName))
+type AsnDefBranch = Elaborated (DefBranch' ParamTypeP (ElaboratedExpr FsName) (Assertion SuSLikName))
 
-type DefWithAsn = Elaborated (Def' ([LoweredType], LoweredType) ParametrizedLayoutName (ElaboratedExpr FsName) (ExprWithAsn FsName))
-type AsnDef = Elaborated (Def' ([LoweredType], LoweredType) ParametrizedLayoutName (ElaboratedExpr FsName) (Assertion FsName))
+type DefWithAsn = Elaborated (Def' ([ParamTypeP], ParamTypeP) ParamTypeP (ElaboratedExpr FsName) (ExprWithAsn FsName))
+type AsnDef = Elaborated (Def' ([ParamTypeP], ParamTypeP) ParamTypeP (ElaboratedExpr FsName) (Assertion FsName))
 
 getDefRhs's :: Def' defTy pat cond body ty layoutNameTy -> [body]
 getDefRhs's = concatMap getDefBranchRhs's . defBranches

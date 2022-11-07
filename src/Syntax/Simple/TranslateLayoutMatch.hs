@@ -26,17 +26,18 @@ defTranslateLayoutMatch layoutEnv def =
       { defBranchGuardeds = map (guardedTranslate (defBranchPatterns branch)) (defBranchGuardeds branch)
       }
 
-    guardedTranslate :: [PatternWithLayout] -> Elaborated GuardedExpr -> GuardedExprWithAsn
+    guardedTranslate :: [Pattern' ParamTypeP] -> Elaborated GuardedExpr -> GuardedExprWithAsn
     guardedTranslate pats (MkGuardedExpr cond body) =
       MkGuardedExpr
         cond
         (MkExprWithAsn (foldMap applyPat pats) body)
 
-    applyPat :: PatternWithLayout -> Assertion SuSLikName
+    applyPat :: Pattern' ParamTypeP -> Assertion SuSLikName
     applyPat (PatternVar {}) = Emp
-    applyPat (MkPattern (MkParametrizedLayoutName params layoutName) cName patParams) =
+    applyPat (MkPattern (LayoutParam (MkParametrizedLayoutName params layoutName)) cName patParams) =
       let layout = lookupLayout layoutEnv (baseLayoutName layoutName)
       in
       removeHeapletApplies $ applyLayoutPat layout params (MkPattern () cName patParams)
+    applyPat pat@(MkPattern {}) = error $ "applyPat: Pattern match on non-layout: " ++ show pat
 
 

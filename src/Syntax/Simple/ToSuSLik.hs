@@ -39,10 +39,10 @@ defToSuSLik def =
   , inductivePredBranches = concatMap (toSuSLikBranches predParams resultParams) $ defBranches def
   }
 
-concreteTypeToSuSLik :: ConcreteType -> SuSLikType
-concreteTypeToSuSLik IntConcrete = IntType
-concreteTypeToSuSLik BoolConcrete = BoolType
-concreteTypeToSuSLik LayoutConcrete{} = LocType
+-- concreteTypeToSuSLik :: ParamType' a -> SuSLikType
+-- concreteTypeToSuSLik IntConcrete = IntType
+-- concreteTypeToSuSLik BoolConcrete = BoolType
+-- concreteTypeToSuSLik LayoutConcrete{} = LocType
 
 toSuSLikBranches :: [SuSLikName] -> [SuSLikName] -> AsnDefBranch -> [SuSLikBranch]
 toSuSLikBranches inParams outParams branch =

@@ -45,12 +45,19 @@ runTypeCheck layouts adts defs (MkTypeCheck tc) =
     Left err -> error err
     Right (_, x) -> x
 
-type TcEnv = [(String, ConcreteType)]
+type TcEnv = [(String, ParamType)]
 
 lookupLayoutM :: String -> TypeCheck Layout
 lookupLayoutM name = do
   MkTcGlobals layouts _ _ <- ask
   pure $ lookupLayout layouts name
+
+type ParamTypeL = ParamType' Layout
+
+lookupParamType :: ParamType -> TypeCheck ParamTypeL
+lookupParamType IntParam = pure IntParam
+lookupParamType BoolParam = pure BoolParam
+lookupParamType (LayoutParam layoutName) = LayoutParam <$> lookupLayoutM (baseLayoutName layoutName)
 
 lookupAdtM :: String -> TypeCheck Adt
 lookupAdtM name = do
@@ -70,15 +77,24 @@ genLayoutParamsWith prefix layout = do
 genLayoutParams :: Layout -> TypeCheck [String]
 genLayoutParams = genLayoutParamsWith ""
 
-initialOutLayoutParams :: Layout -> OutParams
-initialOutLayoutParams =
-  map ("__r_" <>) . layoutSuSLikParams
+genParamsWith :: String -> ParamTypeL -> TypeCheck [String]
+genParamsWith prefix IntParam = fmap (:[]) . MkTypeCheck . lift . lift $ getFreshWith prefix
+genParamsWith prefix BoolParam = fmap (:[]) . MkTypeCheck . lift . lift $ getFreshWith prefix
+genParamsWith prefix (LayoutParam layout) = genLayoutParamsWith prefix layout
 
-newOutVars :: Layout -> TypeCheck OutParams
-newOutVars layout =
+genParams :: ParamTypeL -> TypeCheck [String]
+genParams = genParamsWith ""
+
+initialOutParams :: ParamTypeL -> OutParams
+initialOutParams (LayoutParam layout) =
+  map ("__r_" <>) $ layoutSuSLikParams layout
+initialOutParams _ = ["__r"]
+
+newOutVars :: ParamTypeL -> TypeCheck OutParams
+newOutVars ty =
   get >>= \case
-    InitialOutVar -> put SubOutVar *> pure (initialOutLayoutParams layout)
-    SubOutVar -> genLayoutParams layout
+    InitialOutVar -> put SubOutVar *> pure (initialOutParams ty)
+    SubOutVar -> genParams ty
 
 typeError :: String -> TypeCheck a
 typeError err = MkTypeCheck . lift . lift . lift $ Left err
@@ -138,17 +154,17 @@ getPredName fnName argLayouts resultLayout =
   fnName <> "__" <> intercalate "__" (resultLayout : argLayouts)
 
 -- Also updates the Def name
-instAndElaborate :: String -> [LayoutName] -> LayoutName -> ParsedDef -> TypeCheck ElaboratedDef
-instAndElaborate fnName argLayoutNames outLayoutName def = do
+instAndElaborate :: String -> [ParamType] -> ParamType -> ParsedDef -> TypeCheck ElaboratedDef
+instAndElaborate fnName argParamTypes outParamType def = do
   let oldName = defName def
-  elaborated <- elaborateDef argLayoutNames outLayoutName
-                  $ instDefCalls argLayoutNames outLayoutName def
+  elaborated <- elaborateDef argParamTypes outParamType
+                  $ instDefCalls argParamTypes outParamType def
   pure $ elaborated
-    { defName = (getPredName oldName (map genLayoutName argLayoutNames) (genLayoutName outLayoutName))
+    { defName = (getPredName oldName (map genParamTypeName argParamTypes) (genParamTypeName outParamType))
     }
 
-instDefCalls :: [LayoutName] -> LayoutName -> ParsedDef -> ParsedDef
-instDefCalls argLayoutNames outLayoutName def =
+instDefCalls :: [ParamType] -> ParamType -> ParsedDef -> ParsedDef
+instDefCalls argParamTypes outParamType def =
   def
     { defBranches = map goBranch (defBranches def)
     }
@@ -160,16 +176,16 @@ instDefCalls argLayoutNames outLayoutName def =
     goGuarded (MkGuardedExpr x y) =
       MkGuardedExpr (go x) (go y)
 
-    go = instCall (defName def) argLayoutNames outLayoutName
+    go = instCall (defName def) argParamTypes outParamType
 
 -- | Any call to the given function gets surrounded by an instantiation with
 -- the given layouts. This is useful for recursive calls.
 -- If it encounters an application of the function that is instantiated
 -- to different layouts, it leaves that instantiation unchanged.
-instCall :: String -> [LayoutName] -> LayoutName -> Parsed ExprX String -> Parsed ExprX String
-instCall fnName argLayoutNames outLayoutName = go
+instCall :: String -> [ParamType] -> ParamType -> Parsed ExprX String -> Parsed ExprX String
+instCall fnName argParamTypes outParamType = go
   where
-    instantiate = Instantiate argLayoutNames outLayoutName fnName
+    instantiate = Instantiate argParamTypes outParamType fnName
     go e@(Var {}) = e
     go e@(IntLit {}) = e
     go e@(BoolLit {}) = e
@@ -189,21 +205,30 @@ instCall fnName argLayoutNames outLayoutName = go
     go (Lower layout arg) = Lower layout (go arg)
     go (Instantiate xs ys f args) = Instantiate xs ys f (map go args)
 
-elaborateDef :: [LayoutName] -> LayoutName -> ParsedDef -> TypeCheck (ElaboratedDef)
-elaborateDef inLayoutNames outLayoutName def = do
-  argLayouts <- mapM (lookupLayoutM . baseLayoutName) inLayoutNames
-  argAdts <- mapM (lookupAdtM . layoutAdtName) argLayouts
-  outLayout <- lookupLayoutM (baseLayoutName outLayoutName)
+paramTypeToLayout :: ParamTypeL -> Maybe Layout
+paramTypeToLayout (LayoutParam layout) = Just layout
+paramTypeToLayout _ = Nothing
 
-  argParams <- mapM genLayoutParams argLayouts
-
-  let outParams = initialOutLayoutParams outLayout --genLayoutParamsWith "out_" outLayout
-
-  let paramedLayouts = zipWith MkParametrizedLayoutName argParams inLayoutNames
+-- paramTypeToConcrete :: ParamTypeL
 
 
-  let goBranch defBranch = do
-          let gamma = concat $ zipWith3 inferLayoutPatVars argLayouts argAdts $ defBranchPatterns defBranch
+elaborateDef :: [ParamType] -> ParamType -> ParsedDef -> TypeCheck (ElaboratedDef)
+elaborateDef inParamTypes outParamType def = do
+  foundArgTypes <- mapM lookupParamType inParamTypes
+  argAdts <- mapM (traverse (lookupAdtM . layoutAdtName)) (map paramTypeToLayout foundArgTypes)
+  foundOutType <- lookupParamType outParamType
+  -- outLayout <- lookupLayoutM (baseLayoutName outParamType)
+
+  argParams <- mapM genParams foundArgTypes
+
+  let outParams = initialOutParams foundOutType --genLayoutParamsWith "out_" outLayout
+
+  let paramedLayouts = zipWith mkParamTypeP argParams inParamTypes
+
+
+  let goBranch :: ParsedDefBranch -> TypeCheck ElaboratedDefBranch
+      goBranch defBranch = do
+          let gamma = concat $ zipWith3 inferLayoutPatVars foundArgTypes argAdts $ defBranchPatterns defBranch
 
 
           let goGuarded (MkGuardedExpr x y) = do
@@ -212,7 +237,7 @@ elaborateDef inLayoutNames outLayoutName def = do
                 MkGuardedExpr <$> goExpr x <*> goExpr y
 
               goExpr e = do
-                (_, e') <- inferWith gamma outLayout e
+                (_, e') <- inferWith gamma outParamType e
                 pure e'
 
           guardeds <- mapM goGuarded (defBranchGuardeds defBranch)
@@ -226,25 +251,31 @@ elaborateDef inLayoutNames outLayoutName def = do
 
   pure $ def
     { defBranches = defBranches'
-    , defType = (map LayoutConcrete paramedLayouts, LayoutConcrete (MkParametrizedLayoutName outParams outLayoutName))
+    , defType = (paramedLayouts, mkParamTypeP outParams outParamType)
     }
 
-elaboratePattern :: Pattern -> ParametrizedLayoutName -> PatternWithLayout
-elaboratePattern = flip patternSet
+elaboratePattern :: Pattern -> ParamTypeP -> Pattern' ParamTypeP
+elaboratePattern pat x = patternSet x pat
+-- elaboratePattern pat _ = pat
 
-inferLayoutPatVars :: Layout -> Adt -> Pattern -> [(FsName, ConcreteType)]
-inferLayoutPatVars layout adt (PatternVar _ v) = [(v, LayoutConcrete (MkLayoutName (Just Input) (layoutName layout)))]
-inferLayoutPatVars layout adt pat@(MkPattern _ cName params) =
+inferLayoutPatVars :: ParamTypeL -> Maybe Adt -> Pattern -> [(FsName, ParamType)]
+inferLayoutPatVars BoolParam _ (PatternVar _ v) = [(v, BoolParam)]
+inferLayoutPatVars IntParam _ (PatternVar _ v) = [(v, IntParam)]
+inferLayoutPatVars BoolParam _ pat = error $ "Attempt to pattern match on Bool: " ++ show pat
+inferLayoutPatVars IntParam _ pat = error $ "Attempt to pattern match on Int: " ++ show pat
+inferLayoutPatVars (LayoutParam layout) (Just adt) (PatternVar _ v) = [(v, LayoutParam (MkLayoutName (Just Input) (layoutName layout)))]
+inferLayoutPatVars (LayoutParam layout) (Just adt) pat@(MkPattern _ cName params) =
     let adtFields = adtBranchFields $ findAdtBranch adt cName
     in
     zipWith go params adtFields
   where
     -- appliedLayout = applyLayoutPat layout [] pat
 
-    go v IntType = (v, IntConcrete)
-    go v BoolType = (v, BoolConcrete)
-    go v _ = (v, LayoutConcrete $ findLayoutApp v $ snd $ lookupLayoutBranch layout cName)
+    go v IntType = (v, IntParam)
+    go v BoolType = (v, BoolParam)
+    go v _ = (v, LayoutParam $ findLayoutApp v $ snd $ lookupLayoutBranch layout cName)
     -- go v _ = (v, LayoutConcrete $ findLayoutApp v appliedLayout)
+inferLayoutPatVars (LayoutParam layout) Nothing _ = error $ "inferLayoutPatVars: Could not find ADT associated to layout " ++ show layout
 
 findLayoutApp :: FsName -> Assertion FsName -> LayoutName
 findLayoutApp v = go
@@ -257,78 +288,80 @@ findLayoutApp v = go
       | otherwise = go rest
     go (HeapletApply lName params _ rest) = go rest
 
-inferWith :: TcEnv -> Layout -> Parsed ExprX String -> TypeCheck (LoweredType, Elaborated ExprX String)
-inferWith gamma layout e@(ConstrApply {}) =
-  inferExpr gamma (Lower (MkLayoutName (Just Input) (layoutName layout)) e)
+inferWith :: TcEnv -> ParamType -> Parsed ExprX String -> TypeCheck (ParamTypeP, Elaborated ExprX String)
+inferWith gamma ty@(LayoutParam layout) e@(ConstrApply {}) =
+  -- inferExpr gamma (Lower (MkLayoutName (Just Input) (layoutName layout)) e)
+  inferExpr gamma (Lower ty e)
+inferWith _ ty e@(ConstrApply {}) = error $ "Constructor application of non-layout type:\nType = " ++ show ty ++ "\nExpr = " ++ show e ++ "\n"
 inferWith gamma layout e = inferExpr gamma e
 
-checkExpr :: TcEnv -> Parsed ExprX String -> ConcreteType -> TypeCheck (OutParams, Elaborated ExprX String)
+checkExpr :: TcEnv -> Parsed ExprX String -> ParamType -> TypeCheck (OutParams, Elaborated ExprX String)
 checkExpr gamma e@(Var {}) ty = do
   (ty', e') <- inferExpr gamma e
-  requireType ty $ forgetParams ty'
+  requireType ty $ fmap getParamedName ty'
   pure (loweredParams ty', e')
 
 checkExpr gamma (IntLit i) ty = do
-  requireType ty IntConcrete
+  requireType ty IntParam
   pure $ ([], IntLit i)
 
 checkExpr gamma (BoolLit b) ty = do
-  requireType ty BoolConcrete
+  requireType ty BoolParam
   pure $ ([], BoolLit b)
 
 checkExpr gamma e@(And {}) ty = do
-  requireType ty BoolConcrete
+  requireType ty BoolParam
   (ty', e') <- inferExpr gamma e
   pure (loweredParams ty', e')
 
 checkExpr gamma e@(Or {}) ty = do
-  requireType ty BoolConcrete
+  requireType ty BoolParam
   (ty', e') <- inferExpr gamma e
   pure (loweredParams ty', e')
 
 checkExpr gamma e@(Not {}) ty = do
-  requireType ty BoolConcrete
+  requireType ty BoolParam
   (ty', e') <- inferExpr gamma e
   pure (loweredParams ty', e')
 
 checkExpr gamma e@(Add {}) ty = do
-  requireType ty IntConcrete
+  requireType ty IntParam
   (ty', e') <- inferExpr gamma e
   pure (loweredParams ty', e')
 
 checkExpr gamma e@(Sub {}) ty = do
-  requireType ty IntConcrete
+  requireType ty IntParam
   (ty', e') <- inferExpr gamma e
   pure (loweredParams ty', e')
 
 checkExpr gamma e@(Mul {}) ty = do
-  requireType ty IntConcrete
+  requireType ty IntParam
   (ty', e') <- inferExpr gamma e
   pure (loweredParams ty', e')
 
 checkExpr gamma e@(Equal x y) ty = do
-  requireType ty BoolConcrete
+  requireType ty BoolParam
   (ty', e') <- inferExpr gamma e
   pure (loweredParams ty', e')
 
 checkExpr gamma e@(Le x y) ty = do
-  requireType ty BoolConcrete
+  requireType ty BoolParam
   (ty', e') <- inferExpr gamma e
   pure (loweredParams ty', e')
 
 checkExpr gamma e@(Lt x y) ty = do
-  requireType ty BoolConcrete
+  requireType ty BoolParam
   (ty', e') <- inferExpr gamma e
   pure (loweredParams ty', e')
 
 checkExpr gamma e@(Instantiate inLayoutNames outLayoutName f args) ty = do
   (ty', e') <- inferExpr gamma e
-  requireType ty $ forgetParams ty'
+  requireType ty $ fmap getParamedName ty'
   pure (loweredParams ty', e')
 
 checkExpr gamma e@(Lower {}) ty = do
   (ty', e') <- inferExpr gamma e
-  requireType ty $ forgetParams ty'
+  requireType ty $ fmap getParamedName ty'
   pure (loweredParams ty', e')
 
 checkExpr gamma e@(ConstrApply {}) ty =
@@ -345,10 +378,10 @@ checkExpr gamma e@(Apply {}) ty =
     , "Expected concrete type " ++ show ty
     ]
 
-inferExpr :: TcEnv -> Parsed ExprX String -> TypeCheck (LoweredType, Elaborated ExprX String)
+inferExpr :: TcEnv -> Parsed ExprX String -> TypeCheck (ParamTypeP, Elaborated ExprX String)
 inferExpr gamma (Var () v) =
   case lookup v gamma of
-    Nothing -> error $ "inferExpr: variable not found in TcEnv: " ++ v ++ "TcEnv = " ++ show gamma
+    Nothing -> error $ "inferExpr: variable not found in TcEnv: " ++ v ++ "\nTcEnv = " ++ show gamma ++ "\n"
     Just concTy -> do
       -- typeMatchesLowered ty lowered
       -- requireType ty (loweredType lowered)
@@ -356,54 +389,54 @@ inferExpr gamma (Var () v) =
       let lowered = withParams [v] concTy
       pure $ (lowered, Var lowered v)
 inferExpr gamma (IntLit i) = do
-  pure (IntConcrete, IntLit i)
+  pure (IntParam, IntLit i)
 
 inferExpr gamma (BoolLit b) = do
-  pure (BoolConcrete, BoolLit b)
+  pure (BoolParam, BoolLit b)
 
 inferExpr gamma (And x y) = do
-  ([], x') <- checkExpr gamma x BoolConcrete
-  ([], y') <- checkExpr gamma y BoolConcrete
-  pure $ (BoolConcrete, And x' y')
+  ([], x') <- checkExpr gamma x BoolParam
+  ([], y') <- checkExpr gamma y BoolParam
+  pure $ (BoolParam, And x' y')
 
 inferExpr gamma (Or x y) = do
-  ([], x') <- checkExpr gamma x BoolConcrete
-  ([], y') <- checkExpr gamma y BoolConcrete
-  pure $ (BoolConcrete, Or x' y')
+  ([], x') <- checkExpr gamma x BoolParam
+  ([], y') <- checkExpr gamma y BoolParam
+  pure $ (BoolParam, Or x' y')
 
 inferExpr gamma (Not x) = do
-  ([], x') <- checkExpr gamma x BoolConcrete
-  pure $ (BoolConcrete, Not x')
+  ([], x') <- checkExpr gamma x BoolParam
+  pure $ (BoolParam, Not x')
 
 inferExpr gamma (Add x y) = do
-  ([], x') <- checkExpr gamma x IntConcrete
-  ([], y') <- checkExpr gamma y IntConcrete
-  pure $ (IntConcrete, Add x' y')
+  ([], x') <- checkExpr gamma x IntParam
+  ([], y') <- checkExpr gamma y IntParam
+  pure $ (IntParam, Add x' y')
 
 inferExpr gamma (Sub x y) = do
-  ([], x') <- checkExpr gamma x IntConcrete
-  ([], y') <- checkExpr gamma y IntConcrete
-  pure $ (IntConcrete, Sub x' y')
+  ([], x') <- checkExpr gamma x IntParam
+  ([], y') <- checkExpr gamma y IntParam
+  pure $ (IntParam, Sub x' y')
 
 inferExpr gamma (Mul x y) = do
-  ([], x') <- checkExpr gamma x IntConcrete
-  ([], y') <- checkExpr gamma y IntConcrete
-  pure $ (IntConcrete, Mul x' y')
+  ([], x') <- checkExpr gamma x IntParam
+  ([], y') <- checkExpr gamma y IntParam
+  pure $ (IntParam, Mul x' y')
 
 inferExpr gamma (Equal x y) = do
-  ([], x') <- checkExpr gamma x IntConcrete
-  ([], y') <- checkExpr gamma y IntConcrete
-  pure $ (BoolConcrete, Equal x' y')
+  ([], x') <- checkExpr gamma x IntParam
+  ([], y') <- checkExpr gamma y IntParam
+  pure $ (BoolParam, Equal x' y')
 
 inferExpr gamma (Le x y) = do
-  ([], x') <- checkExpr gamma x IntConcrete
-  ([], y') <- checkExpr gamma y IntConcrete
-  pure $ (BoolConcrete, Le x' y')
+  ([], x') <- checkExpr gamma x IntParam
+  ([], y') <- checkExpr gamma y IntParam
+  pure $ (BoolParam, Le x' y')
 
 inferExpr gamma (Lt x y) = do
-  ([], x') <- checkExpr gamma x IntConcrete
-  ([], y') <- checkExpr gamma y IntConcrete
-  pure $ (BoolConcrete, Lt x' y')
+  ([], x') <- checkExpr gamma x IntParam
+  ([], y') <- checkExpr gamma y IntParam
+  pure $ (BoolParam, Lt x' y')
 
 inferExpr gamma e0@(Instantiate inLayoutNames outLayoutName f args) = do
   if length args /= length inLayoutNames
@@ -415,25 +448,35 @@ inferExpr gamma e0@(Instantiate inLayoutNames outLayoutName f args) = do
       zipWith
         (checkExpr gamma)
         args
-        (map LayoutConcrete inLayoutNames)
+        inLayoutNames
 
   def <- lookupDefM f
 
-  outLayout <- lookupLayoutM $ baseLayoutName outLayoutName
-  let outLayoutParams = layoutSuSLikParams outLayout
+  outLayout <- lookupParamType outLayoutName
+  -- let outLayoutParams = layoutSuSLikParams outLayout
 
   -- loweredTy <- genLoweredType outLayout
 
   outVars <- newOutVars outLayout
 
-  let loweredTy = MkLowered outVars outLayoutName
+  -- let loweredTy = MkLowered outVars outLayoutName
 
-  pure $ (loweredTy
+  outParams <- genParams outLayout
+
+  -- loweredOutTy <- lowerParamType outLayoutName
+  -- argTys <- mapM lowerParamType inLayoutNames
+
+  argLayouts <- mapM lookupParamType inLayoutNames
+  argParams <- mapM genParams argLayouts
+
+
+  pure $ (fmap (MkParametrizedLayoutName outParams) outLayoutName
          ,
           Apply
-            (getPredName f (map genLayoutName inLayoutNames) (genLayoutName outLayoutName)) -- Name
-            loweredTy -- Output layout
-            (zipWith MkLowered (map fst args') inLayoutNames)
+            (getPredName f (map genParamTypeName inLayoutNames) (genParamTypeName outLayoutName)) -- Name
+            (mkParamTypeP outParams outLayoutName) -- Output layout
+            (zipWith mkParamTypeP argParams inLayoutNames)
+            -- (zipWith MkLowered (map fst args') inLayoutNames)
             (map snd args') -- fun-SuSLik args
          )
 
@@ -442,19 +485,25 @@ inferExpr gamma (Lower layoutName (Var () v)) = do
   inferExpr gamma (Var () v)
     -- TODO: Does this need a copy (so, a different out var)?
 
-inferExpr gamma (Lower layoutName (ConstrApply ty' cName args)) = do
+inferExpr gamma (Lower ty (ConstrApply () cName args)) = do
     -- TODO: Check that the ADT matches the layout
 
-  layout <- lookupLayoutM (baseLayoutName layoutName)
+  foundTy <- lookupParamType ty
 
   -- ty'' <- genLoweredType layout
 
-  outVars <- newOutVars layout
-  let ty'' = MkLowered outVars layoutName
+  -- outVars <- newOutVars layout
+  -- let ty'' = MkLowered outVars layoutName
 
-  argsWithTys <- traverse (inferWith gamma layout) args
+  -- ty'' <- lowerParamType layoutName
 
-  pure $ (ty'', ConstrApply ty'' cName (map snd argsWithTys))
+  argsWithTys <- traverse (inferWith gamma ty) args
+
+  params <- genParams foundTy
+
+  let paramTy = mkParamTypeP params ty
+
+  pure $ (paramTy, ConstrApply paramTy cName (map snd argsWithTys))
 
 inferExpr gamma e@(Lower {}) =
   typeError $ "'lower' expression with incorrect form. Should be of the form 'lower v' or 'lower (C ...)'. Found: " ++ show e
@@ -464,4 +513,12 @@ inferExpr gamma e@(ConstrApply {}) =
 
 inferExpr gamma e@(Apply {}) =
   typeError $ "Un-instantiated function application: " ++ show e
+
+lowerParamType ty = do
+  foundTy <- lookupParamType ty
+  params <- genParams foundTy
+  case ty of
+    LayoutParam layoutName -> pure $ MkLowered params layoutName
+    IntParam -> pure IntConcrete
+    BoolParam -> pure BoolConcrete
 

@@ -194,8 +194,8 @@ parseFile = do
 data Directive =
   GenerateDef
     String   -- | fun-SuSLik function name
-    [LayoutName] -- | Argument layouts
-    LayoutName   -- | Result layout
+    [ParamType] -- | Argument layouts
+    ParamType   -- | Result layout
     deriving (Show)
 
 parseDirective :: Parser Directive
@@ -208,11 +208,11 @@ parseInstantiateDirective = lexeme $ do
   fnName <- parseIdentifier
 
   argLayouts <- parseBracketed (parseOp "[") (parseOp "]")
-                  $ parseList (char ',') parseLayoutName
+                  $ parseList (char ',') parseParamType
 
-  resultLayout <- parseSimpleLayoutName
+  resultLayout <- parseSimpleParamType
 
-  pure $ GenerateDef fnName argLayouts (MkLayoutName (Just Output) resultLayout)
+  pure $ GenerateDef fnName argLayouts resultLayout
 
 
 data GlobalItem where
@@ -370,11 +370,23 @@ parseVar = do
   str <- parseIdentifier
   pure $ Var () (fsName str)
 
+parseParamType :: Parser ParamType
+parseParamType =
+  try (keyword "Int" *> pure IntParam) <|>
+  try (keyword "Bool" *> pure BoolParam) <|>
+  try (fmap LayoutParam parseLayoutName)
+
+parseSimpleParamType :: Parser ParamType
+parseSimpleParamType =
+  try (keyword "Int" *> pure IntParam) <|>
+  try (keyword "Bool" *> pure BoolParam) <|>
+  try (fmap (LayoutParam . (MkLayoutName (Just Output))) parseSimpleLayoutName)
+
 parseLower :: Parser (Parsed ExprX FsName)
 parseLower = do
   keyword "lower"
 
-  layoutName <- parseLayoutName
+  layoutName <- parseParamType
 
   e <- parseExpr'
 
@@ -385,9 +397,9 @@ parseInstantiate = do
   keyword "instantiate"
 
   argLayouts <- parseBracketed (parseOp "[") (parseOp "]")
-                  $ parseList (char ',') parseLayoutName
+                  $ parseList (char ',') parseParamType
 
-  resultLayout <- parseLayoutName
+  resultLayout <- parseParamType
 
   f <- parseIdentifier
 

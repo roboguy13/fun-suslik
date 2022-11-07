@@ -75,7 +75,7 @@ unfoldConstructors layouts def =
       pure (map VarS (loweredParams outLayout),
        HeapletApply (MkLayoutName Nothing fName) (exprs ++ map VarS (loweredParams outLayout)) [] asn)
 
-    exprTranslate out e@(ConstrApply ty@(LayoutConcrete layoutName) cName args) = do
+    exprTranslate out e@(ConstrApply ty@(LayoutParam layoutName) cName args) = do
       (_, asns) <- first concat . unzip <$> mapM (exprTranslate (Just $ getParamedNameParams layoutName)) args
       let asn = mconcat asns
           layout = lookupLayout layouts (baseLayoutName (getParamedName layoutName))
@@ -105,7 +105,7 @@ combineBin op (es1, asns1) (es2, asns2) =
   (zipWith op es1 es2, asns1 <> asns2)
 
 getOutParams :: ElaboratedExpr FsName -> [SuSLikExpr SuSLikName]
-getOutParams (Var (LayoutConcrete paramedName) v) =
+getOutParams (Var (LayoutParam paramedName) v) =
   map VarS $ getParamedNameParams paramedName
 getOutParams (Var _ v) = [VarS v]
 getOutParams (IntLit i) = [IntS i]
