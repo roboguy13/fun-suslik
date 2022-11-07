@@ -9,6 +9,7 @@ import           Syntax.Simple.Expr
 import           Syntax.Simple.Parse
 import           Syntax.Simple.TypeCheck
 import           Syntax.Simple.Heaplet
+import           Syntax.Simple.ToSuSLik
 import           Syntax.Ppr
 
 import           Syntax.Simple.TranslateLayoutMatch
@@ -39,7 +40,9 @@ main = do
 
       let (GenerateDef fnName argLayouts resultLayout:_) = directives
       print fnName
-      print $
+      putStrLn $
+        ppr $
+        defToSuSLik $
         unfoldConstructors layouts $
         defTranslateLayoutMatch layouts $
         runTypeCheck layouts adts fnDefs $

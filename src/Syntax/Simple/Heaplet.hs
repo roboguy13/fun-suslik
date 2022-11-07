@@ -103,6 +103,8 @@ type ConcreteType = ConcreteType' LayoutName
 
 type LoweredType = ConcreteType' ParametrizedLayoutName
 
+data FsParam = IntParam String | BoolParam String | LayoutParam LayoutName [String]
+
 withParams :: [String] -> ConcreteType -> LoweredType
 withParams _ IntConcrete = IntConcrete
 withParams _ BoolConcrete = BoolConcrete
@@ -223,6 +225,9 @@ data Def' defTy pat cond body ty layoutNameTy =
   , defBranches :: [DefBranch' pat cond body ty layoutNameTy]
   }
   deriving (Show)
+
+-- TODO: Implement base type parameters:
+-- type ElaboratedDef = Elaborated (DefT ([FsParam], FsParam) ParametrizedLayoutName)
 
 type ElaboratedDef = Elaborated (DefT ([LoweredType], LoweredType) ParametrizedLayoutName)
 type ParsedDef = Parsed (Def ())

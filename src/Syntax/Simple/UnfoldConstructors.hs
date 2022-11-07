@@ -10,6 +10,7 @@ module Syntax.Simple.UnfoldConstructors
 
 import           Syntax.Simple.Heaplet
 import           Syntax.Simple.SuSLik
+import           Syntax.Simple.ToSuSLik
 import           Syntax.Name
 
 import           Control.Arrow (first)
