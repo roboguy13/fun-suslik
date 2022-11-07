@@ -37,7 +37,7 @@ unfoldConstructors layouts def =
 
     guardedTranslate :: GuardedExprWithAsn -> AsnGuarded
     guardedTranslate (MkGuardedExpr cond (MkExprWithAsn asn bodyExpr)) =
-      let (_, bodyAsn) = snd . runFreshGen $ exprTranslate bodyExpr
+      let (_, bodyAsn) = snd . runFreshGen $ exprTranslate Nothing bodyExpr
       in
       MkGuardedExpr cond (asn <> bodyAsn)
 
@@ -52,38 +52,42 @@ unfoldConstructors layouts def =
     -- removeEmptyApplies :: Assertion FsName -> Assertion FsName
     -- removeEmptyApplies 
 
-    exprTranslate :: ElaboratedExpr FsName -> FreshGen ([SuSLikExpr SuSLikName], Assertion SuSLikName)
-    exprTranslate (Var ty v) = pure (map VarS (loweredParams ty), Emp)
-    exprTranslate (IntLit i) = pure ([IntS i], Emp)
-    exprTranslate (BoolLit b) = pure ([BoolS b], Emp)
+    exprTranslate :: Maybe [SuSLikName] -> ElaboratedExpr FsName -> FreshGen ([SuSLikExpr SuSLikName], Assertion SuSLikName)
+    exprTranslate _ (Var ty v) = pure (map VarS (loweredParams ty), Emp)
+    exprTranslate _ (IntLit i) = pure ([IntS i], Emp)
+    exprTranslate _ (BoolLit b) = pure ([BoolS b], Emp)
 
-    exprTranslate (And x y) = combineBin' AndS x y
-    exprTranslate (Or x y) = combineBin' OrS x y
-    exprTranslate (Not x) = first (map NotS) <$> exprTranslate x
+    exprTranslate out (And x y) = combineBin' out AndS x y
+    exprTranslate out (Or x y) = combineBin' out OrS x y
+    exprTranslate out (Not x) = first (map NotS) <$> exprTranslate out x
 
-    exprTranslate (Add x y) = combineBin' AddS x y
-    exprTranslate (Sub x y) = combineBin' SubS x y
-    exprTranslate (Mul x y) = combineBin' MulS x y
+    exprTranslate out (Add x y) = combineBin' out AddS x y
+    exprTranslate out (Sub x y) = combineBin' out SubS x y
+    exprTranslate out (Mul x y) = combineBin' out MulS x y
 
-    exprTranslate (Equal x y) = combineBin' EqualS x y
-    exprTranslate (Le x y) = combineBin' LeS x y
-    exprTranslate (Lt x y) = combineBin' LtS x y
+    exprTranslate out (Equal x y) = combineBin' out EqualS x y
+    exprTranslate out (Le x y) = combineBin' out LeS x y
+    exprTranslate out (Lt x y) = combineBin' out LtS x y
 
-    exprTranslate (Apply fName outLayout inLayouts args) = do
-      (exprs, asns) <- first concat . unzip <$> mapM exprTranslate args
+    exprTranslate out (Apply fName outLayout inLayouts args) = do
+      (exprs, asns) <- first concat . unzip <$> mapM (exprTranslate (Just $ loweredParams outLayout)) args
       let asn = mconcat asns
       pure (map VarS (loweredParams outLayout),
        HeapletApply (MkLayoutName Nothing fName) (exprs ++ map VarS (loweredParams outLayout)) [] asn)
 
-    exprTranslate e@(ConstrApply ty@(LayoutConcrete layoutName) cName args) = do
-      (_, asns) <- first concat . unzip <$> mapM exprTranslate args
+    exprTranslate out e@(ConstrApply ty@(LayoutConcrete layoutName) cName args) = do
+      (_, asns) <- first concat . unzip <$> mapM (exprTranslate (Just $ getParamedNameParams layoutName)) args
       let asn = mconcat asns
           layout = lookupLayout layouts (baseLayoutName (getParamedName layoutName))
           -- suslikParams = concatMap getOutParams args
 
           exprs = foldMap toList $ concatMap getOutParams args -- TODO: Generalize this to work with more kinds of expressions
 
-      suslikParams <- genLayoutParams layout
+      suslikParams <-
+        case out of
+          -- Nothing -> genLayoutParams layout
+          Nothing -> pure $ getParamedNameParams layoutName
+          Just outVars -> pure outVars
 
       let matched = removeHeapletApplies $ applyLayout layout suslikParams cName exprs
 
@@ -91,7 +95,7 @@ unfoldConstructors layouts def =
             ,asn <> setAssertionMode Output matched
             )
 
-    combineBin' op x y = combineBin op <$> (exprTranslate x) <*> (exprTranslate y)
+    combineBin' out op x y = combineBin op <$> (exprTranslate out x) <*> (exprTranslate out y)
 
 combineBin :: (SuSLikExpr' -> SuSLikExpr' -> SuSLikExpr') ->
   ([SuSLikExpr SuSLikName], Assertion SuSLikName) ->
@@ -184,5 +188,8 @@ getOutParamsBin op x y =
 
 genLayoutParams :: Layout -> FreshGen [String]
 genLayoutParams layout =
+  -- uniq <- getUniq
+  -- if uniq == 0
+  --   then pure "__
   mapM (getFreshWith . ("__y_" <>)) $ layoutSuSLikParams layout
 
