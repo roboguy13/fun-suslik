@@ -44,6 +44,29 @@ data SuSLikExpr a where
   MulS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
   deriving (Show, Functor, Foldable)
 
+instance Applicative SuSLikExpr where
+  pure = return
+  (<*>) = ap
+
+instance Monad SuSLikExpr where
+  return = VarS
+
+  VarS x >>= f = f x
+  IntS i >>= _ = IntS i
+  BoolS b >>= _ = BoolS b
+  AndS x y >>= f = AndS (x >>= f) (y >>= f)
+  OrS x y >>= f = OrS (x >>= f) (y >>= f)
+  NotS x >>= f = NotS (x >>= f)
+
+  LtS x y >>= f = LtS (x >>= f) (y >>= f)
+  LeS x y >>= f = LeS (x >>= f) (y >>= f)
+  EqualS x y >>= f = EqualS (x >>= f) (y >>= f)
+
+  AddS x y >>= f = AddS (x >>= f) (y >>= f)
+  SubS x y >>= f = SubS (x >>= f) (y >>= f)
+  MulS x y >>= f = MulS (x >>= f) (y >>= f)
+
+
 mkAndS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
 mkAndS (BoolS True) y = y
 mkAndS x (BoolS True) = x
@@ -315,18 +338,53 @@ naiveSubst ((old, new):rest) fa = naiveSubst rest (fmap go fa)
       | y == old = new
       | otherwise = y
 
-layoutMatch :: Show a => Layout -> Pattern' a -> Assertion SuSLikName
-layoutMatch layout e@(PatternVar {}) = error $ "layoutMatch: Pattern variable: " ++ show e
-layoutMatch layout (MkPattern _ cName args) = 
+naiveSubstAsn1 :: Eq a => (a, SuSLikExpr a) -> Assertion a -> Assertion a
+naiveSubstAsn1 subst@(old, new) fa =
+    case fa of
+      Emp -> Emp
+
+      PointsTo mode x y rest ->
+        PointsTo mode x y (naiveSubstAsn1 subst rest)
+
+      HeapletApply fName suslikParams fsArgs rest ->
+        HeapletApply fName (map (>>= go) suslikParams) fsArgs rest
+  where
+    go x
+      | x == old = new
+      | otherwise = VarS x
+
+naiveSubstAsn :: Eq a => [(a, SuSLikExpr a)] -> Assertion a -> Assertion a
+naiveSubstAsn [] fa = fa
+naiveSubstAsn (subst:rest) fa = naiveSubstAsn rest (naiveSubstAsn1 subst fa)
+
+layoutMatch :: Layout -> ConstrName -> [SuSLikExpr SuSLikName] -> Assertion SuSLikName
+layoutMatch layout cName args =
+  let (MkPattern _ _ params, asn) = lookupLayoutBranch layout cName
+  in
+  naiveSubstAsn (zip params args) asn
+
+-- layoutMatchPat :: Show a => Layout -> Pattern' a -> Assertion SuSLikName
+-- layoutMatchPat layout e@(PatternVar {}) = error $ "layoutMatch: Pattern variable: " ++ show e
+-- layoutMatchPat layout (MkPattern _ cName args) = layoutMatch layout cName args
+
+layoutMatchPat :: Show a => Layout -> Pattern' a -> Assertion SuSLikName
+layoutMatchPat layout e@(PatternVar {}) = error $ "layoutMatch: Pattern variable: " ++ show e
+layoutMatchPat layout (MkPattern _ cName args) = 
   let (MkPattern _ _ params, asn) = lookupLayoutBranch layout cName
   in
   naiveSubst (zip params args) asn
 
-applyLayout :: Show a => Layout -> [String] -> Pattern' a -> Assertion SuSLikName
-applyLayout layout suslikParams pat =
+applyLayoutPat :: Show a => Layout -> [String] -> Pattern' a -> Assertion SuSLikName
+applyLayoutPat layout suslikParams pat =
   naiveSubst
     (zip (layoutSuSLikParams layout) suslikParams)
-    (layoutMatch layout pat)
+    (layoutMatchPat layout pat)
+
+applyLayout :: Layout -> [String] -> ConstrName -> [SuSLikExpr SuSLikName] -> Assertion SuSLikName
+applyLayout layout suslikParams cName args =
+  naiveSubst
+    (zip (layoutSuSLikParams layout) suslikParams)
+    (layoutMatch layout cName args)
 
 lookupLayout :: HasCallStack => [Layout] -> String -> Layout
 lookupLayout layoutDefs name =
@@ -342,6 +400,7 @@ lookupLayoutBranch layout cName =
   where
     go (MkPattern _ cName' _) = cName' == cName
     go (PatternVar {}) = True
+
 
 
 -- instance Ppr a => Ppr (Expr a) where

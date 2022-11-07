@@ -16,8 +16,8 @@ import           Control.Arrow (first)
 
 type SuSLikExpr' = SuSLikExpr SuSLikName
 
-unfoldConstructors :: DefWithAsn -> AsnDef
-unfoldConstructors def =
+unfoldConstructors :: [Layout] -> DefWithAsn -> AsnDef
+unfoldConstructors layouts def =
   def
   { defBranches = map branchTranslate (defBranches def)
   }
@@ -59,12 +59,14 @@ unfoldConstructors def =
       ,HeapletApply (MkLayoutName Nothing fName) (exprs ++ map VarS (loweredParams outLayout)) [] asn
       )
 
-    exprTranslate (ConstrApply layout cName args) =
+    exprTranslate (ConstrApply ty@(LayoutConcrete layoutName) cName args) =
       let (exprs, asns) = first concat $ unzip $ map exprTranslate args
           asn = mconcat asns
+          layout = lookupLayout layouts (baseLayoutName (getParamedName layoutName))
+          matched = applyLayout layout (loweredParams ty) cName exprs
       in
-      (map VarS (loweredParams layout)
-      ,asn
+      (map VarS (loweredParams ty)
+      ,asn <> setAssertionMode Output matched
       )
 
     combineBin' op x y = combineBin op (exprTranslate x) (exprTranslate y)

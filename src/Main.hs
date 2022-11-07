@@ -40,7 +40,7 @@ main = do
       let (GenerateDef fnName argLayouts resultLayout:_) = directives
       print fnName
       print $
-        unfoldConstructors $
+        unfoldConstructors layouts $
         defTranslateLayoutMatch layouts $
         runTypeCheck layouts adts fnDefs $
           instAndElaborate fnName argLayouts resultLayout $ lookupDef fnDefs fnName

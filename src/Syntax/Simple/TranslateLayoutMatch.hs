@@ -37,6 +37,6 @@ defTranslateLayoutMatch layoutEnv def =
     applyPat (MkPattern (MkParametrizedLayoutName params layoutName) cName patParams) =
       let layout = lookupLayout layoutEnv (baseLayoutName layoutName)
       in
-      applyLayout layout params (MkPattern () cName patParams)
+      applyLayoutPat layout params (MkPattern () cName patParams)
 
 
