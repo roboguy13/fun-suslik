@@ -6,6 +6,8 @@
 module Syntax.Name
   (Name_ (..)
   ,Name
+  ,mangle
+  ,unmangle
   ,FsName
   ,fsName
   ,SuSLikName
@@ -62,6 +64,12 @@ type Name = Name_ String
 
 type SuSLikName = String --Name
 type FsName = String --Name
+
+mangle :: String -> String
+mangle = ('$':)
+
+unmangle :: String -> String
+unmangle ('$':xs) = xs
 
 fsName :: FsName -> String
 fsName = id

@@ -65,14 +65,14 @@ lookupDefM name = do
 genLayoutParamsWith :: String -> Layout -> TypeCheck [String]
 genLayoutParamsWith prefix layout = do
   mapM (MkTypeCheck . lift . lift . getFreshWith . (prefix <>))
-  $ layoutSuSLikParams layout
+  $ map unmangle $ layoutSuSLikParams layout
 
 genLayoutParams :: Layout -> TypeCheck [String]
 genLayoutParams = genLayoutParamsWith ""
 
 initialOutLayoutParams :: Layout -> OutParams
 initialOutLayoutParams =
-  map ("__r_" <>) . layoutSuSLikParams
+  map ("__r_" <>) . map unmangle . layoutSuSLikParams
 
 newOutVars :: Layout -> TypeCheck OutParams
 newOutVars layout =
@@ -417,7 +417,7 @@ inferExpr gamma e0@(Instantiate inLayoutNames outLayoutName f args) = do
   def <- lookupDefM f
 
   outLayout <- lookupLayoutM $ baseLayoutName outLayoutName
-  let outLayoutParams = layoutSuSLikParams outLayout
+  let outLayoutParams = map unmangle $ layoutSuSLikParams outLayout
 
   -- loweredTy <- genLoweredType outLayout
 

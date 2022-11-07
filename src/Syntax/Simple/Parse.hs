@@ -231,7 +231,7 @@ parseLayout = do
   parseOp ">->"
   keyword "layout"
   parseOp "["
-  suslikParams <- parseList (symbol ",") (fmap fsName parseIdentifier)
+  suslikParams <- parseList (symbol ",") (fmap mangle parseIdentifier)
   parseOp "]"
   parseOp ";"
 
@@ -249,8 +249,12 @@ parseLayout = do
       name' <- parseSimpleLayoutName
       parseGuard (name' == name) (Just name') name
 
-      pat <- parsePattern
+      MkPattern () cName pVars <- parsePattern
+
+      let pat = MkPattern () cName (map mangle pVars)
+
       parseOp ":="
+
       rhs <- parseAssertion
       parseOp ";"
       pure (pat, rhs)
@@ -285,7 +289,7 @@ parseHeapletApply p = do
   layoutName <- parseSimpleLayoutName
   -- some spaceChar
   -- args <- some parseExpr'
-  argId <- parseIdentifier
+  argId <- fmap mangle parseIdentifier
   let arg = Var () argId
   let args = [arg]
   HeapletApply (MkLayoutName (Just Input) layoutName) [VarS argId] args <$> ((parseOp "," *> p) <|> pure Emp)
@@ -301,7 +305,7 @@ parseLoc = fmap (Here . fsName) parseIdentifier <|> go
       parseOp "+"
       i <- read @Int <$> some digitChar
       parseOp ")"
-      pure ((fsName x) :+ i)
+      pure ((mangle x) :+ i)
 
 parseExpr' :: Parser (Parsed ExprX FsName)
 parseExpr' = lexeme $
