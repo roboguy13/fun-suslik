@@ -201,6 +201,10 @@ type Expr = Elaborated ExprX
 data Pattern' a = MkPattern a ConstrName [FsName] | PatternVar a FsName
   deriving (Show)
 
+patternMapNames :: (FsName -> FsName) -> Pattern' a -> Pattern' a
+patternMapNames f (MkPattern x cName args) = MkPattern x cName (map f args)
+patternMapNames f (PatternVar x v) = PatternVar x (f v)
+
 type Pattern = Pattern' ()
 
 type PatternWithLayout = Pattern' ParametrizedLayoutName
@@ -383,9 +387,21 @@ naiveSubstAsn :: Eq a => [(a, SuSLikExpr a)] -> Assertion a -> Assertion a
 naiveSubstAsn [] fa = fa
 naiveSubstAsn (subst:rest) fa = naiveSubstAsn rest (naiveSubstAsn1 subst fa)
 
+mangleLayout :: Layout -> Layout
+mangleLayout layout =
+  let r = layout
+            { layoutSuSLikParams = map mangle (layoutSuSLikParams layout)
+            , layoutBranches = map go (layoutBranches layout)
+            }
+  in
+  r
+  where
+    go (pat, asn) = (patternMapNames mangle pat, fmap mangle asn)
+
 layoutMatch :: Layout -> ConstrName -> [SuSLikName] -> Assertion SuSLikName
-layoutMatch layout cName args =
-  let (MkPattern _ _ params, asn) = lookupLayoutBranch layout cName
+layoutMatch layout0 cName args =
+  let layout = mangleLayout layout0
+      (MkPattern _ _ params, asn) = lookupLayoutBranch layout cName
   in
   naiveSubst (zip params args) asn
 
@@ -401,13 +417,19 @@ layoutMatchPat layout (MkPattern _ cName args) =
   naiveSubst (zip params args) asn
 
 applyLayoutPat :: Show a => Layout -> [String] -> Pattern' a -> Assertion SuSLikName
-applyLayoutPat layout suslikParams pat =
+applyLayoutPat layout0 suslikParams pat =
+  let layout = mangleLayout layout0
+  in
+  fmap unmangle $
   naiveSubst
     (zip (layoutSuSLikParams layout) suslikParams)
     (layoutMatchPat layout pat)
 
 applyLayout :: Layout -> [SuSLikName] -> ConstrName -> [SuSLikName] -> Assertion SuSLikName
-applyLayout layout suslikParams cName args =
+applyLayout layout0 suslikParams cName args =
+  let layout = mangleLayout layout0
+  in
+  fmap unmangle $
   naiveSubst
     (zip (layoutSuSLikParams layout) suslikParams)
     (layoutMatch layout cName args)

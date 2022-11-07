@@ -65,14 +65,14 @@ lookupDefM name = do
 genLayoutParamsWith :: String -> Layout -> TypeCheck [String]
 genLayoutParamsWith prefix layout = do
   mapM (MkTypeCheck . lift . lift . getFreshWith . (prefix <>))
-  $ map unmangle $ layoutSuSLikParams layout
+  $ layoutSuSLikParams layout
 
 genLayoutParams :: Layout -> TypeCheck [String]
 genLayoutParams = genLayoutParamsWith ""
 
 initialOutLayoutParams :: Layout -> OutParams
 initialOutLayoutParams =
-  map ("__r_" <>) . map unmangle . layoutSuSLikParams
+  map ("__r_" <>) . layoutSuSLikParams
 
 newOutVars :: Layout -> TypeCheck OutParams
 newOutVars layout =
@@ -234,14 +234,17 @@ elaboratePattern = flip patternSet
 
 inferLayoutPatVars :: Layout -> Adt -> Pattern -> [(FsName, ConcreteType)]
 inferLayoutPatVars layout adt (PatternVar _ v) = [(v, LayoutConcrete (MkLayoutName (Just Input) (layoutName layout)))]
-inferLayoutPatVars layout adt (MkPattern _ cName params) =
+inferLayoutPatVars layout adt pat@(MkPattern _ cName params) =
     let adtFields = adtBranchFields $ findAdtBranch adt cName
     in
     zipWith go params adtFields
   where
+    -- appliedLayout = applyLayoutPat layout [] pat
+
     go v IntType = (v, IntConcrete)
     go v BoolType = (v, BoolConcrete)
     go v _ = (v, LayoutConcrete $ findLayoutApp v $ snd $ lookupLayoutBranch layout cName)
+    -- go v _ = (v, LayoutConcrete $ findLayoutApp v appliedLayout)
 
 findLayoutApp :: FsName -> Assertion FsName -> LayoutName
 findLayoutApp v = go
@@ -417,7 +420,7 @@ inferExpr gamma e0@(Instantiate inLayoutNames outLayoutName f args) = do
   def <- lookupDefM f
 
   outLayout <- lookupLayoutM $ baseLayoutName outLayoutName
-  let outLayoutParams = map unmangle $ layoutSuSLikParams outLayout
+  let outLayoutParams = layoutSuSLikParams outLayout
 
   -- loweredTy <- genLoweredType outLayout
 

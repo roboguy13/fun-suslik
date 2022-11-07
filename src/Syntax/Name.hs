@@ -8,6 +8,7 @@ module Syntax.Name
   ,Name
   ,mangle
   ,unmangle
+  ,unmangleAndMakeInternal
   ,FsName
   ,fsName
   ,SuSLikName
@@ -66,10 +67,20 @@ type SuSLikName = String --Name
 type FsName = String --Name
 
 mangle :: String -> String
-mangle = ('$':)
+mangle [] = "$"
+mangle str@('$':_) = str
+mangle str = '$' : str
 
 unmangle :: String -> String
 unmangle ('$':xs) = xs
+unmangle xs = xs
+
+internalName :: String -> String
+internalName str@('_':'_':_) = str
+internalName str = "__" ++ str
+
+unmangleAndMakeInternal :: String -> String
+unmangleAndMakeInternal = internalName . unmangle
 
 fsName :: FsName -> String
 fsName = id

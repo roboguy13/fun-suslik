@@ -28,8 +28,8 @@ TreeLayout (Node payload left right) :=
 
 const : List -> List -> List;
 const (Nil) (Nil) := Nil;
-const (Cons x xs) (Cons y ys) := Cons x xs;
-const (Cons x xs) (Nil) := Cons x xs;
+const (Cons head tail) (Cons y ys) := Cons head tail;
+const (Cons head tail) (Nil) := Cons head tail;
 const (Nil) (Cons y ys) := Nil;
 
 consFn : Int -> List -> List;
