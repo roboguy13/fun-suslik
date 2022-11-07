@@ -194,7 +194,11 @@ elaborateDef inLayoutNames outLayoutName def = do
   outLayout <- lookupLayoutM (baseLayoutName outLayoutName)
 
   argParams <- mapM genLayoutParams argLayouts
-  outParams <- genLayoutParamsWith "out_" outLayout
+
+  let outParams = initialOutLayoutParams outLayout --genLayoutParamsWith "out_" outLayout
+
+  let paramedLayouts = zipWith MkParametrizedLayoutName argParams inLayoutNames
+
 
   let goBranch defBranch = do
           let gamma = concat $ zipWith3 inferLayoutPatVars argLayouts argAdts $ defBranchPatterns defBranch
@@ -211,8 +215,6 @@ elaborateDef inLayoutNames outLayoutName def = do
 
           guardeds <- mapM goGuarded (defBranchGuardeds defBranch)
 
-          let paramedLayouts = zipWith MkParametrizedLayoutName argParams inLayoutNames
-
           pure $ defBranch
             { defBranchPatterns = zipWith elaboratePattern (defBranchPatterns defBranch) paramedLayouts
             , defBranchGuardeds = guardeds
@@ -220,7 +222,10 @@ elaborateDef inLayoutNames outLayoutName def = do
           --
   defBranches' <- mapM goBranch (defBranches def)
 
-  pure $ def { defBranches = defBranches' }
+  pure $ def
+    { defBranches = defBranches'
+    , defType = (map LayoutConcrete paramedLayouts, LayoutConcrete (MkParametrizedLayoutName outParams outLayoutName))
+    }
 
 elaboratePattern :: Pattern -> ParametrizedLayoutName -> PatternWithLayout
 elaboratePattern = flip patternSet

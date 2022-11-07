@@ -72,6 +72,10 @@ mkAndS (BoolS True) y = y
 mkAndS x (BoolS True) = x
 mkAndS x y = AndS x y
 
+ands :: [SuSLikExpr a] -> SuSLikExpr a
+ands [] = BoolS True
+ands (x:xs) = foldl1 mkAndS (x:xs)
+
 instance Ppr a => Ppr (SuSLikExpr a) where
   ppr (VarS v) = ppr v
   ppr (IntS i) = show i
@@ -212,15 +216,15 @@ isBasicPatternVar :: Pattern' a -> Bool
 isBasicPatternVar (PatternVar _ v) = True
 isBasicPatternVar _ = False
 
-data Def' pat cond body ty layoutNameTy =
+data Def' defTy pat cond body ty layoutNameTy =
   MkDef
   { defName :: String
-  , defType :: Type
+  , defType :: defTy
   , defBranches :: [DefBranch' pat cond body ty layoutNameTy]
   }
   deriving (Show)
 
-type ElaboratedDef = Elaborated (Def ParametrizedLayoutName)
+type ElaboratedDef = Elaborated (DefT ([LoweredType], LoweredType) ParametrizedLayoutName)
 type ParsedDef = Parsed (Def ())
 
 -- fnArgTypes :: Type -> [Type]
@@ -253,7 +257,10 @@ data GuardedExpr' cond body ty layoutNameTy =
   }
   deriving (Show)
 
-type Def pat ty layoutNameTy = Def' pat (ExprX ty layoutNameTy FsName) (ExprX ty layoutNameTy FsName) ty layoutNameTy
+type DefT defTy pat ty layoutNameTy = Def' defTy pat (ExprX ty layoutNameTy FsName) (ExprX ty layoutNameTy FsName) ty layoutNameTy
+
+type Def pat ty layoutNameTy = DefT Type pat ty layoutNameTy
+
 type DefBranch pat ty layoutNameTy = DefBranch' pat (ExprX ty layoutNameTy FsName) (ExprX ty layoutNameTy FsName) ty layoutNameTy
 type GuardedExpr ty layoutNameTy = GuardedExpr' (ExprX ty layoutNameTy FsName) (ExprX ty layoutNameTy FsName) ty layoutNameTy
 
@@ -267,8 +274,17 @@ data ExprWithAsn a = MkExprWithAsn (Assertion a) (ElaboratedExpr a)
 type DefBranchWithAsn = Elaborated (DefBranch' ParametrizedLayoutName (ElaboratedExpr FsName) (ExprWithAsn FsName))
 type AsnDefBranch = Elaborated (DefBranch' ParametrizedLayoutName (ElaboratedExpr FsName) (Assertion SuSLikName))
 
-type DefWithAsn = Elaborated (Def' ParametrizedLayoutName (ElaboratedExpr FsName) (ExprWithAsn FsName))
-type AsnDef = Elaborated (Def' ParametrizedLayoutName (ElaboratedExpr FsName) (Assertion FsName))
+type DefWithAsn = Elaborated (Def' ([LoweredType], LoweredType) ParametrizedLayoutName (ElaboratedExpr FsName) (ExprWithAsn FsName))
+type AsnDef = Elaborated (Def' ([LoweredType], LoweredType) ParametrizedLayoutName (ElaboratedExpr FsName) (Assertion FsName))
+
+getDefRhs's :: Def' defTy pat cond body ty layoutNameTy -> [body]
+getDefRhs's = concatMap getDefBranchRhs's . defBranches
+
+getDefBranchRhs's :: DefBranch' pat cond body ty layoutNameTy -> [body]
+getDefBranchRhs's = map getGuardedRhs . defBranchGuardeds
+
+getGuardedRhs :: GuardedExpr' cond body ty layoutNameTy -> body
+getGuardedRhs (MkGuardedExpr _ x) = x
 
 lookupDef :: [Def pat ty layoutNameTy] -> String -> Def pat ty layoutNameTy
 lookupDef defs name =
