@@ -135,10 +135,15 @@ getPredName :: String -> [String] -> String -> String
 getPredName fnName argLayouts resultLayout =
   fnName <> "__" <> intercalate "__" (resultLayout : argLayouts)
 
+-- Also updates the Def name
 instAndElaborate :: String -> [LayoutName] -> LayoutName -> ParsedDef -> TypeCheck ElaboratedDef
-instAndElaborate fnName argLayoutNames outLayoutName def =
-  elaborateDef argLayoutNames outLayoutName
-    $ instDefCalls argLayoutNames outLayoutName def
+instAndElaborate fnName argLayoutNames outLayoutName def = do
+  let oldName = defName def
+  elaborated <- elaborateDef argLayoutNames outLayoutName
+                  $ instDefCalls argLayoutNames outLayoutName def
+  pure $ elaborated
+    { defName = (getPredName oldName (map genLayoutName argLayoutNames) (genLayoutName outLayoutName))
+    }
 
 instDefCalls :: [LayoutName] -> LayoutName -> ParsedDef -> ParsedDef
 instDefCalls argLayoutNames outLayoutName def =
