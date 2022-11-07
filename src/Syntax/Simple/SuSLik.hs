@@ -111,47 +111,6 @@ instance Ppr a => Ppr [Heaplet a] where
   ppr [] = "emp"
   ppr xs = intercalate " ** " $ map ppr xs
 
-data SuSLikExpr a where
-  VarS :: a -> SuSLikExpr a
-  IntS :: Int -> SuSLikExpr a
-  BoolS :: Bool -> SuSLikExpr a
-
-  AndS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
-  OrS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
-  NotS :: SuSLikExpr a -> SuSLikExpr a
-
-  LtS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
-  LeS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
-  EqualS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
-
-  AddS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
-  SubS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
-  MulS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
-  deriving (Show, Functor)
-
-mkAndS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
-mkAndS (BoolS True) y = y
-mkAndS x (BoolS True) = x
-mkAndS x y = AndS x y
-
-instance Ppr a => Ppr (SuSLikExpr a) where
-  ppr (VarS v) = ppr v
-  ppr (IntS i) = show i
-  ppr (BoolS True) = "true"
-  ppr (BoolS False) = "false"
-
-  ppr (AndS x y) = pprBinOp "&&" x y
-  ppr (OrS x y) = pprBinOp "||" x y
-  ppr (NotS x) = "(not " ++ ppr x ++ ")"
-
-  ppr (AddS x y) = pprBinOp "+" x y
-  ppr (SubS x y) = pprBinOp "-" x y
-  ppr (MulS x y) = pprBinOp "*" x y
-
-  ppr (EqualS x y) = pprBinOp "==" x y
-  ppr (LeS x y) = pprBinOp "<=" x y
-  ppr (LtS x y) = pprBinOp "<" x y
-
 data SuSLikType = IntType | LocType | BoolType | SetType
   deriving (Show)
 
