@@ -499,7 +499,7 @@ inferExpr gamma (Lower ty (ConstrApply () cName args)) = do
 
   argsWithTys <- traverse (inferWith gamma ty) args
 
-  params <- genParams foundTy
+  params <- newOutVars foundTy
 
   let paramTy = mkParamTypeP params ty
 
