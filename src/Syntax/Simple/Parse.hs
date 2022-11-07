@@ -285,9 +285,10 @@ parseHeapletApply p = do
   layoutName <- parseSimpleLayoutName
   -- some spaceChar
   -- args <- some parseExpr'
-  arg <- fmap (Var ()) parseIdentifier
+  argId <- parseIdentifier
+  let arg = Var () argId
   let args = [arg]
-  HeapletApply (MkLayoutName (Just Input) layoutName) [] args <$> ((parseOp "," *> p) <|> pure Emp)
+  HeapletApply (MkLayoutName (Just Input) layoutName) [VarS argId] args <$> ((parseOp "," *> p) <|> pure Emp)
   -- HeapletApply (MkLayoutName (Just Input) layoutName) [] args <$> ((parseOp "," *> p) <|> pure Emp)
 
 

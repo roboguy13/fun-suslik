@@ -40,6 +40,7 @@ main = do
 
       let (GenerateDef fnName argLayouts resultLayout:_) = directives
       print fnName
+      -- print $
       putStrLn $
         ppr $
         defToSuSLik $

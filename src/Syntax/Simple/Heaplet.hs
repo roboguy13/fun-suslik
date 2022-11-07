@@ -481,6 +481,12 @@ data Assertion a where
   HeapletApply :: LayoutName -> [SuSLikExpr a] -> [ExprX () Void a] -> Assertion a -> Assertion a
   deriving (Functor, Show, Foldable)
 
+removeHeapletApplies :: Assertion FsName -> Assertion FsName
+removeHeapletApplies Emp = Emp
+removeHeapletApplies (PointsTo mode x y rest) =
+  PointsTo mode x y (removeHeapletApplies rest)
+removeHeapletApplies (HeapletApply _ _ _ rest) = removeHeapletApplies rest
+
 instance Semigroup (Assertion a) where
   Emp <> x = x
   x <> Emp = x

@@ -35,6 +35,17 @@ unfoldConstructors layouts def =
       in
       MkGuardedExpr cond (asn <> bodyAsn)
 
+    -- -- | Keep unfolding any HeapletApply to a known constructor application
+    -- unfoldAssertion :: Assertion FsName -> Assertion FsName
+    -- unfoldAssertion Emp = Emp
+    -- unfoldAssertion (PointsTo mode x y rest) =
+    --   PointsTo mode x y (unfoldAssertion rest)
+    -- unfoldAssertion
+
+    -- -- | Remove any HeapletApply that has an empty SuSLik arg list
+    -- removeEmptyApplies :: Assertion FsName -> Assertion FsName
+    -- removeEmptyApplies 
+
     exprTranslate :: ElaboratedExpr FsName -> ([SuSLikExpr SuSLikName], Assertion SuSLikName)
     exprTranslate (Var ty v) = (map VarS (loweredParams ty), Emp)
     exprTranslate (IntLit i) = ([IntS i], Emp)
@@ -64,7 +75,7 @@ unfoldConstructors layouts def =
       let (exprs, asns) = first concat $ unzip $ map exprTranslate args
           asn = mconcat asns
           layout = lookupLayout layouts (baseLayoutName (getParamedName layoutName))
-          matched = applyLayout layout (loweredParams ty) cName exprs
+          matched = removeHeapletApplies $ applyLayout layout (loweredParams ty) cName exprs
       in
       (map VarS (loweredParams ty)
       ,asn <> setAssertionMode Output matched
