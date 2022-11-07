@@ -26,12 +26,14 @@ defToSuSLik def =
   let (argLowereds, resultLowered) = defType def
       argParams = concatMap loweredParams argLowereds
       resultParams = loweredParams resultLowered
+      predParams = argParams ++ resultParams
+      -- predParams = map (`MkSuSLikParam` LocType) argParams
+      --                       ++ map (`MkSuSLikParam` LocType) resultParams
   in
   MkInductivePred
   { inductivePredName = defName def
-  , inductivePredParams = map (`MkSuSLikParam` LocType) argParams
-                            ++ map (`MkSuSLikParam` LocType) resultParams
-  , inductivePredBranches = concatMap (toSuSLikBranches argParams resultParams) $ defBranches def
+  , inductivePredParams = map (`MkSuSLikParam` LocType) predParams
+  , inductivePredBranches = concatMap (toSuSLikBranches predParams resultParams) $ defBranches def
   }
 
 concreteTypeToSuSLik :: ConcreteType -> SuSLikType
@@ -69,7 +71,7 @@ patCondForBranch inParams outParams branch =
     paramsUsed :: [SuSLikName]
     paramsUsed =
       fastNub (concatMap collectParamsAsn (getDefBranchRhs's branch))
-        \\ outParams
+        `intersect` inParams
 
 varEqZero :: SuSLikName -> SuSLikExpr SuSLikName
 varEqZero n = EqualS (VarS n) (IntS 0)

@@ -26,6 +26,8 @@ import           GHC.Stack
 
 import           Data.Void
 
+import Debug.Trace
+
 data SuSLikExpr a where
   VarS :: a -> SuSLikExpr a
   IntS :: Int -> SuSLikExpr a
@@ -120,6 +122,9 @@ loweredParams (LayoutConcrete (MkParametrizedLayoutName params _)) = params
 
 getParamedName :: ParametrizedLayoutName -> LayoutName
 getParamedName (MkParametrizedLayoutName _ name) = name
+
+getParamedNameParams :: ParametrizedLayoutName -> [String]
+getParamedNameParams (MkParametrizedLayoutName params _) = params
 
 -- data LoweredType =
 --   MkLoweredType
@@ -378,11 +383,11 @@ naiveSubstAsn :: Eq a => [(a, SuSLikExpr a)] -> Assertion a -> Assertion a
 naiveSubstAsn [] fa = fa
 naiveSubstAsn (subst:rest) fa = naiveSubstAsn rest (naiveSubstAsn1 subst fa)
 
-layoutMatch :: Layout -> ConstrName -> [SuSLikExpr SuSLikName] -> Assertion SuSLikName
+layoutMatch :: Layout -> ConstrName -> [SuSLikName] -> Assertion SuSLikName
 layoutMatch layout cName args =
   let (MkPattern _ _ params, asn) = lookupLayoutBranch layout cName
   in
-  naiveSubstAsn (zip params args) asn
+  naiveSubst (zip params args) asn
 
 -- layoutMatchPat :: Show a => Layout -> Pattern' a -> Assertion SuSLikName
 -- layoutMatchPat layout e@(PatternVar {}) = error $ "layoutMatch: Pattern variable: " ++ show e
@@ -401,7 +406,7 @@ applyLayoutPat layout suslikParams pat =
     (zip (layoutSuSLikParams layout) suslikParams)
     (layoutMatchPat layout pat)
 
-applyLayout :: Layout -> [String] -> ConstrName -> [SuSLikExpr SuSLikName] -> Assertion SuSLikName
+applyLayout :: Layout -> [SuSLikName] -> ConstrName -> [SuSLikName] -> Assertion SuSLikName
 applyLayout layout suslikParams cName args =
   naiveSubst
     (zip (layoutSuSLikParams layout) suslikParams)
