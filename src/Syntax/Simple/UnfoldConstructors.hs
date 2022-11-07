@@ -56,7 +56,7 @@ unfoldConstructors def =
           asn = mconcat asns
       in
       (map VarS (loweredParams outLayout)
-      ,HeapletApply (MkLayoutName Nothing fName) exprs [] asn
+      ,HeapletApply (MkLayoutName Nothing fName) (exprs ++ map VarS (loweredParams outLayout)) [] asn
       )
 
     exprTranslate (ConstrApply layout cName args) =

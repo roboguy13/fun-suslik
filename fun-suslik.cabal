@@ -34,6 +34,8 @@ executable fun-suslik
       Syntax.Simple.Shift
       Syntax.Simple.SuSLik
       Syntax.Simple.TypeCheck
+      Syntax.Simple.UnfoldConstructors
+      Syntax.Simple.TranslateLayoutMatch
       Syntax.FreshGen
       Syntax.Name
       Syntax.Ppr
