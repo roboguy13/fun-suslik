@@ -41,13 +41,13 @@ main = do
 
       -- let (GenerateDef fnName argLayouts resultLayout:_) = directives
       -- print fnName
-      -- -- print $
-      -- putStrLn $
-      --   ppr $
-      --   defToSuSLik $
-      --   unfoldConstructors layouts $
-      --   defTranslateLayoutMatch layouts $
-      --   unfoldEmptyConstructors layouts $
+      -- print $
+      -- -- putStrLn $
+      --   -- ppr $
+      --   -- defToSuSLik $
+      --   -- unfoldConstructors layouts $
+      --   -- defTranslateLayoutMatch layouts $
+      --   -- unfoldEmptyConstructors layouts $
       --   runTypeCheck layouts adts fnDefs $
       --     instAndElaborate fnName argLayouts resultLayout $ lookupDef fnDefs fnName
 
@@ -65,37 +65,3 @@ main = do
 
       mapM_ doDirective directives
 
-      -- print parsed
-      -- print layouts
-
-
-      -- let doDirective :: Directive -> IO ()
-      --     doDirective (GenerateDef fnName [argLayout] resultLayout) = do
-      --         if isBaseTypeName resultLayout
-      --           then
-      --             mapM_ (putStrLn . ppr)
-      --               $ genBaseDefPreds
-      --                     layouts
-      --                     (lookupLayout layouts argLayout)
-      --                     (lookupDef fnDefs fnName)
-      --           else
-      --             mapM_ (putStrLn . ppr)
-      --               $ genDefPreds
-      --                     layouts
-      --                     (lookupLayout layouts argLayout)
-      --                     (lookupLayout layouts resultLayout)
-      --                     (lookupDef fnDefs fnName)
-      --
-      --         putStrLn ""
-      --         putStrLn . ppr . genSig (lookupLayout layouts argLayout) $ lookupDef fnDefs fnName
-      --
-      --     doDirective (GenerateDef _ argLayouts _ ) =
-      --       error $
-      --         unlines
-      --           ["Given multiple layout arguments: " ++ show argLayouts
-      --           ,"Only currently supports one layout argument and zero or more base type arguments."
-      --           ]
-      --
-      -- mapM_ (putStrLn . ppr . genLayoutPred) $ layouts
-      -- mapM_ doDirective (fileDirectives parsed)
-      --

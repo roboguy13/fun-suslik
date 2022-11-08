@@ -1,3 +1,4 @@
+%generate sum [Sll[readonly]] Int
 %generate constNil[Sll[readonly]] Sll
 %generate car [Sll[readonly]] Int
 %generate sumTailRec [Sll[readonly], Int] Int
@@ -7,7 +8,6 @@
 %generate leftList [TreeLayout[readonly]] Sll
 %generate filterLt7 [Sll[readonly]] Sll
 %generate singleton [Int] Sll
-%generate sum [Sll[readonly]] Int
 %generate even [Sll[readonly]] Sll
 %generate odd [Sll[readonly]] Sll
 

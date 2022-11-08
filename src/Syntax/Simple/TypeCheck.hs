@@ -103,6 +103,9 @@ newOutVars ty =
     InitialOutVar -> put SubOutVar *> pure (initialOutParams ty)
     SubOutVar -> genParams ty
 
+setSubexprOutVarState :: TypeCheck ()
+setSubexprOutVarState = put SubOutVar
+
 resetOutVarState :: TypeCheck ()
 resetOutVarState = put InitialOutVar
 
@@ -490,45 +493,54 @@ inferExpr gamma (BoolLit b) = do
   pure (BoolParam Nothing, BoolLit b)
 
 inferExpr gamma (And x y) = do
+  setSubexprOutVarState
   (_, x') <- checkExpr gamma x (BoolParam Nothing)
   (_, y') <- checkExpr gamma y (BoolParam Nothing)
   pure $ (BoolParam Nothing, And x' y')
 
 inferExpr gamma (Or x y) = do
+  setSubexprOutVarState
   (_, x') <- checkExpr gamma x (BoolParam Nothing)
   (_, y') <- checkExpr gamma y (BoolParam Nothing)
   pure $ (BoolParam Nothing, Or x' y')
 
 inferExpr gamma (Not x) = do
+  setSubexprOutVarState
   (_, x') <- checkExpr gamma x (BoolParam Nothing)
   pure $ (BoolParam Nothing, Not x')
 
 inferExpr gamma (Add x y) = do
+  setSubexprOutVarState
   (_, x') <- checkExpr gamma x (IntParam Nothing)
   (_, y') <- checkExpr gamma y (IntParam Nothing)
   pure $ (IntParam Nothing, Add x' y')
 
 inferExpr gamma (Sub x y) = do
+  setSubexprOutVarState
   (_, x') <- checkExpr gamma x (IntParam Nothing)
   (_, y') <- checkExpr gamma y (IntParam Nothing)
   pure $ (IntParam Nothing, Sub x' y')
 
 inferExpr gamma (Mul x y) = do
+  setSubexprOutVarState
   (_, x') <- checkExpr gamma x (IntParam Nothing)
   (_, y') <- checkExpr gamma y (IntParam Nothing)
   pure $ (IntParam Nothing, Mul x' y')
 
 inferExpr gamma (Equal x y) = do
+  setSubexprOutVarState
   (_, x') <- checkExpr gamma x (IntParam Nothing)
   (_, y') <- checkExpr gamma y (IntParam Nothing)
   pure $ (BoolParam Nothing, Equal x' y')
 
 inferExpr gamma (Le x y) = do
+  setSubexprOutVarState
   (_, x') <- checkExpr gamma x (IntParam Nothing)
   (_, y') <- checkExpr gamma y (IntParam Nothing)
   pure $ (BoolParam Nothing, Le x' y')
 
 inferExpr gamma (Lt x y) = do
+  setSubexprOutVarState
   (_, x') <- checkExpr gamma x (IntParam Nothing)
   (_, y') <- checkExpr gamma y (IntParam Nothing)
   pure $ (BoolParam Nothing, Lt x' y')
