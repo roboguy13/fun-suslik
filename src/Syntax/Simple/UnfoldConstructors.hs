@@ -45,6 +45,23 @@ isBaseType (Lt {}) = True
 isBaseType (Apply _ ty _ _) = False
 isBaseType (ConstrApply {}) = False
 
+getApplies :: ElaboratedExpr a -> [(String, ParamTypeP, [ParamTypeP], [ElaboratedExpr a])]
+getApplies (Var ty _) = []
+getApplies IntLit{} = []
+getApplies BoolLit{} = []
+getApplies (And x y) = getApplies x ++ getApplies y
+getApplies (Or x y) = getApplies x ++ getApplies y
+getApplies (Not x) = getApplies x
+getApplies (Add x y) = getApplies x ++ getApplies y
+getApplies (Sub x y) = getApplies x ++ getApplies y
+getApplies (Mul x y) = getApplies x ++ getApplies y
+getApplies (Equal x y) = getApplies x ++ getApplies y
+getApplies (Le x y) = getApplies x ++ getApplies y
+getApplies (Lt x y) = getApplies x ++ getApplies y
+getApplies (Apply f outTy argTys args) =
+  (f, outTy, argTys, args) : concatMap getApplies args
+getApplies (ConstrApply ty cName args) = concatMap getApplies args
+
 unfoldConstructors :: [Layout] -> DefWithAsn -> AsnDef
 unfoldConstructors layouts def =
   def
@@ -60,7 +77,10 @@ unfoldConstructors layouts def =
     guardedTranslate :: GuardedExprWithAsn -> AsnGuarded
     guardedTranslate (MkGuardedExpr cond (MkExprWithAsn asn bodyExpr))
       | isBaseType bodyExpr =
-          MkGuardedExpr cond (asn <> PointsTo Output (Here "__r") (toSuSLikExpr bodyExpr) Emp)
+          let toApply (f, outTy, argTys, args) = Apply f outTy argTys args
+              applyAsns = mconcat $ map (snd . exprTranslate Nothing) $ map toApply $ getApplies bodyExpr
+          in
+          MkGuardedExpr cond (asn <> PointsTo Output (Here "__r") (toSuSLikExpr bodyExpr) applyAsns)
 
       -- -- TODO: Probably should check to see if the expression is *any*
       -- -- base-type expression and do this kind of special case.
@@ -71,7 +91,7 @@ unfoldConstructors layouts def =
       -- MkGuardedExpr cond (asn <> PointsTo Output (Here "__r") (VarS v) Emp)
 
     guardedTranslate (MkGuardedExpr cond (MkExprWithAsn asn bodyExpr)) =
-      let (_, bodyAsn) = snd . runFreshGen $ exprTranslate Nothing bodyExpr
+      let (_, bodyAsn) = exprTranslate Nothing bodyExpr
       in
       MkGuardedExpr cond (asn <> bodyAsn)
 
@@ -86,14 +106,14 @@ unfoldConstructors layouts def =
     -- removeEmptyApplies :: Assertion FsName -> Assertion FsName
     -- removeEmptyApplies 
 
-    exprTranslate :: Maybe [SuSLikName] -> ElaboratedExpr FsName -> FreshGen ([SuSLikExpr SuSLikName], Assertion SuSLikName)
-    exprTranslate _ (Var ty v) = pure (map VarS (loweredParams ty), Emp)
-    exprTranslate _ (IntLit i) = pure ([IntS i], Emp)
-    exprTranslate _ (BoolLit b) = pure ([BoolS b], Emp)
+    exprTranslate :: Maybe [SuSLikName] -> ElaboratedExpr FsName -> ([SuSLikExpr SuSLikName], Assertion SuSLikName)
+    exprTranslate _ (Var ty v) = (map VarS (loweredParams ty), Emp)
+    exprTranslate _ (IntLit i) = ([IntS i], Emp)
+    exprTranslate _ (BoolLit b) = ([BoolS b], Emp)
 
     exprTranslate out (And x y) = combineBin' out AndS x y
     exprTranslate out (Or x y) = combineBin' out OrS x y
-    exprTranslate out (Not x) = first (map NotS) <$> exprTranslate out x
+    exprTranslate out (Not x) = first (map NotS) $ exprTranslate out x
 
     exprTranslate out (Add x y) = combineBin' out AddS x y
     exprTranslate out (Sub x y) = combineBin' out SubS x y
@@ -103,38 +123,41 @@ unfoldConstructors layouts def =
     exprTranslate out (Le x y) = combineBin' out LeS x y
     exprTranslate out (Lt x y) = combineBin' out LtS x y
 
-    exprTranslate out (Apply fName outLayout inLayouts args) = do
-      (exprs, asns) <- first concat . unzip <$> mapM (exprTranslate (Just $ loweredParams outLayout)) args
-      let asn = mconcat asns
-      pure (map VarS (loweredParams outLayout),
+    exprTranslate out (Apply fName outLayout inLayouts args) =
+      let (exprs, asns) = first concat . unzip $ map (exprTranslate (Just $ loweredParams outLayout)) args
+          asn = mconcat asns
+      in
+      (map VarS (loweredParams outLayout),
        HeapletApply (MkLayoutName Nothing fName) (exprs ++ map VarS (loweredParams outLayout)) [] asn)
 
-    exprTranslate out e@(ConstrApply ty@(LayoutParam layoutName) cName args) = do
-      (_, asns) <- first concat . unzip <$> mapM (exprTranslate (Just $ getParamedNameParams layoutName)) args
-      let asn = mconcat asns
+    exprTranslate out e@(ConstrApply ty@(LayoutParam layoutName) cName args) =
+      let (_, asns) = first concat . unzip $ map (exprTranslate (Just $ getParamedNameParams layoutName)) args
+          asn = mconcat asns
           layout = lookupLayout layouts (baseLayoutName (getParamedName layoutName))
           -- suslikParams = concatMap getOutParams args
+      in
 
           -- exprs = foldMap toList $ concatMap getOutParams args -- TODO: Generalize this to work with more kinds of expressions
           -- exprs = map toSuSLikExpr args
 
       -- () <- traceM $ "args = " ++ show args
 
-      suslikParams <-
-        case out of
-          -- Nothing -> genLayoutParams layout
-          Nothing -> pure $ getParamedNameParams layoutName
-          Just outVars -> pure outVars
+      let suslikParams = case out of
+                            -- Nothing -> genLayoutParams layout
+                            Nothing -> getParamedNameParams layoutName
+                            Just outVars -> outVars
+      in
 
 
       let matched = removeHeapletApplies $ applyLayoutExpr layout suslikParams cName $ map toSuSLikExpr args
+      in
       -- let matched = removeHeapletApplies $ applyLayout layout suslikParams cName exprs
 
-      pure (map VarS suslikParams
+      (map VarS suslikParams
             ,asn <> setAssertionMode Output matched
             )
 
-    combineBin' out op x y = combineBin op <$> (exprTranslate out x) <*> (exprTranslate out y)
+    combineBin' out op x y = combineBin op (exprTranslate out x) (exprTranslate out y)
 
 combineBin :: (SuSLikExpr' -> SuSLikExpr' -> SuSLikExpr') ->
   ([SuSLikExpr SuSLikName], Assertion SuSLikName) ->
