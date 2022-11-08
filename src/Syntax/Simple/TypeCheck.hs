@@ -24,6 +24,8 @@ import           Control.Monad.State
 
 import           Control.Arrow
 
+import           GHC.Stack
+
 import Debug.Trace
 
 -- elaborateExpr :: [Layout] -> [Parsed Def] -> Parsed ExprX a -> Elaborated ExprX a
@@ -109,8 +111,8 @@ setSubexprOutVarState = put SubOutVar
 resetOutVarState :: TypeCheck ()
 resetOutVarState = put InitialOutVar
 
-typeError :: String -> TypeCheck a
-typeError err = MkTypeCheck . lift . lift . lift $ Left err
+typeError :: HasCallStack => String -> TypeCheck a
+typeError err = error err --MkTypeCheck . lift . lift . lift $ Left err
 
 -- genLoweredType :: Int -> String -> LoweredType
 -- genLoweredType count name =
@@ -352,14 +354,16 @@ inferLayoutPatVars (LayoutParam layout) (Just adt) pat@(MkPattern _ cName params
     go v IntType = (v, IntParam $ Just v) -- TODO: Or should these be Nothing?
     go v BoolType = (v, BoolParam $ Just v)
     -- go v _ = (v, LayoutParam $ findLayoutApp v $ snd $ lookupLayoutBranch layout cName)
+    -- go v (AdtType adtName) =
+    --   (v, LayoutParam (MkLayoutName (Just Input) (layoutName layout))) -- TODO: Does this make sense?
     go v _ = (v, LayoutParam $ findLayoutApp v appliedLayout)
 inferLayoutPatVars (LayoutParam layout) Nothing _ = error $ "inferLayoutPatVars: Could not find ADT associated to layout " ++ show layout
 
 findLayoutApp :: FsName -> Assertion FsName -> LayoutName
-findLayoutApp v = go
+findLayoutApp v asn0 = go asn0
   where
     go :: Assertion FsName -> LayoutName
-    go Emp = error $ "findLayoutApp: Cannot find " ++ show v
+    go Emp = error $ "findLayoutApp: Cannot find " ++ show v ++ "\nasn0 = " ++ show asn0
     go (PointsTo _ _ _ rest) = go rest
     go (HeapletApply lName params [Var _ v'] rest)
       | v' == v = lName
@@ -381,12 +385,12 @@ requireBoolParam :: Show a => ParamType' a -> TypeCheck ()
 requireBoolParam BoolParam{} = pure ()
 requireBoolParam p = typeError $ "Expecting Bool, found " ++ show p
 
-requireTypeP :: (Show a, Eq a) => ParamType' a -> ParamType' a -> TypeCheck ()
+requireTypeP :: (HasCallStack, Show a, Eq a) => ParamType' a -> ParamType' a -> TypeCheck ()
 requireTypeP BoolParam{} BoolParam{} = pure ()
 requireTypeP IntParam{} IntParam{} = pure ()
 requireTypeP (LayoutParam x) (LayoutParam y)
   | x == y = pure ()
-requireTypeP x y = typeError $ "Expected " ++ show x ++ ", found y"
+requireTypeP x y = typeError $ "Expected " ++ show x ++ ", found " ++ show y
 
 checkExpr :: TcEnv -> Parsed ExprX String -> ParamType -> TypeCheck (OutParams, Elaborated ExprX String)
 checkExpr gamma e@(Var {}) ty = do

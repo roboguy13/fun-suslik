@@ -12,10 +12,13 @@
 %generate odd [Sll[readonly]] Sll
 %generate maximum [Sll[readonly], Int] Sll
 %generate append [Sll[readonly], Sll[readonly]] Sll
+%generate sumLists [ListOfListsLayout[readonly]] Sll
 
 data List := Nil | Cons Int List;
 
 data Tree := Leaf | Node Int Tree Tree;
+
+data ListOfLists := LNil | LCons List ListOfLists;
 
 Sll : List >-> layout[x];
 Sll (Nil) := emp;
@@ -29,6 +32,19 @@ TreeLayout (Node payload left right) :=
   (x+2) :-> right,
   TreeLayout left,
   TreeLayout right;
+
+ListOfListsLayout : ListOfLists >-> layout[x];
+ListOfListsLayout (LNil) := emp;
+ListOfListsLayout (LCons head tail) :=
+  x :-> head, (x+1) :-> tail, ListOfListsLayout tail,
+  Sll head;
+
+sumLists : ListOfLists -> List;
+sumLists (LNil) := Nil;
+sumLists (LCons xs xss) := Cons (instantiate [Sll[readonly]] Int sum xs) (sumLists xss);
+
+-- maximum_sum : ListOfLists -> Int;
+-- maximum_sum xs := 
 
 const : List -> List -> List;
 const (Nil) (Nil) := Nil;
