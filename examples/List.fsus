@@ -1,5 +1,8 @@
-%generate take [Sll[readonly], Int] Sll
+%generate constNil[Sll[readonly]] Sll
 %generate car [Sll[readonly]] Int
+%generate sumTailRec [Sll[readonly], Int] Int
+%generate take [Sll[readonly], Int] Sll
+%generate const [Sll[readonly], Sll[readonly]] Sll
 %generate consFn [Int, Sll[readonly]] Sll
 %generate leftList [TreeLayout[readonly]] Sll
 %generate filterLt7 [Sll[readonly]] Sll
@@ -7,8 +10,6 @@
 %generate sum [Sll[readonly]] Int
 %generate even [Sll[readonly]] Sll
 %generate odd [Sll[readonly]] Sll
-%generate sumTailRec [Sll[readonly]] Int
-%generate const [Sll[readonly], Sll[readonly]] Sll
 
 data List := Nil | Cons Int List;
 
@@ -32,6 +33,10 @@ const (Nil) (Nil) := Nil;
 const (Cons x xs) (Cons y ys) := Cons x xs;
 const (Cons x xs) (Nil) := Cons x xs;
 const (Nil) (Cons y ys) := Nil;
+
+constNil : List -> List;
+constNil (Nil) := Nil;
+constNil (Cons head tail) := Nil;
 
 consFn : Int -> List -> List;
 consFn x xs := Cons x xs;

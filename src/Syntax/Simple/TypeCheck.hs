@@ -266,8 +266,8 @@ elaborateDef inParamTypes outParamType def = do
                 (_, e') <- inferWith gamma outParamType e
                 pure e'
 
-          -- traceM $ "gamma0 = " ++ show gamma0
-          -- traceM $ "gamma = " ++ show gamma
+          -- () <- traceM $ "gamma0 = " ++ show gamma0
+          -- () <- traceM $ "gamma = " ++ show gamma
           guardeds <- mapM (\x -> goGuarded x) (defBranchGuardeds defBranch)
 
           pure $ defBranch

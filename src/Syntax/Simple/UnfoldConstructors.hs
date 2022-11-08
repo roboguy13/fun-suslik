@@ -23,6 +23,28 @@ import Debug.Trace
 
 type SuSLikExpr' = SuSLikExpr SuSLikName
 
+isBaseParam :: ParamType' a -> Bool
+isBaseParam IntParam{} = True
+isBaseParam BoolParam{} = True
+isBaseParam LayoutParam{} = False
+
+isBaseType :: ElaboratedExpr a -> Bool
+isBaseType (Var ty _) = isBaseParam ty
+isBaseType IntLit{} = True
+isBaseType BoolLit{} = True
+isBaseType (And {}) = True
+isBaseType (Or {}) = True
+isBaseType (Not {}) = True
+isBaseType (Add {}) = True
+isBaseType (Sub {}) = True
+isBaseType (Mul {}) = True
+isBaseType (Equal {}) = True
+isBaseType (Le {}) = True
+isBaseType (Lt {}) = True
+-- isBaseType (Apply _ ty _ _) = isBaseParam ty
+isBaseType (Apply _ ty _ _) = False
+isBaseType (ConstrApply {}) = False
+
 unfoldConstructors :: [Layout] -> DefWithAsn -> AsnDef
 unfoldConstructors layouts def =
   def
@@ -36,14 +58,17 @@ unfoldConstructors layouts def =
       }
 
     guardedTranslate :: GuardedExprWithAsn -> AsnGuarded
-    guardedTranslate (MkGuardedExpr cond (MkExprWithAsn asn (Var ty v))) =
-      -- TODO: Probably should check to see if the expression is *any*
-      -- base-type expression and do this kind of special case.
-      --
-      -- TODO: Should this be a special case?
-      -- Also, should this use some kind of copy? And should the result
-      -- name be hard-coded?
-      MkGuardedExpr cond (asn <> PointsTo Output (Here "__r") (VarS v) Emp)
+    guardedTranslate (MkGuardedExpr cond (MkExprWithAsn asn bodyExpr))
+      | isBaseType bodyExpr =
+          MkGuardedExpr cond (asn <> PointsTo Output (Here "__r") (toSuSLikExpr bodyExpr) Emp)
+
+      -- -- TODO: Probably should check to see if the expression is *any*
+      -- -- base-type expression and do this kind of special case.
+      -- --
+      -- -- TODO: Should this be a special case?
+      -- -- Also, should this use some kind of copy? And should the result
+      -- -- name be hard-coded?
+      -- MkGuardedExpr cond (asn <> PointsTo Output (Here "__r") (VarS v) Emp)
 
     guardedTranslate (MkGuardedExpr cond (MkExprWithAsn asn bodyExpr)) =
       let (_, bodyAsn) = snd . runFreshGen $ exprTranslate Nothing bodyExpr
