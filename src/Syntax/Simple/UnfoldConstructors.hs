@@ -36,6 +36,12 @@ unfoldConstructors layouts def =
       }
 
     guardedTranslate :: GuardedExprWithAsn -> AsnGuarded
+    guardedTranslate (MkGuardedExpr cond (MkExprWithAsn asn (Var ty v))) =
+      -- TODO: Should this be a special case?
+      -- Also, should this use some kind of copy? And should the result
+      -- name be hard-coded?
+      MkGuardedExpr cond (asn <> PointsTo Output (Here "__r") (Var () v) Emp)
+
     guardedTranslate (MkGuardedExpr cond (MkExprWithAsn asn bodyExpr)) =
       let (_, bodyAsn) = snd . runFreshGen $ exprTranslate Nothing bodyExpr
       in
