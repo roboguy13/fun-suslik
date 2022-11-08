@@ -58,7 +58,7 @@ main = do
               defToSuSLik $
               unfoldConstructors layouts $
               defTranslateLayoutMatch layouts $
-              unfoldEmptyConstructors layouts $
+              -- unfoldEmptyConstructors layouts $
               runTypeCheck layouts adts fnDefs $
                 instAndElaborate fnName argLayouts resultLayout $ lookupDef fnDefs fnName
             putStrLn ""

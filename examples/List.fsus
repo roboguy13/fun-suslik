@@ -10,6 +10,7 @@
 %generate singleton [Int] Sll
 %generate even [Sll[readonly]] Sll
 %generate odd [Sll[readonly]] Sll
+%generate maximum [Sll[readonly], Int] Sll
 
 data List := Nil | Cons Int List;
 
@@ -85,9 +86,9 @@ take (Cons head tail) i
   | i == 0 := Nil;
   | not (i == 0) := Cons head (take tail (i - 1));
 
--- maximum : List -> Int -> Int;
--- maximum (Nil) i := 0;
--- maximum (Cons head tail) i
---   | head > i := maximum tail head;
---   | not (head > i) := maximum tail i;
+maximum : List -> Int -> Int;
+maximum (Nil) i := i;
+maximum (Cons head tail) i
+  | i < head := maximum tail head;
+  | not (i < head) := maximum tail i;
 
