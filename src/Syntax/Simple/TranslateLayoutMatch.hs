@@ -38,6 +38,7 @@ defTranslateLayoutMatch layoutEnv def =
       let layout = lookupLayout layoutEnv (baseLayoutName layoutName)
       in
       removeHeapletApplies $ applyLayoutPat layout params (MkPattern () cName patParams)
+      -- applyLayoutPat layout params (MkPattern () cName patParams)
     applyPat pat@(MkPattern {}) = error $ "applyPat: Pattern match on non-layout: " ++ show pat
 
 
