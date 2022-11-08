@@ -22,10 +22,12 @@ import           Control.Monad
 import           Data.List
 import           Data.Maybe
 
-import           GHC.Exts
+import           GHC.Exts hiding (toList)
 import           GHC.Stack
 
 import           Data.Void
+
+import           Data.Foldable
 
 import Debug.Trace
 
@@ -393,6 +395,29 @@ data Layout =
   }
   deriving (Show)
 
+toSuSLikExpr :: Expr FsName -> SuSLikExpr SuSLikName
+toSuSLikExpr (Var _ v) = VarS v
+toSuSLikExpr (IntLit i) = IntS i
+toSuSLikExpr (BoolLit b) = BoolS b
+toSuSLikExpr (And x y) = AndS (toSuSLikExpr x) (toSuSLikExpr y)
+toSuSLikExpr (Or x y) = OrS (toSuSLikExpr x) (toSuSLikExpr y)
+toSuSLikExpr (Not x) =
+  NotS (toSuSLikExpr x)
+
+toSuSLikExpr (Add x y) = AddS (toSuSLikExpr x) (toSuSLikExpr y)
+toSuSLikExpr (Sub x y) = SubS (toSuSLikExpr x) (toSuSLikExpr y)
+toSuSLikExpr (Mul x y) = MulS (toSuSLikExpr x) (toSuSLikExpr y)
+
+toSuSLikExpr (Equal x y) = EqualS (toSuSLikExpr x) (toSuSLikExpr y)
+toSuSLikExpr (Le x y) = LeS (toSuSLikExpr x) (toSuSLikExpr y)
+toSuSLikExpr (Lt x y) = LtS (toSuSLikExpr x) (toSuSLikExpr y)
+
+toSuSLikExpr e0@(Apply f outTy inTys args) =
+  head $ map VarS (loweredParams outTy)
+
+toSuSLikExpr e0@(ConstrApply ty cName args) = 
+  head $ map VarS (loweredParams ty)
+
 naiveSubst :: (Eq a, Functor f) => [(a, a)] -> f a -> f a
 naiveSubst [] fa = fa
 naiveSubst ((old, new):rest) fa = naiveSubst rest (fmap go fa)
@@ -401,22 +426,25 @@ naiveSubst ((old, new):rest) fa = naiveSubst rest (fmap go fa)
       | y == old = new
       | otherwise = y
 
-naiveSubstAsn1 :: Eq a => (a, SuSLikExpr a) -> Assertion a -> Assertion a
+naiveSubstAsn1 :: (FsName, Expr FsName) -> Assertion FsName -> Assertion FsName
 naiveSubstAsn1 subst@(old, new) fa =
     case fa of
       Emp -> Emp
 
-      PointsTo mode x y rest ->
-        PointsTo mode x y (naiveSubstAsn1 subst rest)
+      PointsTo mode x y@(Var ty v) rest ->
+        if v == old
+          then PointsTo mode x (exprForget new) (naiveSubstAsn1 subst rest)
+          else PointsTo mode x y (naiveSubstAsn1 subst rest)
+      PointsTo mode x y rest -> PointsTo mode x y (naiveSubstAsn1 subst rest)
 
       HeapletApply fName suslikParams fsArgs rest ->
         HeapletApply fName (map (>>= go) suslikParams) fsArgs rest
   where
     go x
-      | x == old = new
+      | x == old = toSuSLikExpr new
       | otherwise = VarS x
 
-naiveSubstAsn :: Eq a => [(a, SuSLikExpr a)] -> Assertion a -> Assertion a
+naiveSubstAsn :: [(FsName, Expr FsName)] -> Assertion FsName -> Assertion FsName
 naiveSubstAsn [] fa = fa
 naiveSubstAsn (subst:rest) fa = naiveSubstAsn rest (naiveSubstAsn1 subst fa)
 
@@ -466,6 +494,21 @@ applyLayout layout0 suslikParams cName args =
   naiveSubst
     (zip (layoutSuSLikParams layout) suslikParams)
     (layoutMatch layout cName args)
+
+applyLayoutExpr :: Layout -> [SuSLikName] -> ConstrName -> [Expr FsName] -> Assertion SuSLikName
+applyLayoutExpr layout0 suslikParams cName args =
+  let layout = mangleLayout layout0
+      (MkPattern _ _ params, asn0) = lookupLayoutBranch layout cName
+      mangledAsn =
+        naiveSubst (zip (layoutSuSLikParams layout) suslikParams) asn0
+      subst = zip params args
+      r = fmap unmangle $ naiveSubstAsn subst mangledAsn
+  in
+  trace ("subst = " ++ show subst) $
+  trace ("mangledAsn = " ++ show mangledAsn) $
+  trace ("r = " ++ show r) $
+  r
+
 
 lookupLayout :: HasCallStack => [Layout] -> String -> Layout
 lookupLayout layoutDefs name =
@@ -535,6 +578,47 @@ pattern MkLowered params name = LayoutConcrete (MkParametrizedLayoutName params 
 baseLayoutName :: LayoutName -> String
 baseLayoutName (MkLayoutName _ name) = name
 
+exprForget :: Show a => Expr a -> ExprX () Void a
+exprForget (Var _ v) = Var () v
+exprForget (IntLit i) = IntLit i
+exprForget (BoolLit b) = BoolLit b
+exprForget (And x y) = And (exprForget x) (exprForget y)
+exprForget (Or x y) = Or (exprForget x) (exprForget y)
+exprForget (Not x) = Not (exprForget x)
+exprForget (Add x y) = Add (exprForget x) (exprForget y)
+exprForget (Sub x y) = Sub (exprForget x) (exprForget y)
+exprForget (Mul x y) = Mul (exprForget x) (exprForget y)
+exprForget (Equal x y) = Equal (exprForget x) (exprForget y)
+exprForget (Le x y) = Le (exprForget x) (exprForget y)
+exprForget (Lt x y) = Lt (exprForget x) (exprForget y)
+exprForget (Apply f _ suslikArgs args) = Apply f () (replicate (length suslikArgs) ()) (map exprForget args)
+exprForget (ConstrApply _ cName args) = ConstrApply () cName (map exprForget args)
+exprForget e = error $ "exprForget: " ++ show e
+
+  -- IntLit
+  -- BoolLit
+
+  -- And :: ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a
+  -- Or :: ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a
+  -- Not :: ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a
+  --
+  -- Add :: ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a
+  -- Sub :: ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a
+  -- Mul :: ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a
+  --
+  -- Equal :: ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a
+  -- Le :: ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a
+  -- Lt :: ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a
+  --
+  -- Apply ::
+  --   String ->   -- | This becomes the appropriate predicate name in the elaborated version of ExprX
+  --   ty ->       -- | Output layout
+  --   [ty] ->     -- | Input layouts
+  --   [ExprX ty layoutNameTy a] ->
+  --   ExprX ty layoutNameTy a
+  --
+  -- ConstrApply :: ty -> ConstrName -> [ExprX ty layoutNameTy a] -> ExprX ty layoutNameTy a
+  --
 data Assertion a where
   Emp :: Assertion a
   PointsTo :: Mode -> Loc a -> ExprX () Void a -> Assertion a -> Assertion a

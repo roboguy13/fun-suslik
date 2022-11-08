@@ -37,6 +37,9 @@ unfoldConstructors layouts def =
 
     guardedTranslate :: GuardedExprWithAsn -> AsnGuarded
     guardedTranslate (MkGuardedExpr cond (MkExprWithAsn asn (Var ty v))) =
+      -- TODO: Probably should check to see if the expression is *any*
+      -- base-type expression and do this kind of special case.
+      --
       -- TODO: Should this be a special case?
       -- Also, should this use some kind of copy? And should the result
       -- name be hard-coded?
@@ -88,6 +91,9 @@ unfoldConstructors layouts def =
           -- suslikParams = concatMap getOutParams args
 
           exprs = foldMap toList $ concatMap getOutParams args -- TODO: Generalize this to work with more kinds of expressions
+          -- exprs = map toSuSLikExpr args
+
+      -- () <- traceM $ "args = " ++ show args
 
       suslikParams <-
         case out of
@@ -95,6 +101,8 @@ unfoldConstructors layouts def =
           Nothing -> pure $ getParamedNameParams layoutName
           Just outVars -> pure outVars
 
+
+      -- let matched = removeHeapletApplies $ applyLayoutExpr layout suslikParams cName args
       let matched = removeHeapletApplies $ applyLayout layout suslikParams cName exprs
 
       pure (map VarS suslikParams

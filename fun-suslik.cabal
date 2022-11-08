@@ -35,6 +35,7 @@ executable fun-suslik
       Syntax.Simple.SuSLik
       Syntax.Simple.TypeCheck
       Syntax.Simple.UnfoldConstructors
+      Syntax.Simple.UnfoldEmptyConstructors
       Syntax.Simple.TranslateLayoutMatch
       Syntax.Simple.ToSuSLik
       Syntax.FreshGen

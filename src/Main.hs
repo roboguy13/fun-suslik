@@ -14,6 +14,7 @@ import           Syntax.Ppr
 
 import           Syntax.Simple.TranslateLayoutMatch
 import           Syntax.Simple.UnfoldConstructors
+import           Syntax.Simple.UnfoldEmptyConstructors
 
 import           System.Environment
 
@@ -46,6 +47,7 @@ main = do
         defToSuSLik $
         unfoldConstructors layouts $
         defTranslateLayoutMatch layouts $
+        unfoldEmptyConstructors layouts $
         runTypeCheck layouts adts fnDefs $
           instAndElaborate fnName argLayouts resultLayout $ lookupDef fnDefs fnName
 
