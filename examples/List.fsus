@@ -11,6 +11,7 @@
 %generate even [Sll[readonly]] Sll
 %generate odd [Sll[readonly]] Sll
 %generate maximum [Sll[readonly], Int] Sll
+%generate append [Sll[readonly], Sll[readonly]] Sll
 
 data List := Nil | Cons Int List;
 
@@ -91,4 +92,8 @@ maximum (Nil) i := i;
 maximum (Cons head tail) i
   | i < head := maximum tail head;
   | not (i < head) := maximum tail i;
+
+append : List -> List -> List;
+append (Nil) ys := ys;
+append (Cons x xs) ys := Cons x (append xs ys);
 
