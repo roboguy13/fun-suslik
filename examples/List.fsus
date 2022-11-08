@@ -1,9 +1,10 @@
+%generate take [Sll[readonly], Int] Sll
+%generate car [Sll[readonly]] Int
+%generate consFn [Int, Sll[readonly]] Sll
 %generate leftList [TreeLayout[readonly]] Sll
 %generate filterLt7 [Sll[readonly]] Sll
 %generate singleton [Int] Sll
 %generate sum [Sll[readonly]] Int
-%generate car [Sll[readonly]] Int
-%generate consFn [Int, Sll[readonly]] Sll
 %generate even [Sll[readonly]] Sll
 %generate odd [Sll[readonly]] Sll
 %generate sumTailRec [Sll[readonly]] Int
@@ -77,5 +78,11 @@ take : List -> Int -> List;
 take (Nil) i := Nil;
 take (Cons head tail) i
   | i == 0 := Nil;
-  | not (i == 0) := Cons head (take tail) (i - 1);
+  | not (i == 0) := Cons head (take tail (i - 1));
+
+-- maximum : List -> Int -> Int;
+-- maximum (Nil) i := 0;
+-- maximum (Cons head tail) i
+--   | head > i := maximum tail head;
+--   | not (head > i) := maximum tail i;
 

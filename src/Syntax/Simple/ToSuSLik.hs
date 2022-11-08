@@ -26,8 +26,8 @@ fastNub = Set.toList . Set.fromList
 defToSuSLik :: AsnDef -> InductivePred
 defToSuSLik def =
   let (argLowereds, resultLowered) = defType def
-      argParams = map loweredParams argLowereds
-      resultParams = loweredParams resultLowered
+      argParams = map toSuSLikParam argLowereds
+      resultParams = map (`MkSuSLikParam` LocType) $ loweredParams resultLowered
       predParams = concat argParams ++ resultParams
       -- predParams = map (`MkSuSLikParam` LocType) argParams
       --                       ++ map (`MkSuSLikParam` LocType) resultParams
@@ -35,14 +35,21 @@ defToSuSLik def =
   -- trace ("outParams = " ++ show resultParams) $
   MkInductivePred
   { inductivePredName = defName def
-  , inductivePredParams = map (`MkSuSLikParam` LocType) predParams
-  , inductivePredBranches = concatMap (toSuSLikBranches argParams resultParams) $ defBranches def
+  , inductivePredParams = predParams
+  , inductivePredBranches = concatMap (toSuSLikBranches (map (map suslikParamName) argParams) (map suslikParamName resultParams)) $ defBranches def
   }
 
 -- concreteTypeToSuSLik :: ParamType' a -> SuSLikType
 -- concreteTypeToSuSLik IntConcrete = IntType
 -- concreteTypeToSuSLik BoolConcrete = BoolType
 -- concreteTypeToSuSLik LayoutConcrete{} = LocType
+
+toSuSLikParam :: ParamTypeP -> [SuSLikParam]
+toSuSLikParam (IntParam (Just v)) = [MkSuSLikParam v IntType]
+toSuSLikParam (BoolParam (Just v)) = [MkSuSLikParam v IntType]
+toSuSLikParam (IntParam Nothing) = []
+toSuSLikParam (BoolParam Nothing) = []
+toSuSLikParam p@(LayoutParam {}) = map (`MkSuSLikParam` LocType) $ loweredParams p
 
 toSuSLikBranches :: [[SuSLikName]] -> [SuSLikName] -> AsnDefBranch -> [SuSLikBranch]
 toSuSLikBranches inParams outParams branch =

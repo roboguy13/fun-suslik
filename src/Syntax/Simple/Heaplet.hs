@@ -504,9 +504,9 @@ applyLayoutExpr layout0 suslikParams cName args =
       subst = zip params args
       r = fmap unmangle $ naiveSubstAsn subst mangledAsn
   in
-  trace ("subst = " ++ show subst) $
-  trace ("mangledAsn = " ++ show mangledAsn) $
-  trace ("r = " ++ show r) $
+  -- trace ("subst = " ++ show subst) $
+  -- trace ("mangledAsn = " ++ show mangledAsn) $
+  -- trace ("r = " ++ show r) $
   r
 
 

@@ -244,8 +244,8 @@ elaborateDef inParamTypes outParamType def = do
 
   let goBranch :: ParsedDefBranch -> TypeCheck ElaboratedDefBranch
       goBranch defBranch = do
-          () <- traceM $ "foundArgTypes = " ++ show foundArgTypes
-          () <- traceM $ "defBranchPatterns = " ++ show (defBranchPatterns defBranch)
+          -- () <- traceM $ "foundArgTypes = " ++ show foundArgTypes
+          -- () <- traceM $ "defBranchPatterns = " ++ show (defBranchPatterns defBranch)
           let gamma0 = zipWith3 inferLayoutPatVars foundArgTypes argAdts $ defBranchPatterns defBranch
 
               goGamma :: [String] -> [(Pattern, (FsName, ParamType))] -> [(FsName, ParamTypeP)]
@@ -266,8 +266,8 @@ elaborateDef inParamTypes outParamType def = do
                 (_, e') <- inferWith gamma outParamType e
                 pure e'
 
-          traceM $ "gamma0 = " ++ show gamma0
-          traceM $ "gamma = " ++ show gamma
+          -- traceM $ "gamma0 = " ++ show gamma0
+          -- traceM $ "gamma = " ++ show gamma
           guardeds <- mapM (\x -> goGuarded x) (defBranchGuardeds defBranch)
 
           pure $ defBranch
@@ -470,12 +470,12 @@ checkExpr gamma e@(Apply {}) ty =
 
 inferExpr :: TcEnv -> Parsed ExprX String -> TypeCheck (ParamTypeP, Elaborated ExprX String)
 inferExpr gamma (Var () v) =
-  trace ("gamma = " ++ show gamma) $
-  trace ("inferring var " ++ show v) $
+  -- trace ("gamma = " ++ show gamma) $
+  -- trace ("inferring var " ++ show v) $
   case lookup v gamma of
     Nothing -> error $ "inferExpr: variable not found in TcEnv: " ++ v ++ "\nTcEnv = " ++ show gamma ++ "\n"
     Just concTy -> do
-      traceM ("concTy = " ++ show concTy)
+      -- traceM ("concTy = " ++ show concTy)
       -- typeMatchesLowered ty lowered
       -- requireType ty (loweredType lowered)
 
