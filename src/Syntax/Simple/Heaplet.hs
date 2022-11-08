@@ -20,6 +20,7 @@ import           Data.Functor.Compose
 
 import           Control.Monad
 import           Data.List
+import           Data.Maybe
 
 import           GHC.Exts
 import           GHC.Stack
@@ -108,8 +109,8 @@ type LoweredType = ConcreteType' ParametrizedLayoutName
 -- data FsParam = IntParam String | BoolParam String | LayoutParam LayoutName [String]
 
 withParams :: [String] -> ParamType -> ParamTypeP
-withParams _ IntParam = IntParam
-withParams _ BoolParam = BoolParam
+withParams [v] IntParam{} = IntParam (Just v)
+withParams [v] BoolParam{} = BoolParam (Just v)
 withParams params (LayoutParam name) = LayoutParam $ MkParametrizedLayoutName params name
 
 forgetParams :: LoweredType -> ConcreteType
@@ -121,8 +122,8 @@ forgetParams = fmap getParamedName
 -- loweredParams (LayoutConcrete (MkParametrizedLayoutName params _)) = params
 
 loweredParams :: ParamTypeP -> [String]
-loweredParams IntParam = []
-loweredParams BoolParam = []
+loweredParams (IntParam v) = maybeToList v
+loweredParams (BoolParam v) = maybeToList v
 loweredParams (LayoutParam (MkParametrizedLayoutName params _)) = params
 
 getParamedName :: ParametrizedLayoutName -> LayoutName
@@ -138,20 +139,20 @@ getParamedNameParams (MkParametrizedLayoutName params _) = params
 --   }
 --   deriving (Show, Eq)
 
-data ParamType' a = IntParam | BoolParam | LayoutParam a
+data ParamType' a = IntParam (Maybe String) | BoolParam (Maybe String) | LayoutParam a
   deriving (Functor, Show, Eq, Ord)
 
 type ParamType = ParamType' LayoutName
 
 genParamTypeName :: ParamType -> String
-genParamTypeName IntParam = "Int"
-genParamTypeName BoolParam = "Bool"
+genParamTypeName IntParam{} = "Int"
+genParamTypeName BoolParam{} = "Bool"
 genParamTypeName (LayoutParam layoutName) = genLayoutName layoutName
 
-paramTypeToConcrete :: ParamType' a -> ConcreteType' a
-paramTypeToConcrete IntParam = IntConcrete
-paramTypeToConcrete BoolParam = BoolConcrete
-paramTypeToConcrete (LayoutParam x) = LayoutConcrete x
+-- paramTypeToConcrete :: ParamType' a -> ConcreteType' a
+-- paramTypeToConcrete IntParam = IntConcrete
+-- paramTypeToConcrete BoolParam = BoolConcrete
+-- paramTypeToConcrete (LayoutParam x) = LayoutConcrete x
 
 data ExprX ty layoutNameTy a where
   Var :: ty -> a -> ExprX ty layoutNameTy a
@@ -250,7 +251,14 @@ isBasicPatternVar _ = False
 type ParamTypeP = ParamType' ParametrizedLayoutName
 
 mkParamTypeP :: [String] -> ParamType -> ParamTypeP
-mkParamTypeP params = fmap (MkParametrizedLayoutName params)
+mkParamTypeP [v] (IntParam Nothing) = IntParam (Just v)
+mkParamTypeP [v] (BoolParam Nothing) = BoolParam (Just v) -- TODO: Should we handle the other cases differently?
+mkParamTypeP params p = fmap (MkParametrizedLayoutName params) p
+
+updateParams :: [String] -> ParamType' a -> ParamType' a
+updateParams [v] (IntParam Nothing) = IntParam (Just v)
+updateParams [v] (BoolParam Nothing) = BoolParam (Just v)
+updateParams _ p = p
 
 data Def' defTy pat cond body ty layoutNameTy =
   MkDef

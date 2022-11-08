@@ -372,14 +372,14 @@ parseVar = do
 
 parseParamType :: Parser ParamType
 parseParamType =
-  try (keyword "Int" *> pure IntParam) <|>
-  try (keyword "Bool" *> pure BoolParam) <|>
+  try (keyword "Int" *> pure (IntParam Nothing)) <|>
+  try (keyword "Bool" *> pure (BoolParam Nothing)) <|>
   try (fmap LayoutParam parseLayoutName)
 
 parseSimpleParamType :: Parser ParamType
 parseSimpleParamType =
-  try (keyword "Int" *> pure IntParam) <|>
-  try (keyword "Bool" *> pure BoolParam) <|>
+  try (keyword "Int" *> pure (IntParam Nothing)) <|>
+  try (keyword "Bool" *> pure (BoolParam Nothing)) <|>
   try (fmap (LayoutParam . (MkLayoutName (Just Output))) parseSimpleLayoutName)
 
 parseLower :: Parser (Parsed ExprX FsName)

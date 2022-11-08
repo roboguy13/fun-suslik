@@ -32,7 +32,7 @@ defToSuSLik def =
       -- predParams = map (`MkSuSLikParam` LocType) argParams
       --                       ++ map (`MkSuSLikParam` LocType) resultParams
   in
-  trace ("outParams = " ++ show resultParams) $
+  -- trace ("outParams = " ++ show resultParams) $
   MkInductivePred
   { inductivePredName = defName def
   , inductivePredParams = map (`MkSuSLikParam` LocType) predParams
