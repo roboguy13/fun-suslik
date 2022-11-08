@@ -26,9 +26,9 @@ fastNub = Set.toList . Set.fromList
 defToSuSLik :: AsnDef -> InductivePred
 defToSuSLik def =
   let (argLowereds, resultLowered) = defType def
-      argParams = concatMap loweredParams argLowereds
+      argParams = map loweredParams argLowereds
       resultParams = loweredParams resultLowered
-      predParams = argParams ++ resultParams
+      predParams = concat argParams ++ resultParams
       -- predParams = map (`MkSuSLikParam` LocType) argParams
       --                       ++ map (`MkSuSLikParam` LocType) resultParams
   in
@@ -36,7 +36,7 @@ defToSuSLik def =
   MkInductivePred
   { inductivePredName = defName def
   , inductivePredParams = map (`MkSuSLikParam` LocType) predParams
-  , inductivePredBranches = concatMap (toSuSLikBranches predParams resultParams) $ defBranches def
+  , inductivePredBranches = concatMap (toSuSLikBranches argParams resultParams) $ defBranches def
   }
 
 -- concreteTypeToSuSLik :: ParamType' a -> SuSLikType
@@ -44,11 +44,11 @@ defToSuSLik def =
 -- concreteTypeToSuSLik BoolConcrete = BoolType
 -- concreteTypeToSuSLik LayoutConcrete{} = LocType
 
-toSuSLikBranches :: [SuSLikName] -> [SuSLikName] -> AsnDefBranch -> [SuSLikBranch]
+toSuSLikBranches :: [[SuSLikName]] -> [SuSLikName] -> AsnDefBranch -> [SuSLikBranch]
 toSuSLikBranches inParams outParams branch =
     map go $ defBranchGuardeds branch
   where
-    patCond = patCondForBranch inParams outParams branch
+    patCond = patCondForBranch (zip (defBranchPatterns branch) inParams) outParams branch
 
     go guarded@(MkGuardedExpr _ rhs) =
       MkSuSLikBranch
@@ -62,12 +62,20 @@ toHeaplets (PointsTo mode x y rest) =
 toHeaplets (HeapletApply lName suslikArgs _es rest) =
   HeapletApplyS (genLayoutName lName) suslikArgs : toHeaplets rest
 
-patCondForBranch :: [SuSLikName] -> [SuSLikName] -> AsnDefBranch -> SuSLikExpr SuSLikName
-patCondForBranch inParams outParams branch =
+patCondForBranch :: [(Pattern' a, [SuSLikName])] -> [SuSLikName] -> AsnDefBranch -> SuSLikExpr SuSLikName
+patCondForBranch inParams0 outParams branch =
     ands (map varEqZero paramsNotUsed
             ++
           map (NotS . varEqZero) paramsUsed)
   where
+    inParams =
+      concatMap snd $
+      filter (not . isPatternVar . fst) $
+      inParams0
+
+    isPatternVar PatternVar{} = True
+    isPatternVar _ = False
+
     paramsNotUsed :: [SuSLikName]
     paramsNotUsed = (fastNub (inParams \\ paramsUsed)) \\ outParams
 

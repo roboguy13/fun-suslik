@@ -15,6 +15,7 @@ import           Syntax.FreshGen
 import           Syntax.Name
 
 import           Data.List
+import           Data.Maybe
 import           Data.Void
 
 import           Control.Monad.Reader
@@ -247,12 +248,58 @@ elaborateDef inParamTypes outParamType def = do
             , defBranchGuardeds = guardeds
             }
           --
-  defBranches' <- mapM goBranch (defBranches def)
+  defBranches' <- mapM (defParamSubst paramedLayouts <=< goBranch) (defBranches def)
 
   pure $ def
     { defBranches = defBranches'
     , defType = (paramedLayouts, mkParamTypeP outParams outParamType)
     }
+
+-- | Substitute the SuSLik parameters for any PatternVar into the appropriate place in the
+-- given expressions.
+defParamSubst :: [ParamTypeP] -> ElaboratedDefBranch -> TypeCheck ElaboratedDefBranch
+defParamSubst params branch = do
+  subst <- catMaybes <$> mapM (uncurry genPatParamSubst) (zip params (defBranchPatterns branch))
+
+  let go guarded = applyPatParamSubst subst guarded
+
+  pure $ branch
+    { defBranchGuardeds = map go $ defBranchGuardeds branch
+    }
+
+genPatParamSubst :: ParamTypeP -> Pattern' ParamTypeP -> TypeCheck (Maybe (String, [String]))
+genPatParamSubst IntParam (PatternVar params v) = pure $ Just (v, loweredParams params)
+genPatParamSubst BoolParam (PatternVar params v) = pure $ Just (v, loweredParams params)
+genPatParamSubst LayoutParam{} (PatternVar params v) = pure $ Just (v, loweredParams params)
+genPatParamSubst _ _ = pure Nothing
+
+applyPatParamSubst :: [(String, [String])] -> Elaborated GuardedExpr -> Elaborated GuardedExpr
+applyPatParamSubst subst (MkGuardedExpr x y) =
+  MkGuardedExpr (go x) (go y)
+  where
+    go :: ElaboratedExpr String -> ElaboratedExpr String
+    go e0@(Var ty v) =
+      case lookup v subst of
+        Just params -> Var (withParams params (fmap getParamedName ty)) v
+        Nothing -> e0
+    go e0@(IntLit {}) = e0
+    go e0@(BoolLit {}) = e0
+    go (And x y) = And (go x) (go y)
+    go (Or x y) = Or (go x) (go y)
+    go (Not x) = Not (go x)
+    go (Add x y) = Add (go x) (go y)
+    go (Sub x y) = Sub (go x) (go y)
+    go (Mul x y) = Mul (go x) (go y)
+    go (Equal x y) = Equal (go x) (go y)
+    go (Le x y) = Le (go x) (go y)
+    go (Lt x y) = Lt (go x) (go y)
+    go (Apply f outTy inTys args) =
+      Apply f outTy inTys (map go args)
+    go (ConstrApply ty cName args) =
+      ConstrApply ty cName (map go args)
+    go Lower{} = error "go: Lower (impossible)"
+    go Instantiate{} = error "go: Instantiate (impossible)"
+
 
 elaboratePattern :: Pattern -> ParamTypeP -> Pattern' ParamTypeP
 elaboratePattern pat x = patternSet x pat
