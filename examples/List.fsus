@@ -60,11 +60,11 @@ leftList (Node a b c) := Cons a (leftList b);
 
 even : List -> List;
 even (Nil) := Nil;
-even (Cons head tail) := odd tail;
+even (Cons head tail) := instantiate [Sll[readonly]] Sll odd tail;
 
 odd : List -> List;
 odd (Nil) := Nil;
-odd (Cons head tail) := Cons head (even tail);
+odd (Cons head tail) := Cons head (instantiate [Sll[readonly]] Sll even tail);
 
 sum : List -> Int;
 sum (Nil) := 0;

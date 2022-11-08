@@ -419,7 +419,7 @@ parseSimpleParamType =
   try (fmap (LayoutParam . (MkLayoutName (Just Output))) parseSimpleLayoutName)
 
 parseLower :: Parser (Parsed ExprX FsName)
-parseLower = do
+parseLower = lexeme $ do
   keyword "lower"
 
   layoutName <- parseParamType
@@ -429,13 +429,13 @@ parseLower = do
   pure $ Lower layoutName e
 
 parseInstantiate :: Parser (Parsed ExprX FsName)
-parseInstantiate = do
+parseInstantiate = lexeme $ do
   keyword "instantiate"
 
   argLayouts <- parseBracketed (parseOp "[") (parseOp "]")
                   $ parseList (char ',') parseParamType
 
-  resultLayout <- parseParamType
+  resultLayout <- parseSimpleParamType
 
   f <- parseIdentifier
 
