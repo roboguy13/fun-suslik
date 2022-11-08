@@ -100,7 +100,7 @@ initialOutParams _ = ["__r"]
 newOutVars :: ParamTypeL -> TypeCheck OutParams
 newOutVars ty =
   get >>= \case
-    InitialOutVar -> put SubOutVar *> traceM "+++ set" *> pure (initialOutParams ty)
+    InitialOutVar -> put SubOutVar *> pure (initialOutParams ty)
     SubOutVar -> genParams ty
 
 resetOutVarState :: TypeCheck ()
@@ -237,9 +237,9 @@ elaborateDef inParamTypes outParamType def = do
   let outParams = initialOutParams foundOutType --genLayoutParamsWith "out_" outLayout
 
   let paramedLayouts = zipWith mkParamTypeP argParams inParamTypes
-  traceM ("argParams = " ++ show argParams)
-  traceM ("inParamTypes = " ++ show inParamTypes)
-  traceM ("paramedLayouts = " ++ show paramedLayouts)
+  -- traceM ("argParams = " ++ show argParams)
+  -- traceM ("inParamTypes = " ++ show inParamTypes)
+  -- traceM ("paramedLayouts = " ++ show paramedLayouts)
 
 
   let goBranch :: ParsedDefBranch -> TypeCheck ElaboratedDefBranch
@@ -477,7 +477,8 @@ inferExpr gamma (Var () v) =
 
       -- let lowered = withParams [v] concTy
       let lowered = concTy --withParams [v] concTy
-      pure $ (lowered, Var lowered v)
+      -- pure $ (lowered, Var lowered v)
+      pure $ (lowered, Var lowered $ head $ loweredParams $ lowered)
 inferExpr gamma (IntLit i) = do
   pure (IntParam Nothing, IntLit i)
 
@@ -566,10 +567,6 @@ inferExpr gamma e0@(Instantiate inLayoutNames outLayoutName f args) = do
   argLayouts <- mapM lookupParamType inLayoutNames
   argParams <- mapM genParams argLayouts
 
-  -- traceM $ "instantiate: outParams = " ++ show outParams
-  traceM $ "instantiate: outVars = " ++ show outVars ++ "\n"
-
-
   pure $ (fmap (MkParametrizedLayoutName outVars) outLayoutName
          ,
           Apply
@@ -602,8 +599,6 @@ inferExpr gamma (Lower ty (ConstrApply () cName args)) = do
   argsWithTys <- traverse (inferWith gamma ty) args
 
   let paramTy = mkParamTypeP params ty
-
-  traceM $ "ConstrApply out params = " ++ show params
 
   pure $ (paramTy, ConstrApply paramTy cName (map snd argsWithTys))
 
