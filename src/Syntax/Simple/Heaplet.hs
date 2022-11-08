@@ -262,6 +262,11 @@ updateParams [v] (IntParam Nothing) = IntParam (Just v)
 updateParams [v] (BoolParam Nothing) = BoolParam (Just v)
 updateParams _ p = p
 
+overwriteParams :: [String] -> ParamType' a -> ParamType' a
+overwriteParams [v] (IntParam {}) = IntParam (Just v)
+overwriteParams [v] (BoolParam {}) = BoolParam (Just v)
+overwriteParams _ p = p
+
 data Def' defTy pat cond body ty layoutNameTy =
   MkDef
   { defName :: String

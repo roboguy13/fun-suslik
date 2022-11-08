@@ -16,6 +16,9 @@ import           Syntax.FreshGen
 
 import           Control.Arrow (first)
 import           Control.Monad
+import           Control.Applicative
+
+import           Control.Monad.Writer
 
 import           Data.Foldable
 
@@ -45,22 +48,31 @@ isBaseType (Lt {}) = True
 isBaseType (Apply _ ty _ _) = False
 isBaseType (ConstrApply {}) = False
 
-getApplies :: ElaboratedExpr a -> [(String, ParamTypeP, [ParamTypeP], [ElaboratedExpr a])]
-getApplies (Var ty _) = []
-getApplies IntLit{} = []
-getApplies BoolLit{} = []
-getApplies (And x y) = getApplies x ++ getApplies y
-getApplies (Or x y) = getApplies x ++ getApplies y
+getApplies :: ElaboratedExpr a -> FreshGenT (Writer (Assertion SuSLikName)) [(String, ParamTypeP, [ParamTypeP], [ElaboratedExpr a])]
+getApplies (Var ty _) = pure []
+getApplies IntLit{} = pure []
+getApplies BoolLit{} = pure []
+getApplies (And x y) = liftA2 (++) (getApplies x) (getApplies y)
+getApplies (Or x y) = liftA2 (++) (getApplies x) (getApplies y)
 getApplies (Not x) = getApplies x
-getApplies (Add x y) = getApplies x ++ getApplies y
-getApplies (Sub x y) = getApplies x ++ getApplies y
-getApplies (Mul x y) = getApplies x ++ getApplies y
-getApplies (Equal x y) = getApplies x ++ getApplies y
-getApplies (Le x y) = getApplies x ++ getApplies y
-getApplies (Lt x y) = getApplies x ++ getApplies y
-getApplies (Apply f outTy argTys args) =
-  (f, outTy, argTys, args) : concatMap getApplies args
-getApplies (ConstrApply ty cName args) = concatMap getApplies args
+getApplies (Add x y) = liftA2 (++) (getApplies x) (getApplies y)
+getApplies (Sub x y) = liftA2 (++) (getApplies x) (getApplies y)
+getApplies (Mul x y) = liftA2 (++) (getApplies x) (getApplies y)
+getApplies (Equal x y) = liftA2 (++) (getApplies x) (getApplies y)
+getApplies (Le x y) = liftA2 (++) (getApplies x) (getApplies y)
+getApplies (Lt x y) = liftA2 (++) (getApplies x) (getApplies y)
+getApplies (Apply f outTy argTys args)
+  | length (loweredParams outTy) /= 1 = error $ "getApplies: Expected one parameter in type " ++ show outTy
+  | otherwise = do
+    ---- Create intermediate variables
+    temp <- getFreshWith "__temp_"
+    let [orig] = loweredParams outTy
+
+      -- TODO: Use temp points-to here?
+    lift $ tell (PointsTo Output (Here temp) (VarS orig) Emp)
+
+    (((f, overwriteParams [temp] outTy, argTys, args) :) . concat) <$> mapM getApplies args
+getApplies (ConstrApply ty cName args) = concat <$> mapM getApplies args
 
 unfoldConstructors :: [Layout] -> DefWithAsn -> AsnDef
 unfoldConstructors layouts def =
@@ -78,9 +90,10 @@ unfoldConstructors layouts def =
     guardedTranslate (MkGuardedExpr cond (MkExprWithAsn asn bodyExpr))
       | isBaseType bodyExpr =
           let toApply (f, outTy, argTys, args) = Apply f outTy argTys args
-              applyAsns = mconcat $ map (snd . exprTranslate Nothing) $ map toApply $ getApplies bodyExpr
+              (applies, tempsAsn) = runWriter (fmap snd (runFreshGenT (getApplies bodyExpr)))
+              applyAsns = mconcat $ map (snd . exprTranslate Nothing) $ map toApply applies
           in
-          MkGuardedExpr cond (asn <> PointsTo Output (Here "__r") (toSuSLikExpr bodyExpr) applyAsns)
+          MkGuardedExpr cond (asn <> PointsTo Output (Here "__r") (toSuSLikExpr bodyExpr) applyAsns <> tempsAsn)
 
       -- -- TODO: Probably should check to see if the expression is *any*
       -- -- base-type expression and do this kind of special case.
