@@ -13,6 +13,7 @@
 %generate maximum [Sll[readonly], Int] Sll
 %generate append [Sll[readonly], Sll[readonly]] Sll
 %generate sumLists [ListOfListsLayout[readonly]] Sll
+%generate maximum_sum [ListOfListsLayout[readonly]] Int
 
 data List := Nil | Cons Int List;
 
@@ -43,8 +44,8 @@ sumLists : ListOfLists -> List;
 sumLists (LNil) := Nil;
 sumLists (LCons xs xss) := Cons (instantiate [Sll[readonly]] Int sum xs) (sumLists xss);
 
--- maximum_sum : ListOfLists -> Int;
--- maximum_sum xs := 
+maximum_sum : ListOfLists -> Int;
+maximum_sum xss := instantiate [Sll[mutable]] Int maximum (instantiate [ListOfListsLayout[readonly]] Sll sumLists xss);
 
 const : List -> List -> List;
 const (Nil) (Nil) := Nil;
