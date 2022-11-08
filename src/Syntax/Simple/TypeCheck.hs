@@ -244,11 +244,15 @@ elaborateDef inParamTypes outParamType def = do
 
   let goBranch :: ParsedDefBranch -> TypeCheck ElaboratedDefBranch
       goBranch defBranch = do
+          () <- traceM $ "foundArgTypes = " ++ show foundArgTypes
+          () <- traceM $ "defBranchPatterns = " ++ show (defBranchPatterns defBranch)
           let gamma0 = zipWith3 inferLayoutPatVars foundArgTypes argAdts $ defBranchPatterns defBranch
 
               goGamma :: [String] -> [(Pattern, (FsName, ParamType))] -> [(FsName, ParamTypeP)]
               goGamma vs = map (\(pat, xs) ->
-                  second (mkParamTypeP vs) xs)
+                if isPatternVar pat
+                  then second (mkParamTypeP vs) xs
+                  else (fst xs, mkParamTypeP [fst xs] (snd xs)))
 
               gamma = concat $ zipWith goGamma argParams gamma0
 
@@ -340,12 +344,12 @@ inferLayoutPatVars (LayoutParam layout) (Just adt) pat@(MkPattern _ cName params
     in
     map (pat,) $ zipWith go params adtFields
   where
-    -- appliedLayout = applyLayoutPat layout [] pat
+    appliedLayout = applyLayoutPat layout [] pat
 
     go v IntType = (v, IntParam $ Just v) -- TODO: Or should these be Nothing?
     go v BoolType = (v, BoolParam $ Just v)
-    go v _ = (v, LayoutParam $ findLayoutApp v $ snd $ lookupLayoutBranch layout cName)
-    -- go v _ = (v, LayoutConcrete $ findLayoutApp v appliedLayout)
+    -- go v _ = (v, LayoutParam $ findLayoutApp v $ snd $ lookupLayoutBranch layout cName)
+    go v _ = (v, LayoutParam $ findLayoutApp v appliedLayout)
 inferLayoutPatVars (LayoutParam layout) Nothing _ = error $ "inferLayoutPatVars: Could not find ADT associated to layout " ++ show layout
 
 findLayoutApp :: FsName -> Assertion FsName -> LayoutName
@@ -538,8 +542,8 @@ inferExpr gamma e0@(Instantiate inLayoutNames outLayoutName f args) = do
 
   outLayout <- lookupParamType outLayoutName
 
-  st <- get
-  traceM $ "\nst = " ++ show st
+  -- st <- get
+  -- traceM $ "\nst = " ++ show st
 
   -- outParams <- genParams outLayout
   outVars <- newOutVars outLayout

@@ -1,6 +1,6 @@
+%generate leftList [TreeLayout[readonly]] Sll
 %generate filterLt7 [Sll[readonly]] Sll
 %generate consFn [Int, Sll[readonly]] Sll
-%generate leftList [TreeLayout[readonly]] Sll
 %generate even [Sll[readonly]] Sll
 %generate odd [Sll[readonly]] Sll
 %generate sum [Sll[readonly]] Int
@@ -50,7 +50,7 @@ filterLt7 (Cons head tail)
 
 leftList : Tree -> List;
 leftList (Leaf) := Nil;
-leftList (Node a left right) := Cons a (leftList left);
+leftList (Node a b c) := Cons a (leftList b);
 
 even : List -> List;
 even (Nil) := Nil;
