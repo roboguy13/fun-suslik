@@ -426,14 +426,14 @@ naiveSubst ((old, new):rest) fa = naiveSubst rest (fmap go fa)
       | y == old = new
       | otherwise = y
 
-naiveSubstAsn1 :: (FsName, Expr FsName) -> Assertion FsName -> Assertion FsName
+naiveSubstAsn1 :: (FsName, SuSLikExpr FsName) -> Assertion FsName -> Assertion FsName
 naiveSubstAsn1 subst@(old, new) fa =
     case fa of
       Emp -> Emp
 
-      PointsTo mode x y@(Var ty v) rest ->
+      PointsTo mode x y@(VarS v) rest ->
         if v == old
-          then PointsTo mode x (exprForget new) (naiveSubstAsn1 subst rest)
+          then PointsTo mode x new (naiveSubstAsn1 subst rest)
           else PointsTo mode x y (naiveSubstAsn1 subst rest)
       PointsTo mode x y rest -> PointsTo mode x y (naiveSubstAsn1 subst rest)
 
@@ -441,10 +441,10 @@ naiveSubstAsn1 subst@(old, new) fa =
         HeapletApply fName (map (>>= go) suslikParams) fsArgs rest
   where
     go x
-      | x == old = toSuSLikExpr new
+      | x == old = new
       | otherwise = VarS x
 
-naiveSubstAsn :: [(FsName, Expr FsName)] -> Assertion FsName -> Assertion FsName
+naiveSubstAsn :: [(FsName, SuSLikExpr FsName)] -> Assertion FsName -> Assertion FsName
 naiveSubstAsn [] fa = fa
 naiveSubstAsn (subst:rest) fa = naiveSubstAsn rest (naiveSubstAsn1 subst fa)
 
@@ -495,7 +495,7 @@ applyLayout layout0 suslikParams cName args =
     (zip (layoutSuSLikParams layout) suslikParams)
     (layoutMatch layout cName args)
 
-applyLayoutExpr :: Layout -> [SuSLikName] -> ConstrName -> [Expr FsName] -> Assertion SuSLikName
+applyLayoutExpr :: Layout -> [SuSLikName] -> ConstrName -> [SuSLikExpr FsName] -> Assertion SuSLikName
 applyLayoutExpr layout0 suslikParams cName args =
   let layout = mangleLayout layout0
       (MkPattern _ _ params, asn0) = lookupLayoutBranch layout cName
@@ -621,7 +621,7 @@ exprForget e = error $ "exprForget: " ++ show e
   --
 data Assertion a where
   Emp :: Assertion a
-  PointsTo :: Mode -> Loc a -> ExprX () Void a -> Assertion a -> Assertion a
+  PointsTo :: Mode -> Loc a -> SuSLikExpr a -> Assertion a -> Assertion a
   HeapletApply :: LayoutName -> [SuSLikExpr a] -> [ExprX () Void a] -> Assertion a -> Assertion a
   deriving (Functor, Show, Foldable)
 

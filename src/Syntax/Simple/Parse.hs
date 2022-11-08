@@ -277,7 +277,8 @@ parsePointsTo :: Parser (Assertion FsName) -> Parser (Assertion FsName)
 parsePointsTo p = do
   loc <- parseLoc
   parseOp ":->"
-  e <- fmap (Var ()) parseIdentifier
+  e <- parseSuSLikExpr'
+  -- e <- fmap (Var ()) parseIdentifier
   PointsToI loc e <$> ((parseOp "," *> p) <|> pure Emp)
 
 parseHeapletApply :: Parser (Assertion FsName) -> Parser (Assertion FsName)
@@ -302,6 +303,34 @@ parseLoc = fmap (Here . fsName) parseIdentifier <|> go
       i <- read @Int <$> some digitChar
       parseOp ")"
       pure ((fsName x) :+ i)
+
+parseSuSLikExpr' :: Parser (SuSLikExpr SuSLikName)
+parseSuSLikExpr' = lexeme $
+  parseBracketed (parseOp "(") (parseOp ")") parseSuSLikExpr <|>
+  ((IntS . read) <$> some digitChar) <|>
+  (keyword "false" *> pure (BoolS False)) <|>
+  (keyword "true" *> pure (BoolS True)) <|>
+  (VarS <$> parseIdentifier)
+
+parseSuSLikExpr :: Parser (SuSLikExpr FsName)
+parseSuSLikExpr =
+  try (NotS <$> (keyword "not" *> parseSuSLikExpr'))
+    <|>
+  parseSuSLikBinOp "&&" AndS
+    <|>
+  parseSuSLikBinOp "||" OrS
+    <|>
+  parseSuSLikBinOp "+" AddS
+    <|>
+  parseSuSLikBinOp "-" SubS
+    <|>
+  parseSuSLikBinOp "*" MulS
+    <|>
+  parseSuSLikBinOp "==" EqualS
+    <|>
+  parseSuSLikBinOp "<=" LeS
+    <|>
+  parseSuSLikBinOp "<" LtS
 
 parseExpr' :: Parser (Parsed ExprX FsName)
 parseExpr' = lexeme $
@@ -363,6 +392,13 @@ parseBinOp opName build = try $ do
   x <- try parseExpr'
   parseOp opName
   y <- parseExpr
+  pure $ build x y
+
+parseSuSLikBinOp :: String -> (SuSLikExpr FsName -> SuSLikExpr FsName -> SuSLikExpr FsName) -> Parser (SuSLikExpr FsName)
+parseSuSLikBinOp opName build = try $ do
+  x <- try parseSuSLikExpr'
+  parseOp opName
+  y <- parseSuSLikExpr
   pure $ build x y
 
 parseVar :: Parser (Parsed ExprX FsName)

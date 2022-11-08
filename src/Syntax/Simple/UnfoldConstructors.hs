@@ -43,7 +43,7 @@ unfoldConstructors layouts def =
       -- TODO: Should this be a special case?
       -- Also, should this use some kind of copy? And should the result
       -- name be hard-coded?
-      MkGuardedExpr cond (asn <> PointsTo Output (Here "__r") (Var () v) Emp)
+      MkGuardedExpr cond (asn <> PointsTo Output (Here "__r") (VarS v) Emp)
 
     guardedTranslate (MkGuardedExpr cond (MkExprWithAsn asn bodyExpr)) =
       let (_, bodyAsn) = snd . runFreshGen $ exprTranslate Nothing bodyExpr
@@ -90,7 +90,7 @@ unfoldConstructors layouts def =
           layout = lookupLayout layouts (baseLayoutName (getParamedName layoutName))
           -- suslikParams = concatMap getOutParams args
 
-          exprs = foldMap toList $ concatMap getOutParams args -- TODO: Generalize this to work with more kinds of expressions
+          -- exprs = foldMap toList $ concatMap getOutParams args -- TODO: Generalize this to work with more kinds of expressions
           -- exprs = map toSuSLikExpr args
 
       -- () <- traceM $ "args = " ++ show args
@@ -102,8 +102,8 @@ unfoldConstructors layouts def =
           Just outVars -> pure outVars
 
 
-      -- let matched = removeHeapletApplies $ applyLayoutExpr layout suslikParams cName args
-      let matched = removeHeapletApplies $ applyLayout layout suslikParams cName exprs
+      let matched = removeHeapletApplies $ applyLayoutExpr layout suslikParams cName $ map toSuSLikExpr args
+      -- let matched = removeHeapletApplies $ applyLayout layout suslikParams cName exprs
 
       pure (map VarS suslikParams
             ,asn <> setAssertionMode Output matched
