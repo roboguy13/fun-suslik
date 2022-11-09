@@ -25,6 +25,8 @@ import           Data.Maybe
 import           GHC.Exts hiding (toList)
 import           GHC.Stack
 
+import qualified Data.Map as Map
+
 import           Data.Void
 
 import           Data.Foldable
@@ -444,6 +446,12 @@ naiveSubstAsn1 subst@(old, new) fa =
 
       HeapletApply fName suslikParams fsArgs rest ->
         HeapletApply fName (map (>>= go) suslikParams) fsArgs rest
+
+      Block v sz rest -> 
+        Block v sz (naiveSubstAsn1 subst rest)
+
+      TempLoc v rest ->
+        TempLoc v (naiveSubstAsn1 subst rest)
   where
     go x
       | x == old = new
@@ -487,8 +495,8 @@ applyLayoutPat layout0 suslikParams pat =
   let layout = mangleLayout layout0
   in
   fmap unmangle $
-  naiveSubst
-    (zip (layoutSuSLikParams layout) suslikParams)
+  substSuSLikParams
+    (layoutSuSLikParams layout) suslikParams
     (layoutMatchPat layout pat)
 
 applyLayout :: Layout -> [SuSLikName] -> ConstrName -> [SuSLikName] -> Assertion SuSLikName
@@ -496,8 +504,8 @@ applyLayout layout0 suslikParams cName args =
   let layout = mangleLayout layout0
   in
   fmap unmangle $
-  naiveSubst
-    (zip (layoutSuSLikParams layout) suslikParams)
+  substSuSLikParams
+    (layoutSuSLikParams layout) suslikParams
     (layoutMatch layout cName args)
 
 applyLayoutExpr :: Layout -> [SuSLikName] -> ConstrName -> [SuSLikExpr FsName] -> Assertion SuSLikName
@@ -505,7 +513,7 @@ applyLayoutExpr layout0 suslikParams cName args =
   let layout = mangleLayout layout0
       (MkPattern _ _ params, asn0) = lookupLayoutBranch layout cName
       mangledAsn =
-        naiveSubst (zip (layoutSuSLikParams layout) suslikParams) asn0
+        substSuSLikParams (layoutSuSLikParams layout) suslikParams asn0
       subst = zip params args
       r = fmap unmangle $ naiveSubstAsn subst mangledAsn
   in
@@ -514,6 +522,14 @@ applyLayoutExpr layout0 suslikParams cName args =
   -- trace ("r = " ++ show r) $
   r
 
+-- | NOTE: Also inserts [..., ...] block sizes
+substSuSLikParams ::
+  [SuSLikName] -> [SuSLikName] -> Assertion SuSLikName -> Assertion SuSLikName
+substSuSLikParams olds news asn =
+  let asn' = naiveSubst (zip olds news) asn 
+      blocks = getBlocks asn'
+  in
+  asn' <> blocks
 
 lookupLayout :: HasCallStack => [Layout] -> String -> Layout
 lookupLayout layoutDefs name =
@@ -530,6 +546,25 @@ lookupLayoutBranch layout cName =
     go (MkPattern _ cName' _) = cName' == cName
     go (PatternVar {}) = True
 
+getBlocks :: Assertion FsName -> Assertion FsName
+getBlocks =
+  foldMap (\(n, i) -> Block n i Emp) . getBlockSizes
+
+pointsLocs :: Assertion a -> [Loc a]
+pointsLocs Emp = []
+pointsLocs (PointsTo _mode x _ rest) = x : pointsLocs rest
+pointsLocs (HeapletApply _ _ _ rest) = pointsLocs rest
+pointsLocs (Block _ _ rest) = pointsLocs rest
+pointsLocs (TempLoc _ rest) = pointsLocs rest
+
+getBlockSizes :: Assertion FsName -> [(FsName, Int)]
+getBlockSizes asn =
+  Map.toList $ foldr (uncurry (Map.insertWith max)) Map.empty locPairs
+  where
+    locPairs = mapMaybe locToPair (pointsLocs asn)
+
+    locToPair (Here {}) = Nothing
+    locToPair (x :+ i) = Just (x, i+1)
 
 
 -- instance Ppr a => Ppr (Expr a) where
@@ -628,6 +663,9 @@ data Assertion a where
   Emp :: Assertion a
   PointsTo :: Mode -> Loc a -> SuSLikExpr a -> Assertion a -> Assertion a
   HeapletApply :: LayoutName -> [SuSLikExpr a] -> [ExprX () Void a] -> Assertion a -> Assertion a
+
+  TempLoc :: SuSLikName -> Assertion a -> Assertion a
+  Block :: SuSLikName -> Int -> Assertion a -> Assertion a
   deriving (Functor, Show, Foldable)
 
 removeHeapletApplies :: Assertion FsName -> Assertion FsName
@@ -635,6 +673,8 @@ removeHeapletApplies Emp = Emp
 removeHeapletApplies (PointsTo mode x y rest) =
   PointsTo mode x y (removeHeapletApplies rest)
 removeHeapletApplies (HeapletApply _ _ _ rest) = removeHeapletApplies rest
+removeHeapletApplies (Block v sz rest) = Block v sz (removeHeapletApplies rest)
+removeHeapletApplies (TempLoc v rest) = TempLoc v (removeHeapletApplies rest)
 
 instance Semigroup (Assertion a) where
   Emp <> x = x
@@ -645,6 +685,10 @@ instance Semigroup (Assertion a) where
 
   HeapletApply lName params args rest <> y =
     HeapletApply lName params args (rest <> y)
+
+  Block v i rest <> y = Block v i (rest <> y)
+
+  TempLoc v rest <> y = TempLoc v (rest <> y)
 
 instance Monoid (Assertion a) where
   mempty = Emp
@@ -668,6 +712,11 @@ setAssertionMode mode = go
     go Emp = Emp
     go (PointsTo _ x y rest) = PointsTo mode x y (go rest)
     go (HeapletApply name xs ys rest) = HeapletApply name xs ys (go rest)
+    go (Block v sz rest) =
+      Block v sz (go rest)
+
+    go (TempLoc v rest) =
+      TempLoc v (go rest)
 
 instance (Show a, Ppr a) => Ppr (Assertion a) where
   ppr Emp = "emp"
@@ -682,6 +731,10 @@ instance (Show a, Ppr a) => Ppr (Assertion a) where
       [genLayoutName lName ++ "[" ++ intercalate "," (map ppr suslikArgs) ++ "]"
       ,unwords (map ppr fsArg)
       ] ++ ", " ++ ppr rest
+  ppr (Block v sz rest) =
+    "[" ++ v ++ ", " ++ show sz ++ "]" ++ ", " ++ ppr rest
+  ppr (TempLoc v rest) =
+    "temploc " ++ v ++ ", " ++ ppr rest
 
 -- type Assertion' a = Assertion (ExprX () Void a)
 

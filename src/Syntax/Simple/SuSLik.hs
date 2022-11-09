@@ -89,7 +89,8 @@ data Heaplet a where
   PointsToS :: PointsToMutability -> Loc a -> SuSLikExpr a -> Heaplet a
   HeapletApplyS :: String -> [SuSLikExpr a] -> Heaplet a
   BlockS :: a -> Int -> Heaplet a
-  Func :: String -> [SuSLikExpr a] -> SuSLikExpr a -> Heaplet a
+  TempLocS :: a -> Heaplet a
+  FuncS :: String -> [SuSLikExpr a] -> SuSLikExpr a -> Heaplet a
   deriving (Show, Functor)
 
 pointsToSymbol :: PointsToMutability -> String
@@ -105,7 +106,8 @@ instance Ppr a => Ppr (Heaplet a) where
   ppr (HeapletApplyS f args) = f ++ "(" ++ intercalate ", " (map ppr args) ++ ")"
   ppr (BlockS x i) = "[" ++ ppr x ++ "," ++ show i ++ "]"
 
-  ppr (Func f args result) = "func " ++ f ++ "(" ++ intercalate ", " (map ppr (args ++ [result])) ++ ")"
+  ppr (FuncS f args result) = "func " ++ f ++ "(" ++ intercalate ", " (map ppr (args ++ [result])) ++ ")"
+  ppr (TempLocS v) = "temploc " ++ ppr v
 
 instance Ppr a => Ppr [Heaplet a] where
   ppr [] = "emp"

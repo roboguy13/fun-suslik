@@ -24,7 +24,7 @@ extra-source-files: CHANGELOG.md
 executable fun-suslik
     main-is:          Main.hs
 
-    ghc-options: -fprof-auto -auto-all -O2 -prof -rtsopts
+    ghc-options: -fprof-auto -auto-all -O2 -prof -rtsopts -Wincomplete-patterns
 
     -- Modules included in this executable, other than Main.
     other-modules:

@@ -68,6 +68,10 @@ toHeaplets (PointsTo mode x y rest) =
   PointsToS (modeToMutability mode) x y : toHeaplets rest
 toHeaplets (HeapletApply lName suslikArgs _es rest) =
   HeapletApplyS (genLayoutName lName) suslikArgs : toHeaplets rest
+toHeaplets (Block v sz rest) =
+  BlockS v sz : toHeaplets rest
+toHeaplets (TempLoc v rest) =
+  TempLocS v : toHeaplets rest
 
 patCondForBranch :: [(Pattern' a, [SuSLikName])] -> [SuSLikName] -> AsnDefBranch -> SuSLikExpr SuSLikName
 patCondForBranch inParams0 outParams branch =
@@ -106,6 +110,8 @@ collectParamsAsn Emp = []
 collectParamsAsn (PointsTo _ lhsLoc _ rest) =
   toList lhsLoc <> collectParamsAsn rest
 collectParamsAsn (HeapletApply _ _ _ rest) = collectParamsAsn rest
+collectParamsAsn (Block _ _ rest) = collectParamsAsn rest
+collectParamsAsn (TempLoc _ rest) = collectParamsAsn rest
 
 -- -- | Only for use in translating Boolean conditionals and
 -- -- the RHS of points-tos (which should be simplified to basic expressions

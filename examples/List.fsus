@@ -11,6 +11,7 @@
 %generate even [Sll[readonly]] Sll
 %generate odd [Sll[readonly]] Sll
 %generate maximum [Sll[readonly], Int] Sll
+%generate maximum2 [Sll[readonly], Int] Sll
 %generate append [Sll[readonly], Sll[readonly]] Sll
 %generate sumLists [ListOfListsLayout[readonly]] Sll
 %generate maximum_sum [ListOfListsLayout[readonly]] Int
@@ -110,6 +111,9 @@ maximum (Nil) i := i;
 maximum (Cons head tail) i
   | i < head := maximum tail head;
   | not (i < head) := maximum tail i;
+
+maximum2 : List -> Int;
+maximum2 xs := instantiate [Sll[readonly], Int] Int maximum xs 0;
 
 append : List -> List -> List;
 append (Nil) ys := ys;

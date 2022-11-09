@@ -369,6 +369,8 @@ findLayoutApp v asn0 = go asn0
       | v' == v = lName
       | otherwise = go rest
     go (HeapletApply lName params _ rest) = go rest
+    go (TempLoc _ rest) = go rest
+    go (Block _ _ rest) = go rest
 
 inferWith :: TcEnv -> ParamType -> Parsed ExprX String -> TypeCheck (ParamTypeP, Elaborated ExprX String)
 inferWith gamma ty@(LayoutParam layout) e@(ConstrApply {}) =

@@ -38,10 +38,11 @@ findMaxIndex heaplets name = go 0 heaplets + 1
       | x == name = go (max curr i) rest
       | otherwise = go curr rest
     go curr (HeapletApplyS _ _ : rest) = go curr rest
-    go curr (Func _ _ _ : rest) = go curr rest
+    go curr (FuncS _ _ _ : rest) = go curr rest
     go curr (BlockS x i : rest) -- NOTE: This overrides everything else for now
       | x == name = i
       | otherwise = go curr rest
+    go curr (TempLocS {} : rest) = go curr rest
 
 genBlock :: [Heaplet SuSLikName] -> SuSLikName -> [Heaplet SuSLikName]
 genBlock heaplets name =
@@ -71,6 +72,8 @@ pointsLhsNames :: Ppr a => Assertion a -> [a]
 pointsLhsNames Emp = []
 pointsLhsNames (PointsTo _mode x _ rest) = (toList x) ++ pointsLhsNames rest
 pointsLhsNames (HeapletApply _ _ _ rest) = pointsLhsNames rest
+pointsLhsNames (Block _ _ rest) = pointsLhsNames rest
+pointsLhsNames (TempLoc _ rest) = pointsLhsNames rest
 
 genPatCond :: [SuSLikName] -> Assertion FsName -> SuSLikExpr SuSLikName
 genPatCond suslikParams0 asn =

@@ -70,6 +70,7 @@ getApplies (Apply f outTy argTys args)
 
       -- TODO: Use temp points-to here?
     lift $ tell (PointsTo Output (Here temp) (VarS orig) Emp)
+    lift $ tell (TempLoc temp Emp)
 
     (((f, overwriteParams [temp] outTy, argTys, args) :) . concat) <$> mapM getApplies args
 getApplies (ConstrApply ty cName args) = concat <$> mapM getApplies args
