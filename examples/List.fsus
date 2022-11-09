@@ -14,6 +14,7 @@
 %generate append [Sll[readonly], Sll[readonly]] Sll
 %generate sumLists [ListOfListsLayout[readonly]] Sll
 %generate maximum_sum [ListOfListsLayout[readonly]] Int
+%generate flatten [ListOfListsLayout[readonly]] Sll
 
 data List := Nil | Cons Int List;
 
@@ -113,4 +114,8 @@ maximum (Cons head tail) i
 append : List -> List -> List;
 append (Nil) ys := ys;
 append (Cons x xs) ys := Cons x (append xs ys);
+
+flatten : ListOfLists -> List;
+flatten (LNil) := Nil;
+flatten (LCons xs xss) := instantiate [Sll[readonly], Sll[mutable]] Sll append xs (flatten xss);
 
