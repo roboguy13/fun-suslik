@@ -40,30 +40,30 @@ main = do
 
       let directives = fileDirectives parsed
 
-      let (GenerateDef fnName argLayouts resultLayout:_) = directives
-      print fnName
-      -- print $
-      putStrLn $
-        ppr $
-        defToSuSLik $
-        unfoldConstructors layouts $
-        defTranslateLayoutMatch layouts $
-        -- unfoldEmptyConstructors layouts $
-        runTypeCheck fnName layouts adts fnDefs $
-          instAndElaborate fnName argLayouts resultLayout $ lookupDef fnDefs fnName
+      -- let (GenerateDef fnName argLayouts resultLayout:_) = directives
+      -- print fnName
+      -- -- print $
+      -- putStrLn $
+      --   ppr $
+      --   defToSuSLik $
+      --   unfoldConstructors layouts $
+      --   defTranslateLayoutMatch layouts $
+      --   -- unfoldEmptyConstructors layouts $
+      --   runTypeCheck fnName layouts adts fnDefs $
+      --     instAndElaborate fnName argLayouts resultLayout $ lookupDef fnDefs fnName
 
-      -- let doDirective :: Directive -> IO ()
-      --     doDirective (GenerateDef fnName argLayouts resultLayout) = do
-      --       putStrLn $
-      --         ppr $
-      --         defToSuSLik $
-      --         unfoldConstructors layouts $
-      --         topLevelTranslate layouts $
-      --         defTranslateLayoutMatch layouts $
-      --         -- unfoldEmptyConstructors layouts $
-      --         runTypeCheck fnName layouts adts fnDefs $
-      --           instAndElaborate fnName argLayouts resultLayout $ lookupDef fnDefs fnName
-      --       putStrLn ""
-      --
-      -- mapM_ doDirective directives
+      let doDirective :: Directive -> IO ()
+          doDirective (GenerateDef fnName argLayouts resultLayout) = do
+            putStrLn $
+              ppr $
+              defToSuSLik $
+              unfoldConstructors layouts $
+              topLevelTranslate layouts $
+              defTranslateLayoutMatch layouts $
+              -- unfoldEmptyConstructors layouts $
+              runTypeCheck fnName layouts adts fnDefs $
+                instAndElaborate fnName argLayouts resultLayout $ lookupDef fnDefs fnName
+            putStrLn ""
+
+      mapM_ doDirective directives
 
