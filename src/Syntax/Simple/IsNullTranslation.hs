@@ -38,25 +38,6 @@ translateIsNull layouts def =
       MkExprWithAsn (fromMaybe asn (go e)) e
 
     go :: ElaboratedExpr FsName -> Maybe (Assertion FsName)
-    go e0@(Var ty v) = Nothing
-    go e0@(IntLit i) = Nothing
-    go e0@(BoolLit b) = Nothing
-
-    go (And x y) = go x <|> go y
-    go (Or x y) = go x <|> go y
-    go (Not x) = go x
-
-    go (Add x y) = go x <|> go y
-    go (Sub x y) = go x <|> go y
-    go (Mul x y) = go x <|> go y
-
-    go (Equal x y) = go x <|> go y
-    go (Le x y) = go x <|> go y
-    go (Lt x y) = go x <|> go y
-
-    go (Apply fName outLayout inLayouts args) =
-      foldr (<|>) Nothing (map go args)
-
     go (ConstrApply ty@(LayoutParam lName) cName args) =
       case lookupLayoutBranch (lookupLayout layouts (baseLayoutName (getParamedName lName))) cName of
         (_, Emp) ->
@@ -65,4 +46,5 @@ translateIsNull layouts def =
           Just $ IsNull v
         _ -> Nothing
         -- _ -> ConstrApply ty cName (map go args)
+    go e = Nothing
 
