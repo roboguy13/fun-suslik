@@ -1,5 +1,5 @@
-module Syntax.Simple.IsNullTranslation
-  (translateIsNull)
+module Syntax.Simple.TopLevelTranslation
+  (topLevelTranslate)
   where
 
 import           Syntax.Simple.Heaplet
@@ -15,8 +15,8 @@ import           Control.Applicative
 import           Data.Foldable
 import           Data.Maybe
 
-translateIsNull :: [Layout] -> DefWithAsn -> DefWithAsn
-translateIsNull layouts def =
+topLevelTranslate :: [Layout] -> DefWithAsn -> DefWithAsn
+topLevelTranslate layouts def =
   def
   { defBranches = map branchTranslate (defBranches def)
   }

@@ -37,7 +37,7 @@ executable fun-suslik
       Syntax.Simple.UnfoldConstructors
       Syntax.Simple.UnfoldEmptyConstructors
       Syntax.Simple.TranslateLayoutMatch
-      Syntax.Simple.IsNullTranslation
+      Syntax.Simple.TopLevelTranslation
       Syntax.Simple.ToSuSLik
       Syntax.FreshGen
       Syntax.Name
