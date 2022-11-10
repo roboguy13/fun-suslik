@@ -10,8 +10,8 @@
 %generate singleton [Int] Sll
 %generate even [Sll[readonly]] Sll
 %generate odd [Sll[readonly]] Sll
-%generate maximum [Sll[readonly], Int] Sll
-%generate maximum2 [Sll[readonly], Int] Sll
+%generate maximum [Sll[readonly], Int] Int
+%generate maximum2 [Sll[readonly], Int] Int
 %generate append [Sll[readonly], Sll[readonly]] Sll
 %generate sumLists [ListOfListsLayout[readonly]] Sll
 %generate maximum_sum [ListOfListsLayout[readonly]] Int
