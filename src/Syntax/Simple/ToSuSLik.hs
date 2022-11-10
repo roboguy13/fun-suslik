@@ -68,8 +68,12 @@ toSuSLikBranches inParams outParams branch =
 toHeaplets :: Assertion FsName -> SuSLikAssertion SuSLikName
 toHeaplets Emp = mempty
 toHeaplets (PointsTo mode x y rest) =
-  asnCons (PointsToS (modeToMutability mode) x y)
-          (toHeaplets rest)
+    -- TODO: This always uses the "standard" (writable) mode. Is this
+    -- correct?
+  asnCons (PointsToS Unrestricted x y) (toHeaplets rest)
+
+  -- asnCons (PointsToS (modeToMutability mode) x y)
+  --         (toHeaplets rest)
 toHeaplets (HeapletApply lName suslikArgs _es rest) =
   asnCons (HeapletApplyS (genLayoutName lName) suslikArgs)
           (toHeaplets rest)
