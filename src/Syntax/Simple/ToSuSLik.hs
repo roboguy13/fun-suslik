@@ -29,7 +29,8 @@ defToSuSLik :: AsnDef -> InductivePred
 defToSuSLik def =
   let (argLowereds, resultLowered) = defType def
       argParams = map toSuSLikParam argLowereds
-      resultParams = map (`MkSuSLikParam` LocType) $ loweredParams resultLowered
+      -- resultParams = map (`MkSuSLikParam` LocType) $ loweredParams resultLowered
+      resultParams = toSuSLikParam resultLowered
       predParams = concat argParams ++ resultParams
       -- predParams = map (`MkSuSLikParam` LocType) argParams
       --                       ++ map (`MkSuSLikParam` LocType) resultParams
