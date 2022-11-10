@@ -455,6 +455,11 @@ naiveSubstAsn1 subst@(old, new) fa =
 
       IsNull _ -> fa
       Copy _ _ _ -> fa
+      AssertEqual lhs rhs@(VarS v) rest
+        | v == old -> AssertEqual lhs new (naiveSubstAsn1 subst rest)
+        | otherwise -> AssertEqual lhs rhs (naiveSubstAsn1 subst rest)
+      AssertEqual lhs rhs rest ->
+        AssertEqual lhs rhs (naiveSubstAsn1 subst rest)
   where
     go x
       | x == old = new
@@ -561,6 +566,7 @@ pointsLocs (Block _ _ rest) = pointsLocs rest
 pointsLocs (TempLoc _ rest) = pointsLocs rest
 pointsLocs (IsNull _) = []
 pointsLocs (Copy _ _ _) = []
+pointsLocs (AssertEqual _ _ rest) = pointsLocs rest
 
 getBlockSizes :: Assertion FsName -> [(FsName, Int)]
 getBlockSizes asn =
@@ -674,6 +680,8 @@ data Assertion a where
 
   IsNull :: a -> Assertion a
   Copy :: String -> a -> a -> Assertion a
+
+  AssertEqual :: a -> SuSLikExpr a -> Assertion a -> Assertion a
   deriving (Functor, Show, Foldable)
 
 removeHeapletApplies :: Assertion FsName -> Assertion FsName
@@ -685,6 +693,7 @@ removeHeapletApplies (Block v sz rest) = Block v sz (removeHeapletApplies rest)
 removeHeapletApplies (TempLoc v rest) = TempLoc v (removeHeapletApplies rest)
 removeHeapletApplies asn@(IsNull _) = asn
 removeHeapletApplies asn@(Copy _ _ _) = asn
+removeHeapletApplies (AssertEqual _ _ rest) = removeHeapletApplies rest
 
 instance Semigroup (Assertion a) where
   Emp <> x = x
@@ -706,6 +715,8 @@ instance Semigroup (Assertion a) where
   Block v i rest <> y = Block v i (rest <> y)
 
   TempLoc v rest <> y = TempLoc v (rest <> y)
+
+  AssertEqual x y rest <> z = AssertEqual x y (rest <> z)
 
 instance Monoid (Assertion a) where
   mempty = Emp
@@ -737,6 +748,7 @@ setAssertionMode mode = go
 
     go asn@(IsNull _) = asn
     go asn@(Copy _ _ _) = asn
+    go (AssertEqual x y rest) = AssertEqual x y (go rest)
 
 instance (Show a, Ppr a) => Ppr (Assertion a) where
   ppr Emp = "emp"
@@ -758,6 +770,7 @@ instance (Show a, Ppr a) => Ppr (Assertion a) where
 
   ppr (IsNull v) = ppr v ++ " == null ; emp"
   ppr (Copy lName src dest) = lName ++ "__copy(" ++ ppr src ++ ", " ++ ppr dest ++ ")"
+  ppr (AssertEqual x y rest0) = "(" <> ppr x <> " == " <> ppr y <> ")"
 
 -- type Assertion' a = Assertion (ExprX () Void a)
 

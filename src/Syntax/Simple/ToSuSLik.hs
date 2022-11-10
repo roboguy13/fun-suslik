@@ -48,7 +48,7 @@ defToSuSLik def =
 
 toSuSLikParam :: ParamTypeP -> [SuSLikParam]
 toSuSLikParam (IntParam (Just v)) = [MkSuSLikParam v IntType]
-toSuSLikParam (BoolParam (Just v)) = [MkSuSLikParam v IntType]
+toSuSLikParam (BoolParam (Just v)) = [MkSuSLikParam v BoolType]
 toSuSLikParam (IntParam Nothing) = []
 toSuSLikParam (BoolParam Nothing) = []
 toSuSLikParam p@(LayoutParam {}) = map (`MkSuSLikParam` LocType) $ loweredParams p
@@ -80,6 +80,8 @@ toHeaplets (TempLoc v rest) =
           (toHeaplets rest)
 toHeaplets (IsNull v) = IsNullS v
 toHeaplets (Copy lName src dest) = CopyS lName src dest
+toHeaplets (AssertEqual lhs rhs rest) =
+  eqCons (MkEquality lhs rhs) (toHeaplets rest)
 
 patCondForBranch :: [(Pattern' a, [SuSLikName])] -> [SuSLikName] -> AsnDefBranch -> SuSLikExpr SuSLikName
 patCondForBranch inParams0 outParams branch =
@@ -122,6 +124,7 @@ collectParamsAsn (Block _ _ rest) = collectParamsAsn rest
 collectParamsAsn (TempLoc _ rest) = collectParamsAsn rest
 collectParamsAsn (IsNull v) = [v]
 collectParamsAsn (Copy _ src _) = [src]
+collectParamsAsn (AssertEqual _ _ rest) = collectParamsAsn rest
 
 -- -- | Only for use in translating Boolean conditionals and
 -- -- the RHS of points-tos (which should be simplified to basic expressions

@@ -96,14 +96,17 @@ data Heaplet a where
 data SuSLikAssertion a where
   CopyS :: String -> a -> a -> SuSLikAssertion a
   IsNullS :: a -> SuSLikAssertion a
-  Heaplets :: [Heaplet a] -> SuSLikAssertion a
+  Heaplets :: [Equality a] -> [Heaplet a] -> SuSLikAssertion a
+  deriving (Show, Functor)
+
+data Equality a = MkEquality a (SuSLikExpr a)
   deriving (Show, Functor)
 
 instance Semigroup (SuSLikAssertion a) where
-  Heaplets [] <> y = y
-  x <> Heaplets [] = x
+  Heaplets [] [] <> y = y
+  x <> Heaplets [] [] = x
 
-  Heaplets xs <> Heaplets ys = Heaplets (xs <> ys)
+  Heaplets xs ys <> Heaplets xs' ys' = Heaplets (xs <> xs') (ys <> ys')
 
   IsNullS {} <> _ = error "Cannot combine IsNullS with another SuSLikAssertion"
   _ <> IsNullS {} = error "Cannot combine IsNullS with another SuSLikAssertion"
@@ -112,10 +115,13 @@ instance Semigroup (SuSLikAssertion a) where
   _ <> CopyS {} = error "Cannot combine CopyS with another SuSLikAssertion"
 
 instance Monoid (SuSLikAssertion a) where
-  mempty = Heaplets []
+  mempty = Heaplets [] []
 
 asnCons :: Heaplet a -> SuSLikAssertion a -> SuSLikAssertion a
-asnCons h asn = Heaplets [h] <> asn
+asnCons h asn = Heaplets [] [h] <> asn
+
+eqCons :: Equality a -> SuSLikAssertion a -> SuSLikAssertion a
+eqCons eq asn = Heaplets [eq] [] <> asn
 
 pointsToSymbol :: PointsToMutability -> String
 pointsToSymbol Unrestricted = ":->"
@@ -140,8 +146,17 @@ instance Ppr a => Ppr (Heaplet a) where
 instance Ppr a => Ppr (SuSLikAssertion a) where
   ppr (CopyS lName src dest) = lName <> "__copy(" <> ppr src <> ", " <> ppr dest <> ")"
   ppr (IsNullS v) = ppr v <> " == null ; emp"
-  ppr (Heaplets []) = "emp"
-  ppr (Heaplets xs) = intercalate " ** " $ map ppr xs
+  ppr (Heaplets [] []) = "emp"
+  ppr (Heaplets [] xs) = intercalate " ** " $ map ppr xs
+  ppr (Heaplets eqs xs) = ppr eqs <> " ; " <> ppr (Heaplets [] xs)
+
+instance Ppr a => Ppr (Equality a) where
+  ppr (MkEquality x y) = ppr x <> " == " <> ppr y
+
+instance Ppr a => Ppr [Equality a] where
+  ppr [] = "true"
+  ppr [x] = ppr x
+  ppr (x:xs) = ppr x <> " && " <> ppr xs
 
 data SuSLikType = IntType | LocType | BoolType | SetType
   deriving (Show)

@@ -68,9 +68,11 @@ getApplies (Apply f outTy argTys args)
     temp <- getFreshWith "__temp_"
     let [orig] = loweredParams outTy
 
-      -- TODO: Use temp points-to here?
-    lift $ tell (PointsTo Output (Here temp) (VarS orig) Emp)
-    lift $ tell (TempLoc temp Emp)
+    lift $ tell $ AssertEqual temp (VarS orig) Emp
+
+    --   -- TODO: Use temp points-to here?
+    -- lift $ tell (PointsTo Output (Here temp) (VarS orig) Emp)
+    -- lift $ tell (TempLoc temp Emp)
 
     (((f, overwriteParams [temp] outTy, argTys, args) :) . concat) <$> mapM getApplies args
 getApplies (ConstrApply ty cName args) = concat <$> mapM getApplies args
@@ -94,7 +96,8 @@ unfoldConstructors layouts def =
               (applies, tempsAsn) = runWriter (fmap snd (runFreshGenT (getApplies bodyExpr)))
               applyAsns = mconcat $ map (snd . exprTranslate Nothing) $ map toApply applies
           in
-          MkGuardedExpr cond (asn <> PointsTo Output (Here "__r") (toSuSLikExpr bodyExpr) applyAsns <> tempsAsn)
+          -- MkGuardedExpr cond (asn <> PointsTo Output (Here "__r") (toSuSLikExpr bodyExpr) applyAsns <> tempsAsn)
+          MkGuardedExpr cond (asn <> AssertEqual "__r" (toSuSLikExpr bodyExpr) applyAsns <> tempsAsn)
 
       -- -- TODO: Probably should check to see if the expression is *any*
       -- -- base-type expression and do this kind of special case.
