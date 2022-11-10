@@ -452,6 +452,9 @@ naiveSubstAsn1 subst@(old, new) fa =
 
       TempLoc v rest ->
         TempLoc v (naiveSubstAsn1 subst rest)
+
+      IsNull _ -> fa
+      Copy _ _ _ -> fa
   where
     go x
       | x == old = new
@@ -556,6 +559,8 @@ pointsLocs (PointsTo _mode x _ rest) = x : pointsLocs rest
 pointsLocs (HeapletApply _ _ _ rest) = pointsLocs rest
 pointsLocs (Block _ _ rest) = pointsLocs rest
 pointsLocs (TempLoc _ rest) = pointsLocs rest
+pointsLocs (IsNull _) = []
+pointsLocs (Copy _ _ _) = []
 
 getBlockSizes :: Assertion FsName -> [(FsName, Int)]
 getBlockSizes asn =
@@ -666,6 +671,9 @@ data Assertion a where
 
   TempLoc :: SuSLikName -> Assertion a -> Assertion a
   Block :: SuSLikName -> Int -> Assertion a -> Assertion a
+
+  IsNull :: a -> Assertion a
+  Copy :: String -> a -> a -> Assertion a
   deriving (Functor, Show, Foldable)
 
 removeHeapletApplies :: Assertion FsName -> Assertion FsName
@@ -675,10 +683,19 @@ removeHeapletApplies (PointsTo mode x y rest) =
 removeHeapletApplies (HeapletApply _ _ _ rest) = removeHeapletApplies rest
 removeHeapletApplies (Block v sz rest) = Block v sz (removeHeapletApplies rest)
 removeHeapletApplies (TempLoc v rest) = TempLoc v (removeHeapletApplies rest)
+removeHeapletApplies asn@(IsNull _) = asn
+removeHeapletApplies asn@(Copy _ _ _) = asn
 
 instance Semigroup (Assertion a) where
   Emp <> x = x
   x <> Emp = x
+
+  IsNull _ <> _ = error "Cannot combine IsNull with another Assertion"
+  _ <> IsNull _ = error "Cannot combine IsNull with another Assertion"
+
+  Copy _ _ _ <> _ = error "Cannot combine Copy with another Assertion"
+  _ <> Copy _ _ _ = error "Cannot combine Copy with another Assertion"
+
 
   PointsTo mode loc e rest <> y =
     PointsTo mode loc e (rest <> y)
@@ -718,6 +735,9 @@ setAssertionMode mode = go
     go (TempLoc v rest) =
       TempLoc v (go rest)
 
+    go asn@(IsNull _) = asn
+    go asn@(Copy _ _ _) = asn
+
 instance (Show a, Ppr a) => Ppr (Assertion a) where
   ppr Emp = "emp"
   ppr (PointsTo mode x y rest) = unwords [ppr x, op, ppr y] ++ ", " ++ ppr rest
@@ -735,6 +755,9 @@ instance (Show a, Ppr a) => Ppr (Assertion a) where
     "[" ++ v ++ ", " ++ show sz ++ "]" ++ ", " ++ ppr rest
   ppr (TempLoc v rest) =
     "temploc " ++ v ++ ", " ++ ppr rest
+
+  ppr (IsNull v) = ppr v ++ " == null ; emp"
+  ppr (Copy lName src dest) = lName ++ "__copy(" ++ ppr src ++ ", " ++ ppr dest ++ ")"
 
 -- type Assertion' a = Assertion (ExprX () Void a)
 

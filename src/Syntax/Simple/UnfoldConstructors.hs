@@ -163,8 +163,8 @@ unfoldConstructors layouts def =
       in
 
 
-      -- let matched = removeHeapletApplies $ applyLayoutExpr layout suslikParams cName $ map toSuSLikExpr args
-      let matched = applyLayoutExpr layout suslikParams cName $ map toSuSLikExpr args
+      let matched = removeHeapletApplies $ applyLayoutExpr layout suslikParams cName $ map toSuSLikExpr args
+      -- let matched = applyLayoutExpr layout suslikParams cName $ map toSuSLikExpr args
       in
       -- let matched = removeHeapletApplies $ applyLayout layout suslikParams cName exprs
 

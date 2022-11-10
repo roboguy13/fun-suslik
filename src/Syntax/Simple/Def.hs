@@ -68,12 +68,12 @@ genBlock heaplets name =
 genBranchName :: String -> String -> String
 genBranchName str c = str <> "__" <> c
 
-pointsLhsNames :: Ppr a => Assertion a -> [a]
-pointsLhsNames Emp = []
-pointsLhsNames (PointsTo _mode x _ rest) = (toList x) ++ pointsLhsNames rest
-pointsLhsNames (HeapletApply _ _ _ rest) = pointsLhsNames rest
-pointsLhsNames (Block _ _ rest) = pointsLhsNames rest
-pointsLhsNames (TempLoc _ rest) = pointsLhsNames rest
+-- pointsLhsNames :: Ppr a => Assertion a -> [a]
+-- pointsLhsNames Emp = []
+-- pointsLhsNames (PointsTo _mode x _ rest) = (toList x) ++ pointsLhsNames rest
+-- pointsLhsNames (HeapletApply _ _ _ rest) = pointsLhsNames rest
+-- pointsLhsNames (Block _ _ rest) = pointsLhsNames rest
+-- pointsLhsNames (TempLoc _ rest) = pointsLhsNames rest
 
 genPatCond :: [SuSLikName] -> Assertion FsName -> SuSLikExpr SuSLikName
 genPatCond suslikParams0 asn =

@@ -31,7 +31,7 @@ import Debug.Trace
 -- elaborateExpr :: [Layout] -> [Parsed Def] -> Parsed ExprX a -> Elaborated ExprX a
 -- elaborateExpr layouts defs = undefined
 
-data TcGlobals = MkTcGlobals [Layout] [Adt] [Parsed (Def ())]
+data TcGlobals = MkTcGlobals String [Layout] [Adt] [Parsed (Def ())]
 
 data OutVar = InitialOutVar | SubOutVar
   deriving (Show)
@@ -44,9 +44,9 @@ newtype TypeCheck a = MkTypeCheck (ReaderT TcGlobals (StateT OutVar (FreshGenT (
 instance MonadFail TypeCheck where
   fail = error
 
-runTypeCheck :: [Layout] -> [Adt] -> [Parsed (Def ())] -> TypeCheck a -> a
-runTypeCheck layouts adts defs (MkTypeCheck tc) =
-  let globals = MkTcGlobals layouts adts defs
+runTypeCheck :: String -> [Layout] -> [Adt] -> [Parsed (Def ())] -> TypeCheck a -> a
+runTypeCheck fnName layouts adts defs (MkTypeCheck tc) =
+  let globals = MkTcGlobals fnName layouts adts defs
   in
   case runFreshGenT $ flip evalStateT InitialOutVar $ runReaderT tc globals of
     Left err -> error err
@@ -56,7 +56,7 @@ type TcEnv = [(String, ParamTypeP)]
 
 lookupLayoutM :: String -> TypeCheck Layout
 lookupLayoutM name = do
-  MkTcGlobals layouts _ _ <- ask
+  MkTcGlobals _ layouts _ _ <- ask
   pure $ lookupLayout layouts name
 
 type ParamTypeL = ParamType' Layout
@@ -68,13 +68,18 @@ lookupParamType (LayoutParam layoutName) = LayoutParam <$> lookupLayoutM (baseLa
 
 lookupAdtM :: String -> TypeCheck Adt
 lookupAdtM name = do
-  MkTcGlobals _ adts _ <- ask
+  MkTcGlobals _ _ adts _ <- ask
   pure $ lookupAdt adts name
 
 lookupDefM :: String -> TypeCheck (Parsed (Def ()))
 lookupDefM name = do
-  MkTcGlobals _ _ defs <- ask
+  MkTcGlobals _ _ _ defs <- ask
   pure $ lookupDef defs name
+
+getCurrFnName :: TypeCheck String
+getCurrFnName = do
+  MkTcGlobals f _ _ _ <- ask
+  pure f
 
 genLayoutParamsWith :: String -> Layout -> TypeCheck [String]
 genLayoutParamsWith prefix layout = do
@@ -371,6 +376,8 @@ findLayoutApp v asn0 = go asn0
     go (HeapletApply lName params _ rest) = go rest
     go (TempLoc _ rest) = go rest
     go (Block _ _ rest) = go rest
+    go (IsNull _) = error $ "findLayoutApp: Cannot find " ++ show v ++ "\nasn0 = " ++ show asn0
+    go (Copy _ _ _) = error $ "findLayoutApp: Cannot find " ++ show v ++ "\nasn0 = " ++ show asn0
 
 inferWith :: TcEnv -> ParamType -> Parsed ExprX String -> TypeCheck (ParamTypeP, Elaborated ExprX String)
 inferWith gamma ty@(LayoutParam layout) e@(ConstrApply {}) =
@@ -572,6 +579,13 @@ inferExpr gamma e0@(Instantiate inLayoutNames outLayoutName f args) = do
         (checkExpr gamma)
         args
         inLayoutNames
+
+  -- currFn <- getCurrFnName
+
+  -- () <- traceM $ "\nf       = " ++ f
+  -- () <- traceM $ "args    = " ++ show args
+  -- () <- traceM $ "outVars = " ++ show outVars
+  -- () <- traceM $ "is currFn = " ++ show (f == currFn)
 
 
   -- let outLayoutParams = layoutSuSLikParams outLayout

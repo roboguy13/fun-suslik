@@ -35,8 +35,8 @@ data SuSLikSig =
   MkSuSLikSig
   { suslikSigName :: String
   , suslikSigParams :: [SuSLikParam]
-  , suslikSigPre :: [Heaplet String]
-  , suslikSigPost :: [Heaplet String]
+  , suslikSigPre :: SuSLikAssertion String
+  , suslikSigPost :: SuSLikAssertion String
   }
 
 instance Ppr SuSLikSig where
@@ -71,7 +71,7 @@ locParam n = MkSuSLikParam n LocType
 data SuSLikBranch =
   MkSuSLikBranch
   { suslikBranchCond :: SuSLikExpr SuSLikName
-  , suslikBranchRhs :: [Heaplet SuSLikName]
+  , suslikBranchRhs :: SuSLikAssertion SuSLikName
   }
   deriving (Show)
 
@@ -93,6 +93,30 @@ data Heaplet a where
   FuncS :: String -> [SuSLikExpr a] -> SuSLikExpr a -> Heaplet a
   deriving (Show, Functor)
 
+data SuSLikAssertion a where
+  CopyS :: String -> a -> a -> SuSLikAssertion a
+  IsNullS :: a -> SuSLikAssertion a
+  Heaplets :: [Heaplet a] -> SuSLikAssertion a
+  deriving (Show, Functor)
+
+instance Semigroup (SuSLikAssertion a) where
+  Heaplets [] <> y = y
+  x <> Heaplets [] = x
+
+  Heaplets xs <> Heaplets ys = Heaplets (xs <> ys)
+
+  IsNullS {} <> _ = error "Cannot combine IsNullS with another SuSLikAssertion"
+  _ <> IsNullS {} = error "Cannot combine IsNullS with another SuSLikAssertion"
+
+  CopyS {} <> _ = error "Cannot combine CopyS with another SuSLikAssertion"
+  _ <> CopyS {} = error "Cannot combine CopyS with another SuSLikAssertion"
+
+instance Monoid (SuSLikAssertion a) where
+  mempty = Heaplets []
+
+asnCons :: Heaplet a -> SuSLikAssertion a -> SuSLikAssertion a
+asnCons h asn = Heaplets [h] <> asn
+
 pointsToSymbol :: PointsToMutability -> String
 pointsToSymbol Unrestricted = ":->"
 pointsToSymbol ReadOnly = ":=>"
@@ -109,9 +133,15 @@ instance Ppr a => Ppr (Heaplet a) where
   ppr (FuncS f args result) = "func " ++ f ++ "(" ++ intercalate ", " (map ppr (args ++ [result])) ++ ")"
   ppr (TempLocS v) = "temploc " ++ ppr v
 
-instance Ppr a => Ppr [Heaplet a] where
-  ppr [] = "emp"
-  ppr xs = intercalate " ** " $ map ppr xs
+-- instance Ppr a => Ppr [Heaplet a] where
+--   ppr [] = "emp"
+--   ppr xs = intercalate " ** " $ map ppr xs
+
+instance Ppr a => Ppr (SuSLikAssertion a) where
+  ppr (CopyS lName src dest) = lName <> "__copy(" <> ppr src <> ", " <> ppr dest <> ")"
+  ppr (IsNullS v) = ppr v <> " == null ; emp"
+  ppr (Heaplets []) = "emp"
+  ppr (Heaplets xs) = intercalate " ** " $ map ppr xs
 
 data SuSLikType = IntType | LocType | BoolType | SetType
   deriving (Show)

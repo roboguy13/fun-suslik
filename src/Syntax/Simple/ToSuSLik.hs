@@ -4,6 +4,8 @@
 
 {-# LANGUAGE LiberalTypeSynonyms #-}
 
+{-# OPTIONS_GHC -Wincomplete-patterns #-}
+
 module Syntax.Simple.ToSuSLik
   (defToSuSLik)
   where
@@ -62,16 +64,22 @@ toSuSLikBranches inParams outParams branch =
         (condForGuarded patCond guarded)
         (toHeaplets rhs)
 
-toHeaplets :: Assertion FsName -> [Heaplet SuSLikName]
-toHeaplets Emp = []
+toHeaplets :: Assertion FsName -> SuSLikAssertion SuSLikName
+toHeaplets Emp = mempty
 toHeaplets (PointsTo mode x y rest) =
-  PointsToS (modeToMutability mode) x y : toHeaplets rest
+  asnCons (PointsToS (modeToMutability mode) x y)
+          (toHeaplets rest)
 toHeaplets (HeapletApply lName suslikArgs _es rest) =
-  HeapletApplyS (genLayoutName lName) suslikArgs : toHeaplets rest
+  asnCons (HeapletApplyS (genLayoutName lName) suslikArgs)
+          (toHeaplets rest)
 toHeaplets (Block v sz rest) =
-  BlockS v sz : toHeaplets rest
+  asnCons (BlockS v sz)
+          (toHeaplets rest)
 toHeaplets (TempLoc v rest) =
-  TempLocS v : toHeaplets rest
+  asnCons (TempLocS v)
+          (toHeaplets rest)
+toHeaplets (IsNull v) = IsNullS v
+toHeaplets (Copy lName src dest) = CopyS lName src dest
 
 patCondForBranch :: [(Pattern' a, [SuSLikName])] -> [SuSLikName] -> AsnDefBranch -> SuSLikExpr SuSLikName
 patCondForBranch inParams0 outParams branch =
@@ -112,6 +120,8 @@ collectParamsAsn (PointsTo _ lhsLoc _ rest) =
 collectParamsAsn (HeapletApply _ _ _ rest) = collectParamsAsn rest
 collectParamsAsn (Block _ _ rest) = collectParamsAsn rest
 collectParamsAsn (TempLoc _ rest) = collectParamsAsn rest
+collectParamsAsn (IsNull v) = [v]
+collectParamsAsn (Copy _ src _) = [src]
 
 -- -- | Only for use in translating Boolean conditionals and
 -- -- the RHS of points-tos (which should be simplified to basic expressions
