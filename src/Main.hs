@@ -60,7 +60,7 @@ main = do
               unfoldConstructors layouts $
               topLevelTranslate layouts $
               defTranslateLayoutMatch layouts $
-              -- unfoldEmptyConstructors layouts $
+              unfoldEmptyConstructors layouts $
               runTypeCheck fnName layouts adts fnDefs $
                 instAndElaborate fnName argLayouts resultLayout $ lookupDef fnDefs fnName
             putStrLn ""
