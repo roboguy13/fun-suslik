@@ -13,15 +13,21 @@
 %generate maximum [Sll[readonly], Int] Int
 %generate maximum2 [Sll[readonly], Int] Int
 %generate append [Sll[readonly], Sll[readonly]] Sll
-%generate sumLists [ListOfListsLayout[readonly]] Sll
+%generate map_sum [ListOfListsLayout[readonly]] Sll
 %generate maximum_sum [ListOfListsLayout[readonly]] Int
 %generate flatten [ListOfListsLayout[readonly]] Sll
+%generate snoc [Sll[readonly], Int] Sll
+%generate reverse [Sll[readonly]] Sll
+%generate zip [Sll[readonly], Sll[readonly]] ZippedLayout
+%generate replicate [Int, Int] Sll
 
 data List := Nil | Cons Int List;
 
 data Tree := Leaf | Node Int Tree Tree;
 
 data ListOfLists := LNil | LCons List ListOfLists;
+
+data Zipped := ZNil | ZCons Int Int Zipped;
 
 Sll : List >-> layout[x];
 Sll (Nil) := emp;
@@ -42,12 +48,20 @@ ListOfListsLayout (LCons head tail) :=
   x :-> head, (x+1) :-> tail, ListOfListsLayout tail,
   Sll head;
 
-sumLists : ListOfLists -> List;
-sumLists (LNil) := Nil;
-sumLists (LCons xs xss) := Cons (instantiate [Sll[readonly]] Int sum xs) (sumLists xss);
+ZippedLayout : Zipped >-> layout[x];
+ZippedLayout (ZNil) := emp;
+ZippedLayout (ZCons fst snd rest) :=
+  x :-> fst,
+  (x+1) :-> snd,
+  (x+2) :-> rest,
+  ZippedLayout rest;
+
+map_sum : ListOfLists -> List;
+map_sum (LNil) := Nil;
+map_sum (LCons xs xss) := Cons (instantiate [Sll[readonly]] Int sum xs) (map_sum xss);
 
 maximum_sum : ListOfLists -> Int;
-maximum_sum xss := instantiate [Sll[mutable]] Int maximum (instantiate [ListOfListsLayout[readonly]] Sll sumLists xss);
+maximum_sum xss := instantiate [Sll[mutable]] Int maximum (instantiate [ListOfListsLayout[readonly]] Sll map_sum xss);
 
 const : List -> List -> List;
 const (Nil) (Nil) := Nil;
@@ -122,4 +136,17 @@ append (Cons x xs) ys := Cons x (append xs ys);
 flatten : ListOfLists -> List;
 flatten (LNil) := Nil;
 flatten (LCons xs xss) := instantiate [Sll[readonly], Sll[mutable]] Sll append xs (flatten xss);
+
+snoc : List -> Int -> List;
+snoc (Nil) i := Cons i (Nil);
+snoc (Cons x xs) i := Cons x (snoc xs i);
+
+reverse : List -> List;
+reverse (Nil) := Nil;
+reverse (Cons x xs) := instantiate [Sll[mutable], Int] Sll snoc (reverse xs) x;
+
+zip : List -> Zipped;
+zip (Nil) ys := ZNil;
+zip xs (Nil) := ZNil;
+zip (Cons x xs) (Cons y ys) := ZCons x y (zip xs ys);
 
