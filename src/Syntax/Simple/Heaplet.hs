@@ -64,6 +64,7 @@ instance Monad SuSLikExpr where
   return = VarS
 
   VarS x >>= f = f x
+  FnOutVar x >>= _ = FnOutVar x
   IntS i >>= _ = IntS i
   BoolS b >>= _ = BoolS b
   AndS x y >>= f = AndS (x >>= f) (y >>= f)
@@ -90,6 +91,7 @@ ands (x:xs) = foldl1 mkAndS (x:xs)
 
 instance Ppr a => Ppr (SuSLikExpr a) where
   ppr (VarS v) = ppr v
+  ppr (FnOutVar v) = v
   ppr (IntS i) = show i
   ppr (BoolS True) = "true"
   ppr (BoolS False) = "false"
