@@ -97,7 +97,7 @@ unfoldConstructors layouts def =
               applyAsns = mconcat $ map (snd . exprTranslate Nothing) $ map toApply applies
           in
           -- MkGuardedExpr cond (asn <> PointsTo Output (Here "__r") (toSuSLikExpr bodyExpr) applyAsns <> tempsAsn)
-          MkGuardedExpr cond (asn <> AssertEqual "__r" (toSuSLikExpr bodyExpr) applyAsns <> tempsAsn)
+          MkGuardedExpr cond (asn <> AssertEqual "__r" (toSuSLikExpr "" bodyExpr) applyAsns <> tempsAsn)
 
       -- -- TODO: Probably should check to see if the expression is *any*
       -- -- base-type expression and do this kind of special case.
@@ -122,6 +122,9 @@ unfoldConstructors layouts def =
     -- -- | Remove any HeapletApply that has an empty SuSLik arg list
     -- removeEmptyApplies :: Assertion FsName -> Assertion FsName
     -- removeEmptyApplies 
+
+    recName :: RecName
+    recName = defName def
 
     exprTranslate :: Maybe [SuSLikName] -> ElaboratedExpr FsName -> ([SuSLikExpr SuSLikName], Assertion SuSLikName)
     exprTranslate _ (Var ty v) = (map VarS (loweredParams ty), Emp)
@@ -166,7 +169,7 @@ unfoldConstructors layouts def =
       in
 
 
-      let matched = removeHeapletApplies $ applyLayoutExpr layout suslikParams cName $ map toSuSLikExpr args
+      let matched = removeHeapletApplies $ applyLayoutExpr layout suslikParams cName $ map (toSuSLikExpr recName) args
       -- let matched = applyLayoutExpr layout suslikParams cName $ map toSuSLikExpr args
       in
       -- let matched = removeHeapletApplies $ applyLayout layout suslikParams cName exprs

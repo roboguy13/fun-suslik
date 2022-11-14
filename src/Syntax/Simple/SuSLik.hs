@@ -90,7 +90,8 @@ data Heaplet a where
   HeapletApplyS :: String -> [SuSLikExpr a] -> Heaplet a
   BlockS :: a -> Int -> Heaplet a
   TempLocS :: a -> Heaplet a
-  FuncS :: String -> [SuSLikExpr a] -> SuSLikExpr a -> Heaplet a
+  -- FuncS :: String -> [SuSLikExpr a] -> SuSLikExpr a -> Heaplet a
+  FuncS :: String -> [SuSLikExpr a] -> Heaplet a
   deriving (Show, Functor)
 
 data SuSLikAssertion a where
@@ -99,7 +100,7 @@ data SuSLikAssertion a where
   Heaplets :: [Equality a] -> [Heaplet a] -> SuSLikAssertion a
   deriving (Show, Functor)
 
-data Equality a = MkEquality a (SuSLikExpr a)
+data Equality a = MkEquality (Loc a) (SuSLikExpr a)
   deriving (Show, Functor)
 
 instance Semigroup (SuSLikAssertion a) where
@@ -136,7 +137,7 @@ instance Ppr a => Ppr (Heaplet a) where
   ppr (HeapletApplyS f args) = f ++ "(" ++ intercalate ", " (map ppr args) ++ ")"
   ppr (BlockS x i) = "[" ++ ppr x ++ "," ++ show i ++ "]"
 
-  ppr (FuncS f args result) = "func " ++ f ++ "(" ++ intercalate ", " (map ppr (args ++ [result])) ++ ")"
+  ppr (FuncS f args) = "func " ++ f ++ "(" ++ intercalate ", " (map ppr args) ++ ")"
   ppr (TempLocS v) = "temploc " ++ ppr v
 
 -- instance Ppr a => Ppr [Heaplet a] where

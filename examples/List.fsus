@@ -1,3 +1,4 @@
+%generate zipWith [Sll[readonly], Sll[readonly]] Sll
 %generate filterLt7 [Sll[readonly]] Sll
 %generate sum [Sll[readonly]] Int
 %generate constNil[Sll[readonly]] Sll
@@ -29,6 +30,10 @@ data ListOfLists := LNil | LCons List ListOfLists;
 
 data Zipped := ZNil | ZCons Int Int Zipped;
 
+data Pair := MkPair Int Int;
+
+data PairList := PNil | PCons Pair PairList;
+
 Sll : List >-> layout[x];
 Sll (Nil) := emp;
 Sll (Cons head tail) := x :-> head, (x+1) :-> tail, Sll tail;
@@ -55,6 +60,19 @@ ZippedLayout (ZCons fst snd rest) :=
   (x+1) :-> snd,
   (x+2) :-> rest,
   ZippedLayout rest;
+
+PairLayout : Pair >-> layout[x];
+PairLayout (MkPair fst snd) :=
+  x :-> fst,
+  (x+1) :-> snd;
+
+PairListLayout : PairList >-> layout[x];
+PairListLayout (PNil) := emp;
+PairListLayout (PCons head tail) :=
+  x :-> head,
+  (x+1) :-> tail,
+  PairListLayout tail,
+  PairLayout head;
 
 map_sum : ListOfLists -> List;
 map_sum (LNil) := Nil;
@@ -149,4 +167,10 @@ zip : List -> Zipped;
 zip (Nil) ys := ZNil;
 zip xs (Nil) := ZNil;
 zip (Cons x xs) (Cons y ys) := ZCons x y (zip xs ys);
+
+zipWith : List -> List -> List;
+zipWith (Nil) (Nil) := Nil;
+zipWith (Nil) (Cons y ys) := Nil;
+zipWith (Cons x xs) (Nil) := Nil;
+zipWith (Cons x xs) (Cons y ys) := Cons (instantiate [Int, Int] Int f x y) (zipWith xs ys);
 

@@ -38,7 +38,7 @@ findMaxIndex heaplets name = go 0 heaplets + 1
       | x == name = go (max curr i) rest
       | otherwise = go curr rest
     go curr (HeapletApplyS _ _ : rest) = go curr rest
-    go curr (FuncS _ _ _ : rest) = go curr rest
+    go curr (FuncS _ _ : rest) = go curr rest
     go curr (BlockS x i : rest) -- NOTE: This overrides everything else for now
       | x == name = i
       | otherwise = go curr rest

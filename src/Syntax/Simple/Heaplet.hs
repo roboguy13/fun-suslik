@@ -33,8 +33,13 @@ import           Data.Foldable
 
 import Debug.Trace
 
+type RecName = String
+
 data SuSLikExpr a where
   VarS :: a -> SuSLikExpr a
+
+  FnOutVar :: String -> SuSLikExpr a
+
   IntS :: Int -> SuSLikExpr a
   BoolS :: Bool -> SuSLikExpr a
 
@@ -402,28 +407,38 @@ data Layout =
   }
   deriving (Show)
 
-toSuSLikExpr :: Expr FsName -> SuSLikExpr SuSLikName
-toSuSLikExpr (Var _ v) = VarS v
-toSuSLikExpr (IntLit i) = IntS i
-toSuSLikExpr (BoolLit b) = BoolS b
-toSuSLikExpr (And x y) = AndS (toSuSLikExpr x) (toSuSLikExpr y)
-toSuSLikExpr (Or x y) = OrS (toSuSLikExpr x) (toSuSLikExpr y)
-toSuSLikExpr (Not x) =
-  NotS (toSuSLikExpr x)
+toSuSLikExpr :: RecName -> Expr FsName -> SuSLikExpr SuSLikName
+toSuSLikExpr _ (Var _ v) = VarS v
+toSuSLikExpr _ (IntLit i) = IntS i
+toSuSLikExpr _ (BoolLit b) = BoolS b
+toSuSLikExpr recName (And x y) = AndS (toSuSLikExpr recName x) (toSuSLikExpr recName y)
+toSuSLikExpr recName (Or x y) = OrS (toSuSLikExpr recName x) (toSuSLikExpr recName y)
+toSuSLikExpr recName (Not x) =
+  NotS (toSuSLikExpr recName x)
 
-toSuSLikExpr (Add x y) = AddS (toSuSLikExpr x) (toSuSLikExpr y)
-toSuSLikExpr (Sub x y) = SubS (toSuSLikExpr x) (toSuSLikExpr y)
-toSuSLikExpr (Mul x y) = MulS (toSuSLikExpr x) (toSuSLikExpr y)
+toSuSLikExpr recName (Add x y) = AddS (toSuSLikExpr recName x) (toSuSLikExpr recName y)
+toSuSLikExpr recName (Sub x y) = SubS (toSuSLikExpr recName x) (toSuSLikExpr recName y)
+toSuSLikExpr recName (Mul x y) = MulS (toSuSLikExpr recName x) (toSuSLikExpr recName y)
 
-toSuSLikExpr (Equal x y) = EqualS (toSuSLikExpr x) (toSuSLikExpr y)
-toSuSLikExpr (Le x y) = LeS (toSuSLikExpr x) (toSuSLikExpr y)
-toSuSLikExpr (Lt x y) = LtS (toSuSLikExpr x) (toSuSLikExpr y)
+toSuSLikExpr recName (Equal x y) = EqualS (toSuSLikExpr recName x) (toSuSLikExpr recName y)
+toSuSLikExpr recName (Le x y) = LeS (toSuSLikExpr recName x) (toSuSLikExpr recName y)
+toSuSLikExpr recName (Lt x y) = LtS (toSuSLikExpr recName x) (toSuSLikExpr recName y)
 
-toSuSLikExpr e0@(Apply f outTy inTys args) =
-  head $ map VarS (loweredParams outTy)
+toSuSLikExpr recName e0@(Apply f outTy inTys args) =
+  head $ map (mkVar (f == recName)) (loweredParams outTy)
+  -- head $ map FnOutVar (loweredParams outTy)
+  -- head $ map VarS (loweredParams outTy)
 
-toSuSLikExpr e0@(ConstrApply ty cName args) = 
+toSuSLikExpr recName e0@(ConstrApply ty cName args) = 
   head $ map VarS (loweredParams ty)
+
+toSuSLikExpr' :: Expr FsName -> SuSLikExpr SuSLikName
+toSuSLikExpr' = toSuSLikExpr ""
+
+mkVar :: Bool -> FsName -> SuSLikExpr FsName
+mkVar isRecCall n
+  | isRecCall = VarS n
+  | otherwise = FnOutVar n
 
 naiveSubst :: (Eq a, Functor f) => [(a, a)] -> f a -> f a
 naiveSubst [] fa = fa

@@ -41,11 +41,49 @@ defToSuSLik def =
   , inductivePredParams = predParams
   , inductivePredBranches = concatMap (toSuSLikBranches (map (map suslikParamName) argParams) (map suslikParamName resultParams)) $ defBranches def
   }
+  where
+    recName = defName def
 
--- concreteTypeToSuSLik :: ParamType' a -> SuSLikType
--- concreteTypeToSuSLik IntConcrete = IntType
--- concreteTypeToSuSLik BoolConcrete = BoolType
--- concreteTypeToSuSLik LayoutConcrete{} = LocType
+    toSuSLikBranches :: [[SuSLikName]] -> [SuSLikName] -> AsnDefBranch -> [SuSLikBranch]
+    toSuSLikBranches inParams outParams branch =
+        map go $ defBranchGuardeds branch
+      where
+        patCond = patCondForBranch (zip (defBranchPatterns branch) inParams) outParams branch
+
+        go guarded@(MkGuardedExpr _ rhs) =
+          MkSuSLikBranch
+            (condForGuarded patCond guarded)
+            (toHeaplets rhs)
+
+    toHeaplets :: Assertion FsName -> SuSLikAssertion SuSLikName
+    toHeaplets Emp = mempty
+    toHeaplets (PointsTo mode x (FnOutVar y) rest) =
+      eqCons (MkEquality x (VarS y)) $ toHeaplets rest
+
+    toHeaplets (PointsTo mode x y rest) =
+        -- TODO: This always uses the "standard" (writable) mode. Is this
+        -- correct?
+      asnCons (PointsToS Unrestricted x y) (toHeaplets rest)
+
+      -- asnCons (PointsToS (modeToMutability mode) x y)
+      --         (toHeaplets rest)
+    toHeaplets (HeapletApply lName suslikArgs _es rest)
+      | genLayoutName lName == recName =
+          asnCons (HeapletApplyS (genLayoutName lName) suslikArgs)
+                  (toHeaplets rest)
+      | otherwise =
+          asnCons (FuncS (genLayoutName lName) suslikArgs)
+                  (toHeaplets rest)
+    toHeaplets (Block v sz rest) =
+      asnCons (BlockS v sz)
+              (toHeaplets rest)
+    toHeaplets (TempLoc v rest) =
+      asnCons (TempLocS v)
+              (toHeaplets rest)
+    toHeaplets (IsNull v) = IsNullS v
+    toHeaplets (Copy lName src dest) = CopyS lName src dest
+    toHeaplets (AssertEqual lhs rhs rest) =
+      eqCons (MkEquality (Here lhs) rhs) (toHeaplets rest)
 
 toSuSLikParam :: ParamTypeP -> [SuSLikParam]
 toSuSLikParam (IntParam (Just v)) = [MkSuSLikParam v IntType]
@@ -53,40 +91,6 @@ toSuSLikParam (BoolParam (Just v)) = [MkSuSLikParam v BoolType]
 toSuSLikParam (IntParam Nothing) = []
 toSuSLikParam (BoolParam Nothing) = []
 toSuSLikParam p@(LayoutParam {}) = map (`MkSuSLikParam` LocType) $ loweredParams p
-
-toSuSLikBranches :: [[SuSLikName]] -> [SuSLikName] -> AsnDefBranch -> [SuSLikBranch]
-toSuSLikBranches inParams outParams branch =
-    map go $ defBranchGuardeds branch
-  where
-    patCond = patCondForBranch (zip (defBranchPatterns branch) inParams) outParams branch
-
-    go guarded@(MkGuardedExpr _ rhs) =
-      MkSuSLikBranch
-        (condForGuarded patCond guarded)
-        (toHeaplets rhs)
-
-toHeaplets :: Assertion FsName -> SuSLikAssertion SuSLikName
-toHeaplets Emp = mempty
-toHeaplets (PointsTo mode x y rest) =
-    -- TODO: This always uses the "standard" (writable) mode. Is this
-    -- correct?
-  asnCons (PointsToS Unrestricted x y) (toHeaplets rest)
-
-  -- asnCons (PointsToS (modeToMutability mode) x y)
-  --         (toHeaplets rest)
-toHeaplets (HeapletApply lName suslikArgs _es rest) =
-  asnCons (HeapletApplyS (genLayoutName lName) suslikArgs)
-          (toHeaplets rest)
-toHeaplets (Block v sz rest) =
-  asnCons (BlockS v sz)
-          (toHeaplets rest)
-toHeaplets (TempLoc v rest) =
-  asnCons (TempLocS v)
-          (toHeaplets rest)
-toHeaplets (IsNull v) = IsNullS v
-toHeaplets (Copy lName src dest) = CopyS lName src dest
-toHeaplets (AssertEqual lhs rhs rest) =
-  eqCons (MkEquality lhs rhs) (toHeaplets rest)
 
 patCondForBranch :: [(Pattern' a, [SuSLikName])] -> [SuSLikName] -> AsnDefBranch -> SuSLikExpr SuSLikName
 patCondForBranch inParams0 outParams branch =
@@ -115,7 +119,7 @@ varEqZero n = EqualS (VarS n) (IntS 0)
 
 condForGuarded :: SuSLikExpr SuSLikName -> AsnGuarded -> SuSLikExpr SuSLikName
 condForGuarded patCond (MkGuardedExpr cond _) =
-  mkAndS patCond (toSuSLikExpr cond)
+  mkAndS patCond (toSuSLikExpr' cond)
 
 collectParams :: AsnDef -> [SuSLikName]
 collectParams = concatMap collectParamsAsn . getDefRhs's
