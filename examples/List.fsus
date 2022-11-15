@@ -21,6 +21,8 @@
 %generate reverse [Sll[readonly]] Sll
 %generate zip [Sll[readonly], Sll[readonly]] ZippedLayout
 %generate replicate [Int, Int] Sll
+%generate fold_List [Int, Sll[readonly]] Int
+%generate map [Sll[readonly]] Sll
 
 data List := Nil | Cons Int List;
 
@@ -173,4 +175,12 @@ zipWith (Nil) (Nil) := Nil;
 zipWith (Nil) (Cons y ys) := Nil;
 zipWith (Cons x xs) (Nil) := Nil;
 zipWith (Cons x xs) (Cons y ys) := Cons (instantiate [Int, Int] Int f x y) (zipWith xs ys);
+
+fold_List : Int -> List -> Int;
+fold_List z (Nil) := z;
+fold_List z (Cons x xs) := instantiate [Int, Int] Int f x (fold_List z xs);
+
+map : List -> List;
+map (Nil) := Nil;
+map (Cons x xs) := Cons (instantiate [Int] Int f x) (map xs);
 
