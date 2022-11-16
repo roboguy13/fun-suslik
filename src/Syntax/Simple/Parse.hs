@@ -73,7 +73,7 @@ parseIdentifier = label "identifier" $
   parseLowercaseName
 
 keywords :: [String]
-keywords = ["lower", "instantiate", "not", "data"]
+keywords = ["lower", "instantiate", "not", "data", "deref", "addr"]
 
 parseConstructor :: Parser String
 parseConstructor = label "constructor name" $
@@ -348,6 +348,10 @@ parseExpr :: Parser (Parsed ExprX FsName)
 parseExpr =
   try (Not <$> (keyword "not" *> parseExpr'))
     <|>
+  try (Deref () <$> (keyword "deref" *> parseExpr'))
+    <|>
+  try (Addr () <$> (keyword "addr" *> parseExpr'))
+    <|>
   parseBinOp "&&" And
     <|>
   parseBinOp "||" Or
@@ -406,17 +410,20 @@ parseVar = do
   str <- parseIdentifier
   pure $ Var () (fsName str)
 
-parseParamType :: Parser ParamType
-parseParamType =
+parseParamType0 :: Parser LayoutName -> Parser ParamType
+parseParamType0 p =
+  try (parseBracketed (parseOp "(") (parseOp ")") (parseParamType0 p)) <|>
   try (keyword "Int" *> pure (IntParam Nothing)) <|>
   try (keyword "Bool" *> pure (BoolParam Nothing)) <|>
-  try (fmap LayoutParam parseLayoutName)
+  try (PtrParam Nothing <$> parsePtrType) <|>
+  try (fmap LayoutParam p)
+
+parseParamType :: Parser ParamType
+parseParamType = parseParamType0 parseLayoutName
 
 parseSimpleParamType :: Parser ParamType
 parseSimpleParamType =
-  try (keyword "Int" *> pure (IntParam Nothing)) <|>
-  try (keyword "Bool" *> pure (BoolParam Nothing)) <|>
-  try (fmap (LayoutParam . (MkLayoutName (Just Output))) parseSimpleLayoutName)
+  parseParamType0 (fmap (MkLayoutName (Just Output)) parseSimpleLayoutName)
 
 parseLower :: Parser (Parsed ExprX FsName)
 parseLower = lexeme $ do
@@ -519,14 +526,25 @@ parseType :: Parser Type
 parseType = lexeme $
   try parseFnType
     <|>
-  parseBaseType
+  parseUnnestedType
+
+parseBaseType :: Parser BaseType
+parseBaseType =
+  (keyword "Int" *> pure IntBase)
+    <|>
+  (keyword "Bool" *> pure BoolBase)
+
+parsePtrType :: Parser BaseType
+parsePtrType =
+  keyword "Ptr" *> parseBaseType
+
 
 -- TODO: Parse layout types
-parseBaseType :: Parser Type
-parseBaseType =
-  (keyword "Int" *> pure IntType)
+parseUnnestedType :: Parser Type
+parseUnnestedType =
+  fmap baseToType parseBaseType
     <|>
-  (keyword "Bool" *> pure BoolType)
+  fmap PtrType parsePtrType
     <|>
   (fmap AdtType go)
   where
@@ -536,7 +554,7 @@ parseBaseType =
         -- $ "Expected non-reserved type name, found " ++ show str
       pure str
 
-    reservedTypes = ["Int", "Bool"]
+    reservedTypes = ["Int", "Bool", "Ptr"]
 
 parseFnType :: Parser Type
 parseFnType = do
@@ -545,5 +563,5 @@ parseFnType = do
   cod <- parseType
   pure $ FnType dom cod
   where
-    leftType = parseBaseType <|> parseBracketed (char '(') (char ')') parseType
+    leftType = parseUnnestedType <|> parseBracketed (char '(') (char ')') parseType
 

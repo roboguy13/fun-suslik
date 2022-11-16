@@ -62,6 +62,7 @@ lookupLayoutM name = do
 type ParamTypeL = ParamType' Layout
 
 lookupParamType :: ParamType -> TypeCheck ParamTypeL
+lookupParamType (PtrParam v ty) = pure $ PtrParam v ty
 lookupParamType (IntParam v) = pure $ IntParam v
 lookupParamType (BoolParam v) = pure $ BoolParam v
 lookupParamType (LayoutParam layoutName) = LayoutParam <$> lookupLayoutM (baseLayoutName layoutName)
@@ -90,8 +91,10 @@ genLayoutParams :: Layout -> TypeCheck [String]
 genLayoutParams = genLayoutParamsWith ""
 
 genParamsWith :: String -> ParamTypeL -> TypeCheck [String]
+genParamsWith prefix (PtrParam (Just v) ty) = pure [getLocBase v]
 genParamsWith prefix (IntParam (Just v)) = pure [v]
 genParamsWith prefix (BoolParam (Just v)) = pure [v]
+genParamsWith prefix (PtrParam Nothing _) = fmap (:[]) . MkTypeCheck . lift . lift $ getFreshWith prefix
 genParamsWith prefix (IntParam Nothing) = fmap (:[]) . MkTypeCheck . lift . lift $ getFreshWith prefix
 genParamsWith prefix (BoolParam Nothing) = fmap (:[]) . MkTypeCheck . lift . lift $ getFreshWith prefix
 genParamsWith prefix (LayoutParam layout) = genLayoutParamsWith prefix layout
@@ -128,7 +131,7 @@ typeError err = error err --MkTypeCheck . lift . lift . lift $ Left err
 genLoweredType :: Layout -> TypeCheck LoweredType
 genLoweredType layout = do
   params <- genLayoutParams layout
-  pure $ MkLowered params $ MkLayoutName (Just Output) (layoutName layout) -- TODO: Is this mode correct?
+  pure $ MkLowered (map Here params) $ MkLayoutName (Just Output) (layoutName layout) -- TODO: Is this mode correct?
 
 -- toLoweredType :: String -> ConcreteType -> TypeCheck (String, LoweredType)
 -- toLoweredType v ty@(MkLowered _ layoutName) = do
@@ -171,7 +174,13 @@ requireType expected found =
 -- | Get the predicate name for a function with the given layouts
 getPredName :: String -> [String] -> String -> String
 getPredName fnName argLayouts resultLayout =
-  fnName <> "__" <> intercalate "__" (resultLayout : argLayouts)
+  fnName <> "__" <> intercalate "__" (map (replace ' ' '_') (resultLayout : argLayouts))
+
+replace :: Eq a => a -> a -> [a] -> [a]
+replace _ _ [] = []
+replace x x' (y:ys)
+  | y == x = x' : replace x x' ys
+  | otherwise = y : replace x x' ys
 
 -- Also updates the Def name
 instAndElaborate :: String -> [ParamType] -> ParamType -> ParsedDef -> TypeCheck ElaboratedDef
@@ -224,6 +233,8 @@ instCall fnName argParamTypes outParamType = go
     go (ConstrApply ty cName args) = ConstrApply ty cName (map go args)
     go (Lower layout arg) = Lower layout (go arg)
     go (Instantiate xs ys f args) = Instantiate xs ys f (map go args)
+    go (Deref ty e) = Deref ty (go e)
+    go (Addr ty e) = Addr ty (go e)
 
 paramTypeToLayout :: ParamTypeL -> Maybe Layout
 paramTypeToLayout (LayoutParam layout) = Just layout
@@ -344,6 +355,8 @@ elaboratePattern pat x = patternSet x pat
 -- elaboratePattern pat _ = pat
 
 inferLayoutPatVars :: ParamTypeL -> Maybe Adt -> Pattern -> [(Pattern, (FsName, ParamType))]
+inferLayoutPatVars (PtrParam p ty) _ pat@(PatternVar _ v) =
+  [(pat, (v, PtrParam p ty))]
 inferLayoutPatVars (BoolParam p) _ pat@(PatternVar _ v) = [(pat, (v, BoolParam p))]
 inferLayoutPatVars (IntParam p) _ pat@(PatternVar _ v) = [(pat, (v, IntParam p))]
 inferLayoutPatVars (BoolParam p) _ pat = error $ "Attempt to pattern match on Bool: " ++ show pat
@@ -378,6 +391,7 @@ findLayoutApp v asn0 = go asn0
     go (Block _ _ rest) = go rest
     go (IsNull _) = error $ "findLayoutApp: Cannot find " ++ show v ++ "\nasn0 = " ++ show asn0
     go (Copy _ _ _) = error $ "findLayoutApp: Cannot find " ++ show v ++ "\nasn0 = " ++ show asn0
+    go (AssertEqual _ _ rest) = go rest
 
 inferWith :: TcEnv -> ParamType -> Parsed ExprX String -> TypeCheck (ParamTypeP, Elaborated ExprX String)
 inferWith gamma ty@(LayoutParam layout) e@(ConstrApply {}) =
@@ -394,7 +408,14 @@ requireBoolParam :: Show a => ParamType' a -> TypeCheck ()
 requireBoolParam BoolParam{} = pure ()
 requireBoolParam p = typeError $ "Expecting Bool, found " ++ show p
 
+requirePtrParam :: Show a => ParamType' a -> TypeCheck BaseType
+requirePtrParam (PtrParam _ ty) = pure ty
+requirePtrParam p = typeError $ "Expecting Ptr _, found " ++ show p
+
 requireTypeP :: (HasCallStack, Show a, Eq a) => ParamType' a -> ParamType' a -> TypeCheck ()
+requireTypeP (PtrParam _ ty) (PtrParam _ ty')
+  | ty' == ty = pure ()
+  | otherwise = typeError $ "Expected Ptr " ++ show ty ++ ", found Ptr " ++ show ty'
 requireTypeP BoolParam{} BoolParam{} = pure ()
 requireTypeP IntParam{} IntParam{} = pure ()
 requireTypeP (LayoutParam x) (LayoutParam y)
@@ -402,6 +423,16 @@ requireTypeP (LayoutParam x) (LayoutParam y)
 requireTypeP x y = typeError $ "Expected " ++ show x ++ ", found " ++ show y
 
 checkExpr :: TcEnv -> Parsed ExprX String -> ParamType -> TypeCheck (OutParams, Elaborated ExprX String)
+checkExpr gamma e0@(Deref {}) ty = do
+  (ty', e') <- inferExpr gamma e0
+  requireBaseType ty
+  pure (loweredParams ty', e')
+
+checkExpr gamma e0@(Addr {}) ty = do
+  (ty', e') <- inferExpr gamma e0
+  requireTypeP ty $ fmap getParamedName ty'
+  pure (loweredParams ty', e')
+
 checkExpr gamma e@(Var {}) ty = do
   (ty', e') <- inferExpr gamma e
   requireTypeP ty $ fmap getParamedName ty'
@@ -484,6 +515,11 @@ checkExpr gamma e@(Apply {}) ty =
     , "Expected concrete type " ++ show ty
     ]
 
+requireBaseType :: Show a => ParamType' a -> TypeCheck (BaseType, ParamType' a)
+requireBaseType (IntParam v) = pure (IntBase, PtrParam (fmap Here v) IntBase)
+requireBaseType (BoolParam v) = pure (BoolBase, PtrParam (fmap Here v) BoolBase)
+requireBaseType p = typeError $ "Expected base type, found " ++ show p
+
 inferExpr :: TcEnv -> Parsed ExprX String -> TypeCheck (ParamTypeP, Elaborated ExprX String)
 inferExpr gamma (Var () v) =
   -- trace ("gamma = " ++ show gamma) $
@@ -499,6 +535,38 @@ inferExpr gamma (Var () v) =
       let lowered = concTy --withParams [v] concTy
       -- pure $ (lowered, Var lowered v)
       pure $ (lowered, Var lowered $ head $ loweredParams $ lowered)
+
+inferExpr gamma (Deref () e) = do
+  (ty0, e') <- inferExpr gamma e
+  baseTy <- requirePtrParam ty0
+  let ty' = case baseTy of
+             IntBase -> IntParam Nothing
+             BoolBase -> BoolParam Nothing
+
+  pure (ty', Addr ty' e')
+
+  -- (ty0, e') <- inferExpr gamma e
+  -- (baseTy, paramTy) <- requireBaseType ty0
+  -- let ty = case baseTy of
+  --            IntBase -> IntParam Nothing
+  --            BoolBase -> BoolParam Nothing
+  -- pure (ty, Deref paramTy e')
+
+inferExpr gamma (Addr () e@(Var () v)) = do
+  (ty0, e') <- inferExpr gamma e
+  (baseTy, paramTy) <- requireBaseType ty0
+  let ty' = PtrParam (Just (Here v)) baseTy
+  -- let ty' = PtrParam Nothing baseTy
+
+  pure (ty', Addr ty' e')
+
+  -- (ty0, e') <- inferExpr gamma e
+  -- baseTy <- requirePtrParam ty0
+  --
+  -- let ty' = PtrParam undefined baseTy
+  --
+  -- pure (ty', Addr ty' e')
+  --
 inferExpr gamma (IntLit i) = do
   pure (IntParam Nothing, IntLit i)
 
@@ -603,7 +671,9 @@ inferExpr gamma e0@(Instantiate inLayoutNames outLayoutName f args) = do
   argLayouts <- mapM lookupParamType inLayoutNames
   argParams <- mapM genParams argLayouts
 
-  pure $ (fmap (MkParametrizedLayoutName outVars) outLayoutName
+  let ty' = fmap (MkParametrizedLayoutName (map Here outVars)) outLayoutName
+
+  pure $ (ty'
          ,
           Apply
             (getPredName f (map genParamTypeName inLayoutNames) (genParamTypeName outLayoutName)) -- Name

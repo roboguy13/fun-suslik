@@ -4,6 +4,8 @@
 
 {-# LANGUAGE LiberalTypeSynonyms #-}
 
+{-# OPTIONS_GHC -Wincomplete-patterns #-}
+
 module Syntax.Simple.UnfoldConstructors
   (unfoldConstructors)
   where
@@ -12,6 +14,7 @@ import           Syntax.Simple.Heaplet
 import           Syntax.Simple.SuSLik
 import           Syntax.Simple.ToSuSLik
 import           Syntax.Name
+import           Syntax.Ppr
 import           Syntax.FreshGen
 
 import           Control.Arrow (first)
@@ -22,11 +25,14 @@ import           Control.Monad.Writer
 
 import           Data.Foldable
 
+import           Data.Void
+
 import Debug.Trace
 
 type SuSLikExpr' = SuSLikExpr SuSLikName
 
 isBaseParam :: ParamType' a -> Bool
+isBaseParam PtrParam{} = False -- Is this correct?
 isBaseParam IntParam{} = True
 isBaseParam BoolParam{} = True
 isBaseParam LayoutParam{} = False
@@ -47,6 +53,10 @@ isBaseType (Lt {}) = True
 -- isBaseType (Apply _ ty _ _) = isBaseParam ty
 isBaseType (Apply _ ty _ _) = False
 isBaseType (ConstrApply {}) = False
+isBaseType (Deref {}) = True
+isBaseType (Addr {}) = False -- TODO: Is this correct?
+isBaseType (Lower ty _) = absurd ty
+isBaseType (Instantiate _ x _ _) = absurd x
 
 getApplies :: ElaboratedExpr a -> FreshGenT (Writer (Assertion SuSLikName)) [(String, ParamTypeP, [ParamTypeP], [ElaboratedExpr a])]
 getApplies (Var ty _) = pure []
@@ -76,6 +86,10 @@ getApplies (Apply f outTy argTys args)
 
     (((f, overwriteParams [temp] outTy, argTys, args) :) . concat) <$> mapM getApplies args
 getApplies (ConstrApply ty cName args) = concat <$> mapM getApplies args
+getApplies (Deref _ e) = getApplies e
+getApplies (Addr _ e) = getApplies e
+getApplies (Lower ty _) = absurd ty
+getApplies (Instantiate _ x _ _) = absurd x
 
 unfoldConstructors :: [Layout] -> DefWithAsn -> AsnDef
 unfoldConstructors layouts def =
@@ -127,6 +141,8 @@ unfoldConstructors layouts def =
     recName = defName def
 
     exprTranslate :: Maybe [SuSLikName] -> ElaboratedExpr FsName -> ([SuSLikExpr SuSLikName], Assertion SuSLikName)
+    exprTranslate _ (Lower ty _) = absurd ty
+    exprTranslate _ (Instantiate _ x _ _) = absurd x
     exprTranslate _ (Var ty v) = (map VarS (loweredParams ty), Emp)
     exprTranslate _ (IntLit i) = ([IntS i], Emp)
     exprTranslate _ (BoolLit b) = ([BoolS b], Emp)
@@ -143,6 +159,12 @@ unfoldConstructors layouts def =
     exprTranslate out (Le x y) = combineBin' out LeS x y
     exprTranslate out (Lt x y) = combineBin' out LtS x y
 
+      -- TODO: Are these two correct?
+    exprTranslate out (Deref ty x) =
+      (map VarS (loweredParams ty), Emp)
+    exprTranslate out (Addr ty x) =
+      (map VarS (loweredParams ty), Emp)
+
     exprTranslate out (Apply fName outLayout inLayouts args) =
       let (exprs, asns) = first concat . unzip $ map (exprTranslate (Just $ loweredParams outLayout)) args
           asn = mconcat asns
@@ -151,7 +173,7 @@ unfoldConstructors layouts def =
        HeapletApply (MkLayoutName Nothing fName) (exprs ++ map VarS (loweredParams outLayout)) [] asn)
 
     exprTranslate out e@(ConstrApply ty@(LayoutParam layoutName) cName args) =
-      let (_, asns) = first concat . unzip $ map (exprTranslate (Just $ getParamedNameParams layoutName)) args
+      let (_, asns) = first concat . unzip $ map (exprTranslate (Just $ map ppr $ getParamedNameParams layoutName)) args
           asn = mconcat asns
           layout = lookupLayout layouts (baseLayoutName (getParamedName layoutName))
           -- suslikParams = concatMap getOutParams args
@@ -164,7 +186,7 @@ unfoldConstructors layouts def =
 
       let suslikParams = case out of
                             -- Nothing -> genLayoutParams layout
-                            Nothing -> getParamedNameParams layoutName
+                            Nothing -> map ppr $ getParamedNameParams layoutName
                             Just outVars -> outVars
       in
 
@@ -178,6 +200,11 @@ unfoldConstructors layouts def =
             ,asn <> setAssertionMode Output matched
             )
 
+
+    exprTranslate _ e0@(ConstrApply param _ _) =
+      error $ "ill-typed constructor: " ++ show e0 ++ "--> : "++ show param
+
+
     combineBin' out op x y = combineBin op (exprTranslate out x) (exprTranslate out y)
 
 combineBin :: (SuSLikExpr' -> SuSLikExpr' -> SuSLikExpr') ->
@@ -189,7 +216,7 @@ combineBin op (es1, asns1) (es2, asns2) =
 
 getOutParams :: ElaboratedExpr FsName -> [SuSLikExpr SuSLikName]
 getOutParams (Var (LayoutParam paramedName) v) =
-  map VarS $ getParamedNameParams paramedName
+  map (VarS . ppr) $ getParamedNameParams paramedName
 getOutParams (Var _ v) = [VarS v]
 getOutParams (IntLit i) = [IntS i]
 getOutParams (BoolLit b) = [BoolS b]
@@ -213,6 +240,14 @@ getOutParams (Apply f outTy inTys args) =
 
 getOutParams (ConstrApply ty cName args) = 
   map VarS (loweredParams ty)
+
+getOutParams (Deref ty x) =
+  map VarS (loweredParams ty)
+getOutParams (Addr ty x) =
+  map VarS (loweredParams ty)
+
+getOutParams (Lower ty _) = absurd ty
+getOutParams (Instantiate _ x _ _) = absurd x
 
 -- getOutParams (And {}) = genIntermediate
 

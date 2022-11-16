@@ -14,6 +14,7 @@ module Syntax.Simple.ToSuSLik
 import           Syntax.Simple.Heaplet hiding (Type(..))
 import           Syntax.Simple.SuSLik
 import           Syntax.Name
+import           Syntax.Ppr
 
 import           Data.Foldable
 import           Data.List
@@ -89,10 +90,13 @@ defToSuSLik def =
     -- isNonEmptyLayoutBranch
 
 toSuSLikParam :: ParamTypeP -> [SuSLikParam]
+toSuSLikParam (PtrParam (Just v) IntBase) = [MkSuSLikParam (ppr v) IntType]
+toSuSLikParam (PtrParam (Just v) BoolBase) = [MkSuSLikParam (ppr v) BoolType]
 toSuSLikParam (IntParam (Just v)) = [MkSuSLikParam v IntType]
 toSuSLikParam (BoolParam (Just v)) = [MkSuSLikParam v BoolType]
 toSuSLikParam (IntParam Nothing) = []
 toSuSLikParam (BoolParam Nothing) = []
+toSuSLikParam (PtrParam Nothing _) = []
 toSuSLikParam p@(LayoutParam {}) = map (`MkSuSLikParam` LocType) $ loweredParams p
 
 patCondForBranch :: [(Pattern' a, [SuSLikName])] -> [SuSLikName] -> AsnDefBranch -> SuSLikExpr SuSLikName

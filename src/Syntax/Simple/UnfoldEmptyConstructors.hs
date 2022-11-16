@@ -58,3 +58,6 @@ unfoldEmptyConstructors layouts def =
         (_, Emp) -> IntLit 0
         _ -> ConstrApply ty cName (map go args)
 
+    go (Deref ty x) = Deref ty (go x)
+    go (Addr ty x) = Addr ty (go x)
+

@@ -120,9 +120,10 @@ type LoweredType = ConcreteType' ParametrizedLayoutName
 -- data FsParam = IntParam String | BoolParam String | LayoutParam LayoutName [String]
 
 withParams :: [String] -> ParamType -> ParamTypeP
+withParams [v] (PtrParam _ ty) = PtrParam (Just (Here v)) ty
 withParams [v] IntParam{} = IntParam (Just v)
 withParams [v] BoolParam{} = BoolParam (Just v)
-withParams params (LayoutParam name) = LayoutParam $ MkParametrizedLayoutName params name
+withParams params (LayoutParam name) = LayoutParam $ MkParametrizedLayoutName (map Here params) name
 
 forgetParams :: LoweredType -> ConcreteType
 forgetParams = fmap getParamedName
@@ -133,14 +134,15 @@ forgetParams = fmap getParamedName
 -- loweredParams (LayoutConcrete (MkParametrizedLayoutName params _)) = params
 
 loweredParams :: ParamTypeP -> [String]
+loweredParams (PtrParam v _ty) = maybeToList (fmap ppr v)
 loweredParams (IntParam v) = maybeToList v
 loweredParams (BoolParam v) = maybeToList v
-loweredParams (LayoutParam (MkParametrizedLayoutName params _)) = params
+loweredParams (LayoutParam (MkParametrizedLayoutName params _)) = map getLocBase params -- TODO: Is this correct?
 
 getParamedName :: ParametrizedLayoutName -> LayoutName
 getParamedName (MkParametrizedLayoutName _ name) = name
 
-getParamedNameParams :: ParametrizedLayoutName -> [String]
+getParamedNameParams :: ParametrizedLayoutName -> [Loc String]
 getParamedNameParams (MkParametrizedLayoutName params _) = params
 
 -- data LoweredType =
@@ -150,12 +152,13 @@ getParamedNameParams (MkParametrizedLayoutName params _) = params
 --   }
 --   deriving (Show, Eq)
 
-data ParamType' a = IntParam (Maybe String) | BoolParam (Maybe String) | LayoutParam a
+data ParamType' a = PtrParam (Maybe (Loc String)) BaseType | IntParam (Maybe String) | BoolParam (Maybe String) | LayoutParam a
   deriving (Functor, Show, Eq, Ord)
 
 type ParamType = ParamType' LayoutName
 
 genParamTypeName :: ParamType -> String
+genParamTypeName (PtrParam _ ty) = "Ptr " <> ppr ty
 genParamTypeName IntParam{} = "Int"
 genParamTypeName BoolParam{} = "Bool"
 genParamTypeName (LayoutParam layoutName) = genLayoutName layoutName
@@ -200,6 +203,9 @@ data ExprX ty layoutNameTy a where
     String ->
     [ExprX ty layoutNameTy a] ->
     ExprX ty layoutNameTy a
+
+  Deref :: ty -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a
+  Addr :: ty -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a
 
   --   -- | Represents @lower L_1 . f . lift L_2@
   -- LiftLowerFn ::
@@ -262,11 +268,13 @@ isBasicPatternVar _ = False
 type ParamTypeP = ParamType' ParametrizedLayoutName
 
 mkParamTypeP :: [String] -> ParamType -> ParamTypeP
+mkParamTypeP [v] (PtrParam Nothing ty) = PtrParam (Just (Here v)) ty
 mkParamTypeP [v] (IntParam Nothing) = IntParam (Just v)
 mkParamTypeP [v] (BoolParam Nothing) = BoolParam (Just v) -- TODO: Should we handle the other cases differently?
-mkParamTypeP params p = fmap (MkParametrizedLayoutName params) p
+mkParamTypeP params p = fmap (MkParametrizedLayoutName (map Here params)) p
 
 updateParams :: [String] -> ParamType' a -> ParamType' a
+updateParams [v] (PtrParam Nothing ty) = PtrParam (Just (Here v)) ty
 updateParams [v] (IntParam Nothing) = IntParam (Just v)
 updateParams [v] (BoolParam Nothing) = BoolParam (Just v)
 updateParams _ p = p
@@ -355,9 +363,20 @@ lookupDef defs name =
     Nothing -> error $ "Cannot find function " ++ show name
     Just d -> d
 
+data BaseType where
+  IntBase :: BaseType
+  BoolBase :: BaseType
+  deriving (Show, Eq, Ord)
+
+instance Ppr BaseType where
+  ppr IntBase = "Int"
+  ppr BoolBase = "Bool"
+
 data Type where
   IntType :: Type
   BoolType :: Type
+
+  PtrType :: BaseType -> Type
 
   FnType :: Type -> Type -> Type
 
@@ -366,6 +385,10 @@ data Type where
   -- LayoutType :: Layout -> Type
   LayoutType :: String -> Int -> Type
   deriving (Show)
+
+baseToType :: BaseType -> Type
+baseToType IntBase = IntType
+baseToType BoolBase = BoolType
 
 getArgTypes :: Type -> [Type]
 getArgTypes (FnType dom cod@(FnType {})) = dom : getArgTypes cod
@@ -432,6 +455,12 @@ toSuSLikExpr recName e0@(Apply f outTy inTys args) =
   -- head $ map VarS (loweredParams outTy)
 
 toSuSLikExpr recName e0@(ConstrApply ty cName args) = 
+  head $ map VarS (loweredParams ty)
+
+toSuSLikExpr recName (Deref ty e) =
+  head $ map VarS (loweredParams ty)
+
+toSuSLikExpr recName (Addr ty e) =
   head $ map VarS (loweredParams ty)
 
 toSuSLikExpr' :: Expr FsName -> SuSLikExpr SuSLikName
@@ -637,9 +666,12 @@ data LayoutName =
 
 data ParametrizedLayoutName =
   MkParametrizedLayoutName
-    [String]
+    [Loc String]
     LayoutName
   deriving (Show, Eq, Ord)
+
+overParams :: (Loc String -> Loc String) -> ParametrizedLayoutName -> ParametrizedLayoutName
+overParams f (MkParametrizedLayoutName xs n) = MkParametrizedLayoutName (map f xs) n
 
 pattern MkLowered params name = LayoutConcrete (MkParametrizedLayoutName params name)
 
@@ -922,7 +954,11 @@ instance (Show a, Ppr a) => Ppr (Assertion a) where
 -- --   deriving (Show, Functor, Foldable, Traversable)
 --
 data Loc a = Here a | a :+ Int
-  deriving (Show, Functor, Foldable, Traversable)
+  deriving (Show, Functor, Foldable, Traversable, Eq, Ord)
+
+getLocBase :: Loc a -> a
+getLocBase (Here x) = x
+getLocBase (x :+ _) = x
 
 instance Ppr a => Ppr (Loc a) where
   ppr (Here x) = ppr x
