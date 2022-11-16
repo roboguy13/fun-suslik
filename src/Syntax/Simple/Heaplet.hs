@@ -767,16 +767,18 @@ isEmp :: Assertion a -> Bool
 isEmp Emp = True
 isEmp _ = False
 
-removeHeapletApplies :: Assertion FsName -> Assertion FsName
-removeHeapletApplies Emp = Emp
-removeHeapletApplies (PointsTo mode x y rest) =
-  PointsTo mode x y (removeHeapletApplies rest)
-removeHeapletApplies (HeapletApply _ _ _ rest) = removeHeapletApplies rest
-removeHeapletApplies (Block v sz rest) = Block v sz (removeHeapletApplies rest)
-removeHeapletApplies (TempLoc v rest) = TempLoc v (removeHeapletApplies rest)
-removeHeapletApplies asn@(IsNull _) = asn
-removeHeapletApplies asn@(Copy _ _ _) = asn
-removeHeapletApplies (AssertEqual _ _ rest) = removeHeapletApplies rest
+removeHeapletApplies :: LayoutName -> Assertion FsName -> Assertion FsName
+removeHeapletApplies _ Emp = Emp
+removeHeapletApplies recName (PointsTo mode x y rest) =
+  PointsTo mode x y (removeHeapletApplies recName rest)
+removeHeapletApplies recName (HeapletApply lName x y rest)
+  | baseLayoutName lName == baseLayoutName recName = removeHeapletApplies recName rest
+  | otherwise = HeapletApply lName x y (removeHeapletApplies recName rest)
+removeHeapletApplies recName (Block v sz rest) = Block v sz (removeHeapletApplies recName rest)
+removeHeapletApplies recName (TempLoc v rest) = TempLoc v (removeHeapletApplies recName rest)
+removeHeapletApplies recName asn@(IsNull _) = asn
+removeHeapletApplies recName asn@(Copy _ _ _) = asn
+removeHeapletApplies recName (AssertEqual _ _ rest) = removeHeapletApplies recName rest
 
 instance Semigroup (Assertion a) where
   Emp <> x = x
