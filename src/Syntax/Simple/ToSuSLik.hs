@@ -90,8 +90,9 @@ defToSuSLik def =
     -- isNonEmptyLayoutBranch
 
 toSuSLikParam :: ParamTypeP -> [SuSLikParam]
-toSuSLikParam (PtrParam (Just v) IntBase) = [MkSuSLikParam (ppr v) IntType]
-toSuSLikParam (PtrParam (Just v) BoolBase) = [MkSuSLikParam (ppr v) BoolType]
+-- toSuSLikParam (PtrParam (Just v) IntBase) = [MkSuSLikParam (ppr v) IntType]
+-- toSuSLikParam (PtrParam (Just v) BoolBase) = [MkSuSLikParam (ppr v) BoolType]
+toSuSLikParam (PtrParam (Just v) _) = [MkSuSLikParam (ppr v) LocType]
 toSuSLikParam (IntParam (Just v)) = [MkSuSLikParam v IntType]
 toSuSLikParam (BoolParam (Just v)) = [MkSuSLikParam v BoolType]
 toSuSLikParam (IntParam Nothing) = []
