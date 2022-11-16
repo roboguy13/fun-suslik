@@ -224,6 +224,31 @@ data ExprX ty layoutNameTy a where
   -- LayoutCaseLambda :: Scope 
   deriving (Functor, Foldable, Traversable, Show)
 
+getType :: ExprX ty Void a -> Either BaseType ty
+getType (Var ty _) = Right ty
+getType (IntLit {}) = Left IntBase
+getType (BoolLit {}) = Left BoolBase
+getType (And {}) = Left BoolBase
+getType (Not {}) = Left BoolBase
+getType (Add {}) = Left IntBase
+getType (Sub {}) = Left IntBase
+getType (Mul {}) = Left IntBase
+getType (Equal {}) = Left BoolBase
+getType (Le {}) = Left BoolBase
+getType (Lt {}) = Left BoolBase
+getType (Apply _ outTy _ _) = Right outTy
+getType (ConstrApply ty _ _) = Right ty
+getType (Lower x _) = absurd x
+getType (Instantiate _ x _ _) = absurd x
+getType (Deref ty _) = Right ty
+getType (Addr ty _) = Right ty
+
+-- getType' :: ElaboratedExpr a -> ParamTypeP
+-- getType' e =
+--   case getType e of
+--     Left base -> _ $ baseToType base
+--     Right ty -> ty
+
 -- TODO: Make this better
 instance (Show a, Show layoutNameTy, Show ty) => Ppr (ExprX ty layoutNameTy a) where
     ppr = show
@@ -303,9 +328,9 @@ type ParsedDef = Parsed (Def ())
 --   x : fnArgTypes y
 -- fnArgTypes _ = []
 --
--- fnResultType :: Type -> Type
--- fnResultType (FnType _ t) = fnResultType t
--- fnResultType t = t
+fnResultType :: Type -> Type
+fnResultType (FnType _ t) = fnResultType t
+fnResultType t = t
 
 data DefBranch' pat cond body ty layoutNameTy=
   MkDefBranch

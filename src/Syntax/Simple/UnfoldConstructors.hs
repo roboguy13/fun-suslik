@@ -91,12 +91,24 @@ getApplies (Addr _ e) = getApplies e
 getApplies (Lower ty _) = absurd ty
 getApplies (Instantiate _ x _ _) = absurd x
 
+setVar :: (SuSLikName, ParamTypeP) -> ElaboratedExpr FsName -> Assertion FsName
+setVar (v, pTy) rhs =
+  case (pTy, getType rhs) of
+    (PtrParam {}, Right (PtrParam {})) -> equal -- TODO: Is this correct? Should this be a copy?
+    (PtrParam {}, _) -> PointsTo Output (Here v) suslikRhs Emp
+    _ -> equal
+  where
+    suslikRhs = toSuSLikExpr "" rhs
+    equal = AssertEqual v suslikRhs Emp
+
 unfoldConstructors :: [Layout] -> DefWithAsn -> AsnDef
 unfoldConstructors layouts def =
   def
   { defBranches = map branchTranslate (defBranches def)
   }
   where
+    (_, resultType) = defType def
+
     branchTranslate :: DefBranchWithAsn -> AsnDefBranch
     branchTranslate branch =
       branch
@@ -110,8 +122,11 @@ unfoldConstructors layouts def =
               (applies, tempsAsn) = runWriter (fmap snd (runFreshGenT (getApplies bodyExpr)))
               applyAsns = mconcat $ map (snd . exprTranslate Nothing) $ map toApply applies
           in
+          -- trace ("outTy = " ++ show outTy) $
           -- MkGuardedExpr cond (asn <> PointsTo Output (Here "__r") (toSuSLikExpr bodyExpr) applyAsns <> tempsAsn)
-          MkGuardedExpr cond (asn <> AssertEqual "__r" (toSuSLikExpr "" bodyExpr) applyAsns <> tempsAsn)
+
+          -- MkGuardedExpr cond (asn <> AssertEqual "__r" (toSuSLikExpr "" bodyExpr) applyAsns <> tempsAsn)
+          MkGuardedExpr cond (asn <> setVar ("__r", resultType) bodyExpr <> applyAsns <> tempsAsn)
 
       -- -- TODO: Probably should check to see if the expression is *any*
       -- -- base-type expression and do this kind of special case.
