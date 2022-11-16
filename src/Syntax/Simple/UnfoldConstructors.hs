@@ -58,6 +58,7 @@ isBaseType (Addr {}) = False -- TODO: Is this correct?
 isBaseType (Lower ty _) = absurd ty
 isBaseType (Instantiate _ x _ _) = absurd x
 isBaseType (LetIn _ _v _rhs body) = isBaseType body
+isBaseType (IfThenElse _ _ t _) = isBaseType t
 
 getApplies :: ElaboratedExpr a -> FreshGenT (Writer (Assertion SuSLikName)) [(String, ParamTypeP, [ParamTypeP], [ElaboratedExpr a])]
 getApplies (Var ty _) = pure []
@@ -91,6 +92,10 @@ getApplies (Deref _ e) = getApplies e
 getApplies (Addr _ e) = getApplies e
 getApplies (Lower ty _) = absurd ty
 getApplies (Instantiate _ x _ _) = absurd x
+getApplies (IfThenElse _ c t f) =
+  concat <$> mapM getApplies [c, t, f]
+getApplies (LetIn _ty _v rhs body) =
+  liftA2 (++) (getApplies rhs) (getApplies body)
 
 setVar :: (SuSLikName, ParamTypeP) -> ElaboratedExpr FsName -> Assertion FsName
 setVar (v, pTy) rhs =
@@ -181,6 +186,15 @@ unfoldConstructors layouts def =
     exprTranslate out (Addr ty x) =
       (map VarS (loweredParams ty), Emp)
 
+    exprTranslate out (LetIn ty v rhs body) =
+      let (es1, asn1) = exprTranslate out rhs
+          (es2, asn2) = exprTranslate out body
+      in
+      (es1 <> es2, asn1 <> asn2)
+
+    exprTranslate out (IfThenElse ty c t f) =
+      combineTri' out IteS c t f
+
     exprTranslate out (Apply fName outLayout inLayouts args) =
       let (exprs, asns) = first concat . unzip $ map (exprTranslate (Just $ loweredParams outLayout)) args
           asn = mconcat asns
@@ -222,6 +236,7 @@ unfoldConstructors layouts def =
 
 
     combineBin' out op x y = combineBin op (exprTranslate out x) (exprTranslate out y)
+    combineTri' out op x y z = combineTri op (exprTranslate out x) (exprTranslate out y) (exprTranslate out z)
 
 combineBin :: (SuSLikExpr' -> SuSLikExpr' -> SuSLikExpr') ->
   ([SuSLikExpr SuSLikName], Assertion SuSLikName) ->
@@ -229,6 +244,14 @@ combineBin :: (SuSLikExpr' -> SuSLikExpr' -> SuSLikExpr') ->
   ([SuSLikExpr SuSLikName], Assertion SuSLikName)
 combineBin op (es1, asns1) (es2, asns2) =
   (zipWith op es1 es2, asns1 <> asns2)
+
+combineTri :: (SuSLikExpr' -> SuSLikExpr' -> SuSLikExpr' -> SuSLikExpr') ->
+  ([SuSLikExpr SuSLikName], Assertion SuSLikName) ->
+  ([SuSLikExpr SuSLikName], Assertion SuSLikName) ->
+  ([SuSLikExpr SuSLikName], Assertion SuSLikName) ->
+  ([SuSLikExpr SuSLikName], Assertion SuSLikName)
+combineTri op (es1, asns1) (es2, asns2) (es3, asns3) =
+  (zipWith3 op es1 es2 es3, asns1 <> asns2 <> asns3)
 
 getOutParams :: ElaboratedExpr FsName -> [SuSLikExpr SuSLikName]
 getOutParams (Var (LayoutParam paramedName) v) =
@@ -260,6 +283,12 @@ getOutParams (ConstrApply ty cName args) =
 getOutParams (Deref ty x) =
   map VarS (loweredParams ty)
 getOutParams (Addr ty x) =
+  map VarS (loweredParams ty)
+
+getOutParams (IfThenElse ty _ _ _) =
+  map VarS (loweredParams ty)
+
+getOutParams (LetIn ty _ _ _) =
   map VarS (loweredParams ty)
 
 getOutParams (Lower ty _) = absurd ty

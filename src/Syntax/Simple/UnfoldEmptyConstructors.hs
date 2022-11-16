@@ -62,4 +62,6 @@ unfoldEmptyConstructors layouts def =
     go (Addr ty x) = Addr ty (go x)
     go (LetIn ty v rhs body) =
       LetIn ty v (go rhs) (go body)
+    go (IfThenElse ty c t f) =
+      IfThenElse ty (go c) (go t) (go f)
 

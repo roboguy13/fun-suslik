@@ -24,6 +24,7 @@
 %generate replicate [Int, Int] Sll
 %generate map [Sll[readonly]] Sll
 %generate mapTimes2 [Sll[readonly]] Sll
+%generate maximum3 [Sll[readonly]] Int
 
 data List := Nil | Cons Int List;
 
@@ -149,6 +150,15 @@ maximum (Cons head tail) i
 
 maximum2 : List -> Int;
 maximum2 xs := instantiate [Sll[readonly], Int] Int maximum xs 0;
+
+maximum3 : List -> Int;
+maximum3 (Nil) := 0;
+maximum3 (Cons x xs) :=
+  let i := maximum3 xs
+  in
+  if i < x
+    then x
+    else i;
 
 append : List -> List -> List;
 append (Nil) ys := ys;

@@ -344,6 +344,8 @@ parseExpr' = lexeme $
     <|>
   try parseLetIn
     <|>
+  try parseIfThenElse
+    <|>
   try parseVar
 
 parseExpr :: Parser (Parsed ExprX FsName)
@@ -441,6 +443,22 @@ parseLetIn = lexeme $ do
   body <- parseExpr
 
   pure $ LetIn () v rhs body
+
+parseIfThenElse :: Parser (Parsed ExprX FsName)
+parseIfThenElse = lexeme $ do
+  keyword "if"
+
+  c <- parseExpr
+
+  keyword "then"
+
+  t <- parseExpr
+
+  keyword "else"
+
+  f <- parseExpr
+
+  pure $ IfThenElse () c t f
 
 parseLower :: Parser (Parsed ExprX FsName)
 parseLower = lexeme $ do

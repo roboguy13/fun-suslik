@@ -82,6 +82,8 @@ updateAddrExprs asn = go
       Addr (PtrParam (Just (lookupAddr asn v)) ty) (Var vTy v)
     go (LetIn ty v rhs body) =
       LetIn ty v (go rhs) (go body)
+    go (IfThenElse ty c t f) =
+      IfThenElse ty (go c) (go t) (go f)
 
 lookupAddr :: (Show a, Eq a) => Assertion a -> a -> Loc a
 lookupAddr asn rhs = go asn

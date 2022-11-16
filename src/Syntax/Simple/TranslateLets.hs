@@ -60,7 +60,8 @@ translateLets def =
     go (LetIn ty v rhs body) = do
       tell $ AssertEqual v (toSuSLikExpr "" rhs) Emp
 
-      pure body -- NOTE: We eliminate the LetIn here
-
-      -- LetIn ty v <$> go rhs <*> go body
+      -- pure body -- NOTE: We eliminate the LetIn here
+      LetIn ty v <$> go rhs <*> go body
+    go (IfThenElse ty c t f) =
+      IfThenElse ty <$> go c <*> go t <*> go f
 

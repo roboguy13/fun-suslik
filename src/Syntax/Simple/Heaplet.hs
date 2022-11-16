@@ -8,7 +8,7 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE LiberalTypeSynonyms #-}
 
--- {-# OPTIONS_GHC -Wincomplete-patterns #-}
+{-# OPTIONS_GHC -Wincomplete-patterns #-}
 
 module Syntax.Simple.Heaplet
   where
@@ -56,6 +56,8 @@ data SuSLikExpr a where
   AddS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
   SubS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
   MulS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
+
+  IteS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
   deriving (Show, Functor, Foldable)
 
 instance Applicative SuSLikExpr where
@@ -80,6 +82,7 @@ instance Monad SuSLikExpr where
   AddS x y >>= f = AddS (x >>= f) (y >>= f)
   SubS x y >>= f = SubS (x >>= f) (y >>= f)
   MulS x y >>= f = MulS (x >>= f) (y >>= f)
+  IteS x y z >>= f = IteS (x >>= f) (y >>= f) (z >>= f)
 
 
 mkAndS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
@@ -109,6 +112,9 @@ instance Ppr a => Ppr (SuSLikExpr a) where
   ppr (EqualS x y) = pprBinOp "==" x y
   ppr (LeS x y) = pprBinOp "<=" x y
   ppr (LtS x y) = pprBinOp "<" x y
+
+  ppr (IteS c t f) =
+    "(" ++ ppr c ++ " ? " ++ ppr t ++ " : " ++ ppr f ++ ")"
 
 type ConstrName = String
 
@@ -211,6 +217,8 @@ data ExprX ty layoutNameTy a where
 
   LetIn :: ty -> a -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a 
 
+  IfThenElse :: ty -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a
+
   --   -- | Represents @lower L_1 . f . lift L_2@
   -- LiftLowerFn ::
   --   layoutNameTy -> -- | L_1
@@ -248,6 +256,7 @@ getType (Instantiate _ x _ _) = absurd x
 getType (Deref ty _) = Right ty
 getType (Addr ty _) = Right ty
 getType (LetIn ty _ _ _) = Right ty
+getType (IfThenElse ty _ _ _) = Right ty
 
 -- getType' :: ElaboratedExpr a -> ParamTypeP
 -- getType' e =
@@ -496,6 +505,9 @@ toSuSLikExpr recName (Addr ty e) =
 
 toSuSLikExpr recName (LetIn ty v rhs body) =
   toSuSLikExpr recName body
+
+toSuSLikExpr recName (IfThenElse _ cond t f) =
+  IteS (toSuSLikExpr recName cond) (toSuSLikExpr recName t) (toSuSLikExpr recName f)
 
 toSuSLikExpr' :: Expr FsName -> SuSLikExpr SuSLikName
 toSuSLikExpr' = toSuSLikExpr ""

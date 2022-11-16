@@ -102,6 +102,9 @@ genParamsWith prefix (LayoutParam layout) = genLayoutParamsWith prefix layout
 genParams :: ParamTypeL -> TypeCheck [String]
 genParams = genParamsWith "__p_"
 
+genTemp :: String -> TypeCheck String
+genTemp str = MkTypeCheck . lift . lift $ getFreshWith ("__tc_temp_" <> str)
+
 initialOutParams :: ParamTypeL -> OutParams
 initialOutParams (LayoutParam layout) =
   map ("__r_" <>) $ layoutSuSLikParams layout
@@ -115,6 +118,15 @@ newOutVars ty =
 
 setSubexprOutVarState :: TypeCheck ()
 setSubexprOutVarState = put SubOutVar
+
+subexprStateBlock :: TypeCheck a -> TypeCheck a
+subexprStateBlock m = do
+  oldState <- get
+  setSubexprOutVarState
+  r <- m
+  put oldState
+  pure r
+
 
 resetOutVarState :: TypeCheck ()
 resetOutVarState = put InitialOutVar
@@ -237,6 +249,8 @@ instCall fnName argParamTypes outParamType = go
     go (Addr ty e) = Addr ty (go e)
     go (LetIn ty v rhs body) =
       LetIn ty v (go rhs) (go body)
+    go (IfThenElse ty c t f) =
+      IfThenElse ty (go c) (go t) (go f)
 
 paramTypeToLayout :: ParamTypeL -> Maybe Layout
 paramTypeToLayout (LayoutParam layout) = Just layout
@@ -401,6 +415,8 @@ lowerWith ty@(LayoutParam{}) e@(ConstrApply {}) =
 lowerWith ty e@(ConstrApply {}) = error $ "Constructor application of non-layout type:\nType = " ++ show ty ++ "\nExpr = " ++ show e ++ "\n"
 lowerWith ty (LetIn ty' v rhs body) =
   LetIn ty' v rhs (lowerWith ty body)
+lowerWith ty (IfThenElse ty' c t f) =
+  IfThenElse ty' c (lowerWith ty t) (lowerWith ty f)
 lowerWith _ e = e
 
 inferWith :: TcEnv -> ParamType -> Parsed ExprX String -> TypeCheck (ParamTypeP, Elaborated ExprX String)
@@ -443,6 +459,16 @@ checkExpr gamma e0@(Addr {}) ty = do
   (ty', e') <- inferExpr gamma e0
   requireTypeP ty $ fmap getParamedName ty'
   pure (loweredParams ty', e')
+
+checkExpr gamma (IfThenElse () c t f) ty = do
+  (_, c') <- checkExpr gamma c (BoolParam Nothing)
+
+  (out, t') <- inferExpr gamma t
+  (_, f') <- inferExpr gamma f
+
+  -- TODO: Should the out variables be combined?
+
+  pure $ (loweredParams out, IfThenElse out c' t' f')
 
 checkExpr gamma e@(Var {}) ty = do
   (ty', e') <- inferExpr gamma e
@@ -735,9 +761,24 @@ inferExpr gamma e@(Apply {}) =
   typeError $ "Un-instantiated function application: " ++ show e
 
 inferExpr gamma (LetIn () v rhs body) = do
-  (ty, rhs') <- inferExpr gamma rhs
+  (ty, rhs') <- subexprStateBlock $ inferExpr gamma rhs
   (ty2, body2) <- inferExpr ((v, updateParams [v] ty) : gamma) body
+
+  -- v' <- genTemp v
+  -- let ty2' = overwriteParams [v'] ty2 -- TODO: Is this the write way to overwrite here 
+
+  () <- traceM $ "rhs' = " ++ show rhs'
   pure $ (ty2, LetIn ty2 v rhs' body2)
+
+inferExpr gamma (IfThenElse () c t f) = do
+  (_, c') <- checkExpr gamma c (BoolParam Nothing)
+  (ty1, t') <- inferExpr gamma t
+  (ty2, f') <- inferExpr gamma f
+  requireTypeP ty1 ty2
+  -- TODO: Do we need to combine the names of ty1 and ty2 (possibly using
+  -- LetIn)?
+  pure (ty1, IfThenElse ty1 c' t' f')
+
 
 -- lowerParamType ty = do
 --   foundTy <- lookupParamType ty
