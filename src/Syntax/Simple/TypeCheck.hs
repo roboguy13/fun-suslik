@@ -767,7 +767,6 @@ inferExpr gamma (LetIn () v rhs body) = do
   -- v' <- genTemp v
   -- let ty2' = overwriteParams [v'] ty2 -- TODO: Is this the write way to overwrite here 
 
-  () <- traceM $ "rhs' = " ++ show rhs'
   pure $ (ty2, LetIn ty2 v rhs' body2)
 
 inferExpr gamma (IfThenElse () c t f) = do

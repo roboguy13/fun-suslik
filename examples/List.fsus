@@ -12,8 +12,6 @@
 %generate singleton [Int] Sll
 %generate even [Sll[readonly]] Sll
 %generate odd [Sll[readonly]] Sll
-%generate maximum [Sll[readonly], Int] Int
-%generate maximum2 [Sll[readonly], Int] Int
 %generate append [Sll[mutable], Sll[readonly]] Sll
 %generate map_sum [ListOfListsLayout[readonly]] Sll
 %generate maximum_sum [ListOfListsLayout[readonly]] Int
@@ -24,7 +22,7 @@
 %generate replicate [Int, Int] Sll
 %generate map [Sll[readonly]] Sll
 %generate mapTimes2 [Sll[readonly]] Sll
-%generate maximum3 [Sll[readonly]] Int
+%generate maximum [Sll[readonly]] Int
 
 data List := Nil | Cons Int List;
 
@@ -142,19 +140,10 @@ take (Cons head tail) i
   | i == 0 := Nil;
   | not (i == 0) := Cons head (take tail (i - 1));
 
-maximum : List -> Int -> Int;
-maximum (Nil) i := i;
-maximum (Cons head tail) i
-  | i < head := maximum tail head;
-  | not (i < head) := maximum tail i;
-
-maximum2 : List -> Int;
-maximum2 xs := instantiate [Sll[readonly], Int] Int maximum xs 0;
-
-maximum3 : List -> Int;
-maximum3 (Nil) := 0;
-maximum3 (Cons x xs) :=
-  let i := maximum3 xs
+maximum : List -> Int;
+maximum (Nil) := 0;
+maximum (Cons x xs) :=
+  let i := maximum xs
   in
   if i < x
     then x
