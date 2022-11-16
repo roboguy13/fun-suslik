@@ -643,6 +643,11 @@ data ParametrizedLayoutName =
 
 pattern MkLowered params name = LayoutConcrete (MkParametrizedLayoutName params name)
 
+layoutNameHasMode :: LayoutName -> Bool
+layoutNameHasMode (MkLayoutName Nothing _) = False
+layoutNameHasMode (MkLayoutName Just{} _) = True
+
+
 baseLayoutName :: LayoutName -> String
 baseLayoutName (MkLayoutName _ name) = name
 
@@ -700,6 +705,10 @@ data Assertion a where
 
   AssertEqual :: a -> SuSLikExpr a -> Assertion a -> Assertion a
   deriving (Functor, Show, Foldable)
+
+isEmp :: Assertion a -> Bool
+isEmp Emp = True
+isEmp _ = False
 
 removeHeapletApplies :: Assertion FsName -> Assertion FsName
 removeHeapletApplies Emp = Emp

@@ -31,14 +31,20 @@ defTranslateLayoutMatch layoutEnv def =
       MkGuardedExpr
         cond
         (MkExprWithAsn (foldMap applyPat pats) body)
+      where
 
-    applyPat :: Pattern' ParamTypeP -> Assertion SuSLikName
-    applyPat (PatternVar {}) = Emp
-    applyPat (MkPattern (LayoutParam (MkParametrizedLayoutName params layoutName)) cName patParams) =
-      let layout = lookupLayout layoutEnv (baseLayoutName layoutName)
-      in
-      removeHeapletApplies $ applyLayoutPat layout params (MkPattern () cName patParams)
-      -- applyLayoutPat layout params (MkPattern () cName patParams)
-    applyPat pat@(MkPattern {}) = error $ "applyPat: Pattern match on non-layout: " ++ show pat
+        applyPat :: Pattern' ParamTypeP -> Assertion SuSLikName
+        applyPat (PatternVar {}) = Emp
+        applyPat pat@(MkPattern (LayoutParam (MkParametrizedLayoutName params layoutName)) cName patParams) =
+          let layout = lookupLayout layoutEnv (baseLayoutName layoutName)
+              applied = removeHeapletApplies $ applyLayoutPat layout params (MkPattern () cName patParams)
+          in
+          if anyPatVarOccurs pat body || isEmp applied
+            then removeHeapletApplies $ applyLayoutPat layout params (MkPattern () cName patParams)
+            else HeapletApply layoutName (map VarS params) (map (Var ()) patParams) Emp
+        applyPat pat@(MkPattern {}) = error $ "applyPat: Pattern match on non-layout: " ++ show pat
 
+
+anyPatVarOccurs :: Pattern' a -> Expr FsName -> Bool
+anyPatVarOccurs pat = any (`elem` getPatternVars pat)
 

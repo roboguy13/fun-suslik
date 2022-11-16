@@ -68,7 +68,7 @@ defToSuSLik def =
       -- asnCons (PointsToS (modeToMutability mode) x y)
       --         (toHeaplets rest)
     toHeaplets (HeapletApply lName suslikArgs _es rest)
-      | genLayoutName lName == recName =
+      | genLayoutName lName == recName || layoutNameHasMode lName =
           asnCons (HeapletApplyS (genLayoutName lName) suslikArgs)
                   (toHeaplets rest)
       | otherwise =
@@ -84,6 +84,9 @@ defToSuSLik def =
     toHeaplets (Copy lName src dest) = CopyS lName src dest
     toHeaplets (AssertEqual lhs rhs rest) =
       eqCons (MkEquality (Here lhs) rhs) (toHeaplets rest)
+
+    -- isNonEmptyLayoutBranch :: Pattern a -> Bool
+    -- isNonEmptyLayoutBranch
 
 toSuSLikParam :: ParamTypeP -> [SuSLikParam]
 toSuSLikParam (IntParam (Just v)) = [MkSuSLikParam v IntType]
@@ -114,6 +117,13 @@ patCondForBranch inParams0 outParams branch =
       (fastNub (concatMap collectParamsAsn (getDefBranchRhs's branch) \\ outParams)
         `intersect` inParams) \\ outParams
 
+    -- removeLayoutApplies Emp = Emp
+    -- removeLayoutApplies (PointsTo mode x y rest) = PointsTo mode x y (removeLayoutApplies rest)
+    -- removeLayoutApplies (HeapletApply layoutName x y rest)
+    --   | layoutNameHasMode layoutName = removeLayoutApplies rest
+    --   | otherwise = HeapletApply layoutName x y $ removeLayoutApplies rest
+    -- remove
+
 varEqZero :: SuSLikName -> SuSLikExpr SuSLikName
 varEqZero n = EqualS (VarS n) (IntS 0)
 
@@ -128,7 +138,10 @@ collectParamsAsn :: Assertion a -> [a]
 collectParamsAsn Emp = []
 collectParamsAsn (PointsTo _ lhsLoc _ rest) =
   toList lhsLoc <> collectParamsAsn rest
-collectParamsAsn (HeapletApply _ _ _ rest) = collectParamsAsn rest
+collectParamsAsn (HeapletApply layoutName suslikParams _ rest)
+  | layoutNameHasMode layoutName =
+      foldMap toList (toList suslikParams) <> collectParamsAsn rest
+  | otherwise = collectParamsAsn rest
 collectParamsAsn (Block _ _ rest) = collectParamsAsn rest
 collectParamsAsn (TempLoc _ rest) = collectParamsAsn rest
 collectParamsAsn (IsNull v) = [v]
