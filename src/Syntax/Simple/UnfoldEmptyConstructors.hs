@@ -60,4 +60,6 @@ unfoldEmptyConstructors layouts def =
 
     go (Deref ty x) = Deref ty (go x)
     go (Addr ty x) = Addr ty (go x)
+    go (LetIn ty v rhs body) =
+      LetIn ty v (go rhs) (go body)
 

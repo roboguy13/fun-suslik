@@ -73,7 +73,7 @@ parseIdentifier = label "identifier" $
   parseLowercaseName
 
 keywords :: [String]
-keywords = ["lower", "instantiate", "not", "data", "deref", "addr"]
+keywords = ["lower", "instantiate", "not", "data", "deref", "addr", "in", "let", "if", "then", "else"]
 
 parseConstructor :: Parser String
 parseConstructor = label "constructor name" $
@@ -342,6 +342,8 @@ parseExpr' = lexeme $
     <|>
   (keyword "true" *> pure (BoolLit True))
     <|>
+  try parseLetIn
+    <|>
   try parseVar
 
 parseExpr :: Parser (Parsed ExprX FsName)
@@ -424,6 +426,21 @@ parseParamType = parseParamType0 parseLayoutName
 parseSimpleParamType :: Parser ParamType
 parseSimpleParamType =
   parseParamType0 (fmap (MkLayoutName (Just Output)) parseSimpleLayoutName)
+
+parseLetIn :: Parser (Parsed ExprX FsName)
+parseLetIn = lexeme $ do
+  keyword "let"
+  v <- parseIdentifier
+
+  parseOp ":="
+
+  rhs <- parseExpr
+
+  keyword "in"
+
+  body <- parseExpr
+
+  pure $ LetIn () v rhs body
 
 parseLower :: Parser (Parsed ExprX FsName)
 parseLower = lexeme $ do

@@ -43,6 +43,7 @@ executable fun-suslik
       Syntax.Name
       Syntax.Ppr
       Syntax.Simple.Heaplet
+      Syntax.Simple.TranslateLets
 
 
     -- LANGUAGE extensions used by modules in this package.

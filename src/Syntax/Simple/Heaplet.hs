@@ -8,6 +8,8 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE LiberalTypeSynonyms #-}
 
+-- {-# OPTIONS_GHC -Wincomplete-patterns #-}
+
 module Syntax.Simple.Heaplet
   where
 
@@ -207,6 +209,8 @@ data ExprX ty layoutNameTy a where
   Deref :: ty -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a
   Addr :: ty -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a
 
+  LetIn :: ty -> a -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a 
+
   --   -- | Represents @lower L_1 . f . lift L_2@
   -- LiftLowerFn ::
   --   layoutNameTy -> -- | L_1
@@ -229,6 +233,7 @@ getType (Var ty _) = Right ty
 getType (IntLit {}) = Left IntBase
 getType (BoolLit {}) = Left BoolBase
 getType (And {}) = Left BoolBase
+getType (Or {}) = Left BoolBase
 getType (Not {}) = Left BoolBase
 getType (Add {}) = Left IntBase
 getType (Sub {}) = Left IntBase
@@ -242,6 +247,7 @@ getType (Lower x _) = absurd x
 getType (Instantiate _ x _ _) = absurd x
 getType (Deref ty _) = Right ty
 getType (Addr ty _) = Right ty
+getType (LetIn ty _ _ _) = Right ty
 
 -- getType' :: ElaboratedExpr a -> ParamTypeP
 -- getType' e =
@@ -487,6 +493,9 @@ toSuSLikExpr recName (Deref ty e) =
 
 toSuSLikExpr recName (Addr ty e) =
   head $ map VarS (loweredParams ty)
+
+toSuSLikExpr recName (LetIn ty v rhs body) =
+  toSuSLikExpr recName body
 
 toSuSLikExpr' :: Expr FsName -> SuSLikExpr SuSLikName
 toSuSLikExpr' = toSuSLikExpr ""

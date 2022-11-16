@@ -4,6 +4,8 @@
 
 {-# LANGUAGE LiberalTypeSynonyms #-}
 
+{-# OPTIONS_GHC -Wincomplete-patterns #-}
+
 module Syntax.Simple.TranslateLayoutMatch
   (defTranslateLayoutMatch
   )
@@ -77,14 +79,9 @@ updateAddrExprs asn = go
     go (Instantiate _ x _ _) = absurd x
     go (Deref ty x) = Deref ty (go x)
     go (Addr (PtrParam _ ty) (Var vTy v)) =
-      -- let v' = lookupAddr v asn
-      --     ty' = updateParams [v'] ty
-      -- let ty' = fmap (overParams (lookupAddr asn . getLocBase)) ty
-      -- let paramed = MkParametrizedLayoutName undefined undefined
-      --     ty' = updateParams [paramed] ty
-      -- in
-      -- trace ("addr..." ++ show (v, v')) $
       Addr (PtrParam (Just (lookupAddr asn v)) ty) (Var vTy v)
+    go (LetIn ty v rhs body) =
+      LetIn ty v (go rhs) (go body)
 
 lookupAddr :: (Show a, Eq a) => Assertion a -> a -> Loc a
 lookupAddr asn rhs = go asn

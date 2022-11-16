@@ -13,6 +13,7 @@ import           Syntax.Simple.ToSuSLik
 import           Syntax.Ppr
 
 import           Syntax.Simple.TranslateLayoutMatch
+import           Syntax.Simple.TranslateLets
 import           Syntax.Simple.TopLevelTranslation
 import           Syntax.Simple.UnfoldConstructors
 import           Syntax.Simple.UnfoldEmptyConstructors
@@ -59,6 +60,7 @@ main = do
               defToSuSLik $
               unfoldConstructors layouts $
               topLevelTranslate layouts $
+              translateLets $
               defTranslateLayoutMatch layouts $
               unfoldEmptyConstructors layouts $
               runTypeCheck fnName layouts adts fnDefs $

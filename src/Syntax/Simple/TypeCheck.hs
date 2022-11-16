@@ -235,6 +235,8 @@ instCall fnName argParamTypes outParamType = go
     go (Instantiate xs ys f args) = Instantiate xs ys f (map go args)
     go (Deref ty e) = Deref ty (go e)
     go (Addr ty e) = Addr ty (go e)
+    go (LetIn ty v rhs body) =
+      LetIn ty v (go rhs) (go body)
 
 paramTypeToLayout :: ParamTypeL -> Maybe Layout
 paramTypeToLayout (LayoutParam layout) = Just layout
@@ -393,12 +395,21 @@ findLayoutApp v asn0 = go asn0
     go (Copy _ _ _) = error $ "findLayoutApp: Cannot find " ++ show v ++ "\nasn0 = " ++ show asn0
     go (AssertEqual _ _ rest) = go rest
 
+lowerWith :: ParamType -> Parsed ExprX String -> Parsed ExprX String
+lowerWith ty@(LayoutParam{}) e@(ConstrApply {}) =
+  Lower ty e
+lowerWith ty e@(ConstrApply {}) = error $ "Constructor application of non-layout type:\nType = " ++ show ty ++ "\nExpr = " ++ show e ++ "\n"
+lowerWith ty (LetIn ty' v rhs body) =
+  LetIn ty' v rhs (lowerWith ty body)
+lowerWith _ e = e
+
 inferWith :: TcEnv -> ParamType -> Parsed ExprX String -> TypeCheck (ParamTypeP, Elaborated ExprX String)
-inferWith gamma ty@(LayoutParam layout) e@(ConstrApply {}) =
-  -- inferExpr gamma (Lower (MkLayoutName (Just Input) (layoutName layout)) e)
-  inferExpr gamma (Lower ty e)
-inferWith _ ty e@(ConstrApply {}) = error $ "Constructor application of non-layout type:\nType = " ++ show ty ++ "\nExpr = " ++ show e ++ "\n"
-inferWith gamma layout e = inferExpr gamma e
+inferWith gamma ty e = inferExpr gamma (lowerWith ty e)
+-- inferWith gamma ty@(LayoutParam layout) e@(ConstrApply {}) =
+--   -- inferExpr gamma (Lower (MkLayoutName (Just Input) (layoutName layout)) e)
+--   inferExpr gamma (Lower ty e)
+-- inferWith _ ty e@(ConstrApply {}) = error $ "Constructor application of non-layout type:\nType = " ++ show ty ++ "\nExpr = " ++ show e ++ "\n"
+-- inferWith gamma layout e = inferExpr gamma e
 
 requireIntParam :: Show a => ParamType' a -> TypeCheck ()
 requireIntParam IntParam{} = pure ()
@@ -515,6 +526,10 @@ checkExpr gamma e@(Apply {}) ty =
     , "Expected concrete type " ++ show ty
     ]
 
+checkExpr gamma e@(LetIn () v rhs body) ty = do
+  (tyV, rhs') <- inferExpr gamma rhs
+  checkExpr ((v, tyV) : gamma) body ty
+
 requireBaseType :: Show a => ParamType' a -> TypeCheck (BaseType, ParamType' a)
 requireBaseType (IntParam v) = pure (IntBase, PtrParam (fmap Here v) IntBase)
 requireBaseType (BoolParam v) = pure (BoolBase, PtrParam (fmap Here v) BoolBase)
@@ -534,7 +549,9 @@ inferExpr gamma (Var () v) =
       -- let lowered = withParams [v] concTy
       let lowered = concTy --withParams [v] concTy
       -- pure $ (lowered, Var lowered v)
-      pure $ (lowered, Var lowered $ head $ loweredParams $ lowered)
+      let ps = loweredParams $ lowered
+      let (p:_) = ps
+      pure $ (lowered, Var lowered p)
 
 inferExpr gamma (Deref () e) = do
   (ty0, e') <- inferExpr gamma e
@@ -716,6 +733,11 @@ inferExpr gamma e@(ConstrApply {}) =
 
 inferExpr gamma e@(Apply {}) =
   typeError $ "Un-instantiated function application: " ++ show e
+
+inferExpr gamma (LetIn () v rhs body) = do
+  (ty, rhs') <- inferExpr gamma rhs
+  (ty2, body2) <- inferExpr ((v, updateParams [v] ty) : gamma) body
+  pure $ (ty2, LetIn ty2 v rhs' body2)
 
 -- lowerParamType ty = do
 --   foundTy <- lookupParamType ty

@@ -23,6 +23,7 @@
 %generate zip [Sll[readonly], Sll[readonly]] ZippedLayout
 %generate replicate [Int, Int] Sll
 %generate map [Sll[readonly]] Sll
+%generate mapTimes2 [Sll[readonly]] Sll
 
 data List := Nil | Cons Int List;
 
@@ -183,4 +184,12 @@ fold_List z (Cons x xs) := instantiate [Ptr Int, Ptr Int] (Ptr Int) f (addr x) (
 map : List -> List;
 map (Nil) := Nil;
 map (Cons x xs) := Cons (instantiate [Int] Int f x) (map xs);
+
+mapTimes2 : List -> List;
+mapTimes2 (Nil) := Nil;
+mapTimes2 (Cons x xs) :=
+  let y := x * 2
+  in
+  Cons y (mapTimes2 xs);
+
 

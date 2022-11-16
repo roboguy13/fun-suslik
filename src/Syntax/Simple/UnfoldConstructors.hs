@@ -57,6 +57,7 @@ isBaseType (Deref {}) = True
 isBaseType (Addr {}) = False -- TODO: Is this correct?
 isBaseType (Lower ty _) = absurd ty
 isBaseType (Instantiate _ x _ _) = absurd x
+isBaseType (LetIn _ _v _rhs body) = isBaseType body
 
 getApplies :: ElaboratedExpr a -> FreshGenT (Writer (Assertion SuSLikName)) [(String, ParamTypeP, [ParamTypeP], [ElaboratedExpr a])]
 getApplies (Var ty _) = pure []
