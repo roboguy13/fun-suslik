@@ -875,7 +875,7 @@ instance (Show a, Ppr a) => Ppr (Assertion a) where
     "temploc " ++ v ++ ", " ++ ppr rest
 
   ppr (IsNull v) = ppr v ++ " == null ; emp"
-  ppr (Copy lName src dest) = lName ++ "__copy(" ++ ppr src ++ ", " ++ ppr dest ++ ")"
+  ppr (Copy lName src dest) = "func " ++ lName ++ "__copy(" ++ ppr src ++ ", " ++ ppr dest ++ ")"
   ppr (AssertEqual x y rest0) = "(" <> ppr x <> " == " <> ppr y <> ")"
 
 -- type Assertion' a = Assertion (ExprX () Void a)

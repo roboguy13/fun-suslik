@@ -15,12 +15,18 @@ import           Control.Applicative
 import           Data.Foldable
 import           Data.Maybe
 
+import Debug.Trace
+
 topLevelTranslate :: [Layout] -> DefWithAsn -> DefWithAsn
 topLevelTranslate layouts def =
   def
   { defBranches = map branchTranslate (defBranches def)
   }
   where
+    (argLowereds, resultLowered) = defType def
+    outVars = loweredParams resultLowered
+    [outVar] = outVars
+
     branchTranslate :: DefBranchWithAsn -> DefBranchWithAsn
     branchTranslate branch =
       branch
@@ -60,14 +66,17 @@ topLevelTranslate layouts def =
     go (ConstrApply ty@(LayoutParam lName) cName args) =
       case lookupLayoutBranch (lookupLayout layouts (baseLayoutName (getParamedName lName))) cName of
         (_, Emp) ->
-          let [v] = loweredParams ty
-          in
-          Just $ IsNull v
+          -- let [v] = loweredParams ty
+          -- in
+          -- Just $ IsNull v
+          Just $ IsNull outVar
         _ -> Nothing
         -- _ -> ConstrApply ty cName (map go args)
     go e0@(Var ty@(LayoutParam lName) v) =
-      let [r] = loweredParams ty
-      in
-      Just $ Copy (baseLayoutName (getParamedName lName)) v "__r"
+      -- let [r] = loweredParams ty
+      -- in
+      -- trace ("r = " ++ show r ++ "; ty = " ++ show ty) $
+      -- Just $ Copy (baseLayoutName (getParamedName lName)) v "__r"
+      Just $ Copy (baseLayoutName (getParamedName lName)) v outVar
     go e = Nothing
 

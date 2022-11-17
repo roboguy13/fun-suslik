@@ -59,6 +59,11 @@ lookupLayoutM name = do
   MkTcGlobals _ layouts _ _ <- ask
   pure $ lookupLayout layouts name
 
+getLayouts :: TypeCheck [Layout]
+getLayouts = do
+  MkTcGlobals _ layouts _ _ <- ask
+  pure layouts
+
 type ParamTypeL = ParamType' Layout
 
 lookupParamType :: ParamType -> TypeCheck ParamTypeL
@@ -568,15 +573,21 @@ inferExpr gamma (Var () v) =
   case lookup v gamma of
     Nothing -> error $ "inferExpr: variable not found in TcEnv: " ++ v ++ "\nTcEnv = " ++ show gamma ++ "\n"
     Just concTy -> do
+      layouts <- getLayouts
+      r <- newOutVars (fmap (lookupLayout layouts . baseLayoutName . getParamedName) concTy)
       -- traceM ("concTy = " ++ show concTy)
       -- typeMatchesLowered ty lowered
       -- requireType ty (loweredType lowered)
 
       -- let lowered = withParams [v] concTy
+
       let lowered = concTy --withParams [v] concTy
+      -- let lowered = overwriteParams r concTy
+
       -- pure $ (lowered, Var lowered v)
       let ps = loweredParams $ lowered
       let (p:_) = ps
+      -- () <- traceM ("inferExpr: " ++ show (v, lowered, p))
       pure $ (lowered, Var lowered p)
 
 inferExpr gamma (Deref () e) = do

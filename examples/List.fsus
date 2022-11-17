@@ -12,7 +12,7 @@
 %generate singleton [Int] Sll
 %generate even [Sll[readonly]] Sll
 %generate odd [Sll[readonly]] Sll
-%generate append [Sll[mutable], Sll[readonly]] Sll
+%generate append [Sll[readonly], Sll[readonly]] Sll
 %generate map_sum [ListOfListsLayout[readonly]] Sll
 %generate maximum_sum [ListOfListsLayout[readonly]] Int
 %generate flatten [ListOfListsLayout[readonly]] Sll
@@ -23,6 +23,7 @@
 %generate map [Sll[readonly]] Sll
 %generate mapTimes2 [Sll[readonly]] Sll
 %generate maximum [Sll[readonly]] Int
+%generate foldMap[Int, Sll[mutable]] Int
 
 data List := Nil | Cons Int List;
 
@@ -151,7 +152,7 @@ maximum (Cons x xs) :=
 
 append : List -> List -> List;
 append (Nil) ys := ys;
-append (Cons x xs) ys := append (instantiate [Int, Sll[readonly]] Sll cons x xs) ys;
+append (Cons x xs) ys := instantiate [Ptr Int, Sll[mutable]] Sll cons (addr x) (append xs ys);
 
 flatten : ListOfLists -> List;
 flatten (LNil) := Nil;
@@ -179,6 +180,10 @@ zipWith (Cons x xs) (Cons y ys) := Cons (instantiate [Int, Int] Int f x y) (zipW
 fold_List : Int -> List -> Ptr Int;
 fold_List z (Nil) := z;
 fold_List z (Cons x xs) := instantiate [Ptr Int, Ptr Int] (Ptr Int) f (addr x) (fold_List z xs);
+
+foldMap : Int -> List -> Int;
+foldMap z (Nil) := z;
+foldMap z (Cons x xs) := instantiate [Int, Sll[mutable]] Int fold_List z (instantiate [Sll[readonly]] Sll map (lower Sll[readonly] (Cons x xs)));
 
 map : List -> List;
 map (Nil) := Nil;
