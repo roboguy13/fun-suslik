@@ -1,12 +1,12 @@
 %generate cons [Int, Sll[readonly]] Sll
 %generate fold_List [Int, Sll[readonly]] (Ptr Int)
 %generate zipWith [Sll[readonly], Sll[readonly]] Sll
-%generate filterLt7 [Sll[readonly]] Sll
+%generate filterLt9 [Sll[readonly]] Sll
 %generate sum [Sll[readonly]] Int
 %generate constNil[Sll[readonly]] Sll
 %generate car [Sll[readonly]] Int
 %generate sumTailRec [Sll[readonly], Int] Int
-%generate take [Sll[readonly], Int] Sll
+%generate take [Int, Sll[readonly]] Sll
 %generate const [Sll[readonly], Sll[readonly]] Sll
 %generate leftList [TreeLayout[readonly]] Sll
 %generate singleton [Int] Sll
@@ -24,6 +24,8 @@
 %generate mapTimes2 [Sll[readonly]] Sll
 %generate maximum [Sll[readonly]] Int
 %generate foldMap[Int, Sll[mutable]] Int
+%generate selfAppend[Sll[readonly]] Sll
+%generate scanr[Int, Sll[readonly]] Sll
 
 data List := Nil | Cons Int List;
 
@@ -104,11 +106,11 @@ car (Cons x xs) := x;
 singleton : Int -> List;
 singleton x := Cons x (Nil);
 
-filterLt7 : List -> List;
-filterLt7 (Nil) := Nil;
-filterLt7 (Cons head tail)
-  | head < 7       := Cons head (filterLt7 tail);
-  | not (head < 7) := filterLt7 tail;
+filterLt9 : List -> List;
+filterLt9 (Nil) := Nil;
+filterLt9 (Cons head tail)
+  | head < 9       := filterLt9 tail;
+  | not (head < 9) := Cons head (filterLt9 tail);
 
 leftList : Tree -> List;
 leftList (Leaf) := Nil;
@@ -135,11 +137,11 @@ replicate n i
   | n == 0 := Nil;
   | not (n == 0) := Cons i (replicate (n - 1) i);
 
-take : List -> Int -> List;
-take (Nil) i := Nil;
-take (Cons head tail) i
+take : Int -> List -> List;
+take i (Nil) := Nil;
+take i (Cons head tail)
   | i == 0 := Nil;
-  | not (i == 0) := Cons head (take tail (i - 1));
+  | not (i == 0) := Cons head (take (i - 1) tail);
 
 maximum : List -> Int;
 maximum (Nil) := 0;
@@ -153,6 +155,10 @@ maximum (Cons x xs) :=
 append : List -> List -> List;
 append (Nil) ys := ys;
 append (Cons x xs) ys := instantiate [Ptr Int, Sll[mutable]] Sll cons (addr x) (append xs ys);
+
+selfAppend : List -> List;
+selfAppend xs :=
+  instantiate [Sll[readonly], Sll[readonly]] Sll append xs xs;
 
 flatten : ListOfLists -> List;
 flatten (LNil) := Nil;
@@ -196,4 +202,14 @@ mapTimes2 (Cons x xs) :=
   in
   Cons y (mapTimes2 xs);
 
+-- let { scr f z [] = [z] ; scr f z (x:xs) = let { nxt = scr f z xs; r = f x (head nxt) } in r : nxt }
+
+scanr : Int -> List -> List;
+scanr z (Nil) := Cons z (Nil);
+scanr z (Cons x xs) :=
+  let xs2 := scanr z xs
+  in
+  let x2 := instantiate [Int, Int] Int f x (instantiate [Sll[mutable]] Int head xs2)
+  in
+  Cons x2 xs2;
 
