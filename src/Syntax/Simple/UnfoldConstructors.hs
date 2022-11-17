@@ -97,6 +97,45 @@ getApplies (IfThenElse _ c t f) =
 getApplies (LetIn _ty _v rhs body) =
   liftA2 (++) (getApplies rhs) (getApplies body)
 
+genTemps :: ElaboratedExpr FsName -> Writer (Assertion FsName) ()
+genTemps (Apply fName outLayout inLayouts args) = do
+  when (not (isBaseParam outLayout)) $
+    forM_ (loweredParams outLayout) $ \x ->
+      tell (TempLoc x Emp)
+
+  mapM_ genTemps args
+
+genTemps (Lower ty _) = absurd ty
+genTemps (Instantiate _ x _ _) = absurd x
+genTemps (Var ty v) = pure ()
+genTemps (IntLit i) = pure ()
+genTemps (BoolLit b) = pure ()
+
+genTemps (And x y) = genTemps x *> genTemps y
+genTemps (Or x y) = genTemps x *> genTemps y
+genTemps (Not x) = genTemps x
+
+genTemps (Add x y) = genTemps x *> genTemps y
+genTemps (Sub x y) = genTemps x *> genTemps y
+genTemps (Mul x y) = genTemps x *> genTemps y
+
+genTemps (Equal x y) = genTemps x *> genTemps y
+genTemps (Le x y) = genTemps x *> genTemps y
+genTemps (Lt x y) = genTemps x *> genTemps y
+
+genTemps (Deref ty x) = genTemps x
+genTemps (Addr ty x) = genTemps x
+
+genTemps (LetIn ty v rhs body) =
+  genTemps rhs *> genTemps body
+
+genTemps (IfThenElse ty c t f) =
+  genTemps c *> genTemps t *> genTemps f
+
+genTemps (ConstrApply ty cName args) =
+  mapM_ genTemps args
+
+
 setVar :: (SuSLikName, ParamTypeP) -> ElaboratedExpr FsName -> Assertion FsName
 setVar (v, pTy) rhs =
   case (pTy, getType rhs) of
@@ -196,11 +235,13 @@ unfoldConstructors layouts def =
       combineTri' out IteS c t f
 
     exprTranslate out (Apply fName outLayout inLayouts args) =
-      let (exprs, asns) = first concat . unzip $ map (exprTranslate (Just $ loweredParams outLayout)) args
+      let asnTemps = execWriter $ mapM genTemps args
+
+          (exprs, asns) = first concat . unzip $ map (exprTranslate (Just $ loweredParams outLayout)) args
           asn = mconcat asns
       in
       (map VarS (loweredParams outLayout),
-       HeapletApply (MkLayoutName Nothing fName) (exprs ++ map VarS (loweredParams outLayout)) [] asn)
+       HeapletApply (MkLayoutName Nothing fName) (exprs ++ map VarS (loweredParams outLayout)) [] asn <> asnTemps)
 
     exprTranslate out e@(ConstrApply ty@(LayoutParam layoutName) cName args) =
       let (_, asns) = first concat . unzip $ map (exprTranslate (Just $ map ppr $ getParamedNameParams layoutName)) args
@@ -284,7 +325,6 @@ getOutParams (Deref ty x) =
   map VarS (loweredParams ty)
 getOutParams (Addr ty x) =
   map VarS (loweredParams ty)
-
 getOutParams (IfThenElse ty _ _ _) =
   map VarS (loweredParams ty)
 
