@@ -153,6 +153,8 @@ unfoldConstructors layouts def =
   }
   where
     (_, resultType) = defType def
+    outVars = loweredParams resultType
+    [outVar] = outVars
 
     branchTranslate :: DefBranchWithAsn -> AsnDefBranch
     branchTranslate branch =
@@ -171,7 +173,7 @@ unfoldConstructors layouts def =
           -- MkGuardedExpr cond (asn <> PointsTo Output (Here "__r") (toSuSLikExpr bodyExpr) applyAsns <> tempsAsn)
 
           -- MkGuardedExpr cond (asn <> AssertEqual "__r" (toSuSLikExpr "" bodyExpr) applyAsns <> tempsAsn)
-          MkGuardedExpr cond (asn <> setVar ("__r", resultType) bodyExpr <> applyAsns <> tempsAsn)
+          MkGuardedExpr cond (asn <> setVar (outVar, resultType) bodyExpr <> applyAsns <> tempsAsn)
 
       -- -- TODO: Probably should check to see if the expression is *any*
       -- -- base-type expression and do this kind of special case.
