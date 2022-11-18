@@ -60,7 +60,7 @@ main = do
               defToSuSLik $
               unfoldConstructors layouts $
               translateLets $
-              -- topLevelTranslate layouts $
+              topLevelTranslate layouts $
               defTranslateLayoutMatch layouts $
               unfoldEmptyConstructors layouts $
               runTypeCheck fnName layouts adts fnDefs $
