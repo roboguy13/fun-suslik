@@ -271,7 +271,9 @@ parseAssertion =
     <|>
   parsePointsTo parseAssertion
     <|>
-  parseHeapletApply parseAssertion
+  try (parseHeapletApply parseAssertion)
+    <|>
+  parseSimpleHeapletApply parseAssertion
 
 parsePointsTo :: Parser (Assertion FsName) -> Parser (Assertion FsName)
 parsePointsTo p = do
@@ -281,8 +283,9 @@ parsePointsTo p = do
   -- e <- fmap (Var ()) parseIdentifier
   PointsToI loc e <$> ((parseOp "," *> p) <|> pure Emp)
 
-parseHeapletApply :: Parser (Assertion FsName) -> Parser (Assertion FsName)
-parseHeapletApply p = do
+-- | LayoutName arg
+parseSimpleHeapletApply :: Parser (Assertion FsName) -> Parser (Assertion FsName)
+parseSimpleHeapletApply p = lexeme $ do
   layoutName <- parseSimpleLayoutName
   -- some spaceChar
   -- args <- some parseExpr'
@@ -291,6 +294,20 @@ parseHeapletApply p = do
   let args = [arg]
   HeapletApply (MkLayoutName (Just Input) layoutName) [VarS argId] args <$> ((parseOp "," *> p) <|> pure Emp)
   -- HeapletApply (MkLayoutName (Just Input) layoutName) [] args <$> ((parseOp "," *> p) <|> pure Emp)
+
+parseHeapletApply :: Parser (Assertion FsName) -> Parser (Assertion FsName)
+parseHeapletApply p = lexeme $ do
+  layoutName <- parseSimpleLayoutName
+  suslikArgs <- parseLayoutArgs
+
+  fsArg <- Var () <$> parseIdentifier
+
+  HeapletApply (MkLayoutName (Just Input) layoutName) suslikArgs [fsArg] <$> ((parseOp "," *> p) <|> pure Emp)
+
+parseLayoutArgs :: Parser [SuSLikExpr FsName]
+parseLayoutArgs =
+  parseBracketed (parseOp "[") (parseOp "]")
+    (parseList (char ',') parseSuSLikExpr')
 
 
 parseLoc :: Parser (Loc FsName)

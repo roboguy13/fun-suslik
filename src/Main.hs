@@ -43,11 +43,9 @@ main = do
 
       -- let (GenerateDef fnName argLayouts resultLayout:_) = directives
       -- print fnName
-      -- -- print $
-      -- putStrLn $
-      --   ppr $
-      --   defToSuSLik $
-      --   unfoldConstructors layouts $
+      -- print $
+      --   -- defToSuSLik $
+      --   -- unfoldConstructors layouts $
       --   defTranslateLayoutMatch layouts $
       --   unfoldEmptyConstructors layouts $
       --   runTypeCheck fnName layouts adts fnDefs $

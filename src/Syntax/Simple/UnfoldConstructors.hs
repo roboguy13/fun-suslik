@@ -31,12 +31,6 @@ import Debug.Trace
 
 type SuSLikExpr' = SuSLikExpr SuSLikName
 
-isBaseParam :: ParamType' a -> Bool
-isBaseParam PtrParam{} = False -- Is this correct?
-isBaseParam IntParam{} = True
-isBaseParam BoolParam{} = True
-isBaseParam LayoutParam{} = False
-
 isBaseType :: ElaboratedExpr a -> Bool
 isBaseType (Var ty _) = isBaseParam ty
 isBaseType IntLit{} = True

@@ -324,6 +324,23 @@ overwriteParams [v] (IntParam {}) = IntParam (Just v)
 overwriteParams [v] (BoolParam {}) = BoolParam (Just v)
 overwriteParams _ p = p
 
+overwriteLayoutParams :: [String] -> ParamTypeP -> ParamTypeP
+overwriteLayoutParams [v] (IntParam {}) = IntParam (Just v)
+overwriteLayoutParams [v] (BoolParam {}) = BoolParam (Just v)
+overwriteLayoutParams vs (LayoutParam (MkParametrizedLayoutName _ p)) = LayoutParam (MkParametrizedLayoutName (map Here vs) p)
+
+isBaseParam :: ParamType' a -> Bool
+isBaseParam PtrParam{} = False -- Is this correct?
+isBaseParam IntParam{} = True
+isBaseParam BoolParam{} = True
+isBaseParam LayoutParam{} = False
+
+getBaseParam :: ParamType' a -> Maybe (ParamType' b)
+getBaseParam (PtrParam x y) = Just (PtrParam x y)
+getBaseParam (IntParam x) = Just (IntParam x)
+getBaseParam (BoolParam x) = Just (BoolParam x)
+getBaseParam LayoutParam{} = Nothing
+
 data Def' defTy pat cond body ty layoutNameTy =
   MkDef
   { defName :: String
@@ -561,6 +578,25 @@ naiveSubstAsn :: [(FsName, SuSLikExpr FsName)] -> Assertion FsName -> Assertion 
 naiveSubstAsn [] fa = fa
 naiveSubstAsn (subst:rest) fa = naiveSubstAsn rest (naiveSubstAsn1 subst fa)
 
+substAsnRhs's :: [(SuSLikName, SuSLikName)] -> Assertion FsName -> Assertion FsName
+substAsnRhs's mapping = go
+  where
+    go Emp = Emp
+    go (PointsTo mode lhs (VarS v) rest) =
+      case lookup v mapping of
+        Just v' -> PointsTo mode lhs (VarS v') (go rest)
+        Nothing -> PointsTo mode lhs (VarS v) (go rest)
+    go (PointsTo mode lhs rhs rest) =
+      PointsTo mode lhs rhs (go rest)
+    go (HeapletApply lName suslikParams fsArgs rest) =
+      HeapletApply lName suslikParams fsArgs (go rest)
+    go (Block v sz rest) = Block v sz (go rest)
+    go (TempLoc v rest) = TempLoc v (go rest)
+    go asn@(IsNull {}) = asn
+    go asn@(Copy {}) = asn
+    go (AssertEqual lhs rhs rest) =
+      AssertEqual lhs rhs (go rest)
+
 mangleLayout :: Layout -> Layout
 mangleLayout layout =
   let r = layout
@@ -598,6 +634,54 @@ applyLayoutPat layout0 suslikParams pat =
   substSuSLikParams
     (layoutSuSLikParams layout) suslikParams
     (layoutMatchPat layout pat)
+
+-- | Given a layout and a pattern, get the SuSLik names that correspond to
+-- each pattern variable
+layoutPatternNames :: Show a => Layout -> Pattern' a -> [(FsName, [SuSLikName])]
+layoutPatternNames layout (PatternVar _ v) = [(v, layoutSuSLikParams layout)]
+layoutPatternNames layout pat@(MkPattern _ cName vars) =
+  let applyVarMappings = go (applyLayoutPat layout [] pat)
+      applyVarsMapped = map fst applyVarMappings
+  in
+    applyVarMappings ++ map (\v -> (v, [v])) (filter (`notElem` applyVarsMapped) vars)
+  where
+    go Emp = []
+    go (PointsTo _mode lhs rhs rest) = go rest
+    go (HeapletApply lName suslikArgs [Var _ v] rest) =
+      (v, map toVar suslikArgs) : go rest
+    -- go (HeapletApply _ _ _ rest) =
+    --   go rest
+    go (Block _ _ rest) = go rest
+    go (TempLoc _ rest) = go rest
+    go (IsNull _) = []
+    go (Copy _ _ _) = []
+    go (AssertEqual _ _ rest) = go rest
+
+    toVar (VarS v) = v
+    toVar e = error $ "toVar: Expected SuSLik var, found " ++ ppr e
+
+-- | "Decorated" with "__<fun-SuSLik pat var name>"
+decoratedLayoutPatternNames :: [(FsName, [SuSLikName])] -> ([(SuSLikName, SuSLikName)], [(FsName, [SuSLikName])])
+decoratedLayoutPatternNames mapping =
+  let r = map (\(v, names) -> (v, map (go v) names)) mapping
+  in
+  (zip (concatMap snd mapping) $ concatMap snd r, r)
+  -- let Just suslikNames = map (go v) <$> lookup v patVarMappings
+  -- in
+  -- suslikNames
+  where
+    go v w
+      | w == v = w
+      | otherwise = patternVarSuSLikName v w
+
+lookupPatMapping :: [(FsName, [SuSLikName])] -> FsName -> [SuSLikName]
+lookupPatMapping mappings v =
+  let Just names = lookup v mappings
+  in names
+
+-- | Append the pattern var name to the SuSLik name to freshen
+patternVarSuSLikName :: String -> String -> String
+patternVarSuSLikName patVar sName = patVar <> "__" <> sName
 
 applyLayout :: Layout -> [SuSLikName] -> ConstrName -> [SuSLikName] -> Assertion SuSLikName
 applyLayout layout0 suslikParams cName args =
@@ -776,7 +860,7 @@ data Assertion a where
   HeapletApply :: LayoutName -> [SuSLikExpr a] -> [ExprX () Void a] -> Assertion a -> Assertion a
 
   TempLoc :: SuSLikName -> Assertion a -> Assertion a
-  Block :: SuSLikName -> Int -> Assertion a -> Assertion a
+  Block :: a -> Int -> Assertion a -> Assertion a
 
   IsNull :: a -> Assertion a
   Copy :: String -> a -> a -> Assertion a
@@ -870,7 +954,7 @@ instance (Show a, Ppr a) => Ppr (Assertion a) where
       ,unwords (map ppr fsArg)
       ] ++ ", " ++ ppr rest
   ppr (Block v sz rest) =
-    "[" ++ v ++ ", " ++ show sz ++ "]" ++ ", " ++ ppr rest
+    "[" ++ ppr v ++ ", " ++ show sz ++ "]" ++ ", " ++ ppr rest
   ppr (TempLoc v rest) =
     "temploc " ++ v ++ ", " ++ ppr rest
 

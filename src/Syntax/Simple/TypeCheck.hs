@@ -290,13 +290,13 @@ elaborateDef inParamTypes outParamType def = do
           -- () <- traceM $ "defBranchPatterns = " ++ show (defBranchPatterns defBranch)
           let gamma0 = zipWith3 inferLayoutPatVars foundArgTypes argAdts $ defBranchPatterns defBranch
 
-              goGamma :: [String] -> [(Pattern, (FsName, ParamType))] -> [(FsName, ParamTypeP)]
-              goGamma vs = map (\(pat, xs) ->
+              goGamma :: [String] -> ParamTypeP -> [(Pattern, (FsName, ParamTypeP))] -> [(FsName, ParamTypeP)]
+              goGamma vs paramedLayout = map (\(pat, xs) ->
                 if isPatternVar pat
-                  then second (mkParamTypeP vs) xs
-                  else (fst xs, mkParamTypeP [fst xs] (snd xs)))
+                  then second (updateParams vs) xs
+                  else xs)
 
-              gamma = concat $ zipWith goGamma argParams gamma0
+              gamma = concat $ zipWith3 goGamma argParams paramedLayouts gamma0
 
 
           let goGuarded (MkGuardedExpr x y) = do
@@ -307,6 +307,8 @@ elaborateDef inParamTypes outParamType def = do
                 st <- get
                 (_, e') <- inferWith gamma outParamType e
                 pure e'
+
+          -- () <- traceM $ "paramedLayouts = " ++ show paramedLayouts
 
           -- () <- traceM $ "gamma0 = " ++ show gamma0
           -- () <- traceM $ "gamma = " ++ show gamma
@@ -375,14 +377,19 @@ elaboratePattern :: Pattern -> ParamTypeP -> Pattern' ParamTypeP
 elaboratePattern pat x = patternSet x pat
 -- elaboratePattern pat _ = pat
 
-inferLayoutPatVars :: ParamTypeL -> Maybe Adt -> Pattern -> [(Pattern, (FsName, ParamType))]
+-- patternVarsFromLayoutApp :: Pa
+
+inferLayoutPatVars :: ParamTypeL -> Maybe Adt -> Pattern -> [(Pattern, (FsName, ParamTypeP))]
 inferLayoutPatVars (PtrParam p ty) _ pat@(PatternVar _ v) =
   [(pat, (v, PtrParam p ty))]
 inferLayoutPatVars (BoolParam p) _ pat@(PatternVar _ v) = [(pat, (v, BoolParam p))]
 inferLayoutPatVars (IntParam p) _ pat@(PatternVar _ v) = [(pat, (v, IntParam p))]
 inferLayoutPatVars (BoolParam p) _ pat = error $ "Attempt to pattern match on Bool: " ++ show pat
 inferLayoutPatVars (IntParam p) _ pat = error $ "Attempt to pattern match on Int: " ++ show pat
-inferLayoutPatVars (LayoutParam layout) (Just adt) pat@(PatternVar _ v) = [(pat, (v, LayoutParam (MkLayoutName (Just Input) (layoutName layout))))]
+inferLayoutPatVars (LayoutParam layout) (Just adt) pat@(PatternVar _ v) =
+    let suslikNames = map (patternVarSuSLikName v) (layoutSuSLikParams layout)
+    in
+    [(pat, (v, withParams suslikNames $ LayoutParam (MkLayoutName (Just Input) (layoutName layout))))]
 inferLayoutPatVars (LayoutParam layout) (Just adt) pat@(MkPattern _ cName params) =
     let adtFields = adtBranchFields $ findAdtBranch adt cName
     in
@@ -390,12 +397,21 @@ inferLayoutPatVars (LayoutParam layout) (Just adt) pat@(MkPattern _ cName params
   where
     appliedLayout = applyLayoutPat layout [] pat
 
+    patVarMappings0 = layoutPatternNames layout pat
+
     go v IntType = (v, IntParam $ Just v) -- TODO: Or should these be Nothing?
     go v BoolType = (v, BoolParam $ Just v)
     -- go v _ = (v, LayoutParam $ findLayoutApp v $ snd $ lookupLayoutBranch layout cName)
     -- go v (AdtType adtName) =
     --   (v, LayoutParam (MkLayoutName (Just Input) (layoutName layout))) -- TODO: Does this make sense?
-    go v _ = (v, LayoutParam $ findLayoutApp v appliedLayout)
+    go v _ =
+      let (_, patVarMappings) = decoratedLayoutPatternNames patVarMappings0
+      in
+      let suslikNames = lookupPatMapping patVarMappings v
+      in
+      trace ("suslikNames = " ++ show suslikNames)
+      (v, withParams suslikNames $ LayoutParam $ findLayoutApp v appliedLayout)
+      -- (v, withParams suslikNames $ LayoutParam $ findLayoutApp v appliedLayout)
 inferLayoutPatVars (LayoutParam layout) Nothing _ = error $ "inferLayoutPatVars: Could not find ADT associated to layout " ++ show layout
 
 findLayoutApp :: FsName -> Assertion FsName -> LayoutName
@@ -575,7 +591,6 @@ inferExpr gamma (Var () v) =
     Just concTy -> do
       layouts <- getLayouts
       r <- newOutVars (fmap (lookupLayout layouts . baseLayoutName . getParamedName) concTy)
-      -- traceM ("concTy = " ++ show concTy)
       -- typeMatchesLowered ty lowered
       -- requireType ty (loweredType lowered)
 
@@ -587,7 +602,7 @@ inferExpr gamma (Var () v) =
       -- pure $ (lowered, Var lowered v)
       let ps = loweredParams $ lowered
       let (p:_) = ps
-      -- () <- traceM ("inferExpr: " ++ show (v, lowered, p))
+      -- () <- traceM ("inferExpr: " ++ show (v, lowered, p) ++ "\n---> concTy: " ++ show concTy)
       pure $ (lowered, Var lowered p)
 
 inferExpr gamma (Deref () e) = do
