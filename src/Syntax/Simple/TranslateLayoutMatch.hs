@@ -18,20 +18,20 @@ import           Data.Void
 
 import Debug.Trace
 
-defTranslateLayoutMatch :: [Layout] -> ElaboratedDef -> DefWithAsn
+defTranslateLayoutMatch :: [Layout] -> NamedDef -> DefWithAsn
 defTranslateLayoutMatch layoutEnv def =
   def
   { defBranches = map branchTranslate (defBranches def)
   }
   where
 
-    branchTranslate :: ElaboratedDefBranch -> DefBranchWithAsn
+    branchTranslate :: NamedDefBranch -> DefBranchWithAsn
     branchTranslate branch =
       branch
       { defBranchGuardeds = map (guardedTranslate (defBranchPatterns branch)) (defBranchGuardeds branch)
       }
 
-    guardedTranslate :: [Pattern' ParamTypeP] -> Elaborated GuardedExpr -> GuardedExprWithAsn
+    guardedTranslate :: [Pattern' ParamTypeP] -> Named GuardedExpr -> GuardedExprWithAsn
     guardedTranslate pats (MkGuardedExpr cond body) =
       let asn = foldMap applyPat pats
       in
@@ -42,35 +42,30 @@ defTranslateLayoutMatch layoutEnv def =
 
         applyPat :: Pattern' ParamTypeP -> Assertion SuSLikName
         applyPat (PatternVar {}) = Emp
-        applyPat pat@(MkPattern (LayoutParam (MkParametrizedLayoutName params0 layoutName)) cName patParams) =
-          let baseParams0 = map getLocBase params0
-          in
-          let layout = lookupLayout layoutEnv (baseLayoutName layoutName)
-          in
-          let patMappings0 = layoutPatternNames layout pat
-          in
+        applyPat pat@(MkPattern (LayoutParam (MkParametrizedLayoutName params layoutName)) cName patParams) =
+          let baseParams = map getLocBase params
+              layout = lookupLayout layoutEnv (baseLayoutName layoutName)
+              -- patMappings0 = layoutPatternNames layout pat
               -- applyParams = map getLocBase params0
-          let (suslikRenamings, patMappings) = decoratedLayoutPatternNames patMappings0
-              baseParams = naiveSubst suslikRenamings baseParams0
-          in
-          let params = concatMap snd $ patMappings
-          in
-          let applied =
-                substAsnRhs's suslikRenamings $
+              -- (suslikRenamings, patMappings) = decoratedLayoutPatternNames patMappings0
+              -- baseParams = naiveSubst suslikRenamings baseParams0
+              -- params = concatMap snd $ patMappings
+              -- subst = zip (layoutSuSLikParams layout) patParams
+              applied =
                 removeHeapletApplies layoutName $ applyLayoutPat layout baseParams (MkPattern () cName patParams)
           in
-          -- trace ("patMappings = " ++ show patMappings) $
-          -- trace ("renamings = " ++ show suslikRenamings) $
+          -- trace ("baseParams = " ++ show baseParams ++ "\n===> patParams = " ++ show patParams) $
+          -- trace ("params = " ++ show params) $
           if anyPatVarOccurs pat body || isEmp applied
             then applied
-            else HeapletApply layoutName (map VarS params) (map (Var ()) patParams) Emp
+            else HeapletApply layoutName (map VarS baseParams) (map (Var ()) patParams) Emp
         applyPat pat@(MkPattern {}) = error $ "applyPat: Pattern match on non-layout: " ++ show pat
 
 
 anyPatVarOccurs :: Pattern' a -> Expr FsName -> Bool
 anyPatVarOccurs pat = any (`elem` getPatternVars pat)
 
-updateAddrExprs :: Assertion FsName -> ElaboratedExpr FsName -> ElaboratedExpr FsName
+updateAddrExprs :: Assertion FsName -> Named ExprX FsName -> Named ExprX FsName
 updateAddrExprs asn = go
   where
     go e0@(Var {}) = e0

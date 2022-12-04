@@ -44,6 +44,7 @@ executable fun-suslik
       Syntax.Ppr
       Syntax.Simple.Heaplet
       Syntax.Simple.TranslateLets
+      Syntax.Simple.GenerateNames
 
 
     -- LANGUAGE extensions used by modules in this package.

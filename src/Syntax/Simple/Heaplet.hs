@@ -7,6 +7,10 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE LiberalTypeSynonyms #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 {-# OPTIONS_GHC -Wincomplete-patterns #-}
 
@@ -15,6 +19,7 @@ module Syntax.Simple.Heaplet
 
 import           Syntax.Name
 import           Syntax.Ppr
+import           Syntax.FreshGen
 
 import           Text.Show.Deriving
 import           Data.Functor.Classes
@@ -264,20 +269,53 @@ getType (IfThenElse ty _ _ _) = Right ty
 --     Left base -> _ $ baseToType base
 --     Right ty -> ty
 
+instance Ppr Void where
+  ppr = absurd
+
+instance Ppr () where ppr () = "()"
+
 -- TODO: Make this better
-instance (Show a, Show layoutNameTy, Show ty) => Ppr (ExprX ty layoutNameTy a) where
-    ppr = show
+instance (Ppr a, Ppr layoutNameTy, Ppr ty) => Ppr (ExprX ty layoutNameTy a) where
+  ppr (Var ty v) = ppr v ++ "@" ++ ppr ty
+  ppr (IntLit i) = show i
+  ppr (BoolLit b) = show b
+
+  ppr (And x y) = pprBin "&&" x y
+  ppr (Or x y) = pprBin "||" x y
+  ppr (Not x) = "(not x)"
+  ppr (Add x y) = pprBin "+" x y
+  ppr (Sub x y) = pprBin "-" x y
+  ppr (Mul x y) = pprBin "*" x y
+  ppr (Equal x y) = pprBin "==" x y
+  ppr (Le x y) = pprBin "<=" x y
+  ppr (Lt x y) = pprBin "<" x y
+  ppr (Apply f outTy argTys args) =
+    f ++ "@" ++ ppr outTy ++ " [" ++ intercalate "," (map ppr argTys) ++ "] " ++
+    unwords (map ppr args)
+  ppr (ConstrApply ty cName args) =
+    cName ++ "@" ++ ppr ty ++ " " ++ unwords (map ppr args)
+
+  ppr (Deref ty e) = "(deref@" ++ ppr ty ++ " " ++ ppr e ++ ")"
+  ppr (Addr ty e) = "(addr@" ++ ppr ty ++ " " ++ ppr e ++ ")"
+  ppr (LetIn ty v bnd body) =
+    "(let@" ++ ppr ty ++ " " ++ ppr v ++ " := " ++ ppr bnd ++ " in " ++ ppr body ++ ")"
+  ppr (IfThenElse ty c t f) =
+    "(ifThenElse@" ++ ppr ty ++ " " ++ unwords (map ppr [c, t, f]) ++ ")"
+
+pprBin f x y = "(" ++ ppr x ++ " " ++ f ++ " " ++ ppr y ++ ")"
 
 type ParsedExpr = Parsed ExprX
 type ElaboratedExpr = Elaborated ExprX
 
 type Parsed f = f () ParamType
-type Elaborated f = f ParamTypeP Void
+type Elaborated f = f ParamType Void
 
-type Expr = Elaborated ExprX
+type Named f = f ParamTypeP Void
+
+type Expr = Named ExprX --Elaborated ExprX
 
 data Pattern' a = MkPattern a ConstrName [FsName] | PatternVar a FsName
-  deriving (Show)
+  deriving (Show, Functor)
 
 patternMapNames :: (FsName -> FsName) -> Pattern' a -> Pattern' a
 patternMapNames f (MkPattern x cName args) = MkPattern x cName (map f args)
@@ -352,7 +390,8 @@ data Def' defTy pat cond body ty layoutNameTy =
 -- TODO: Implement base type parameters:
 -- type ElaboratedDef = Elaborated (DefT ([FsParam], FsParam) ParametrizedLayoutName)
 
-type ElaboratedDef = Elaborated (DefT ([ParamTypeP], ParamTypeP) ParamTypeP)
+type ElaboratedDef = Elaborated (DefT ([ParamType], ParamType) ())
+type NamedDef = Named (DefT ([ParamTypeP], ParamTypeP) ParamTypeP)
 type ParsedDef = Parsed (Def ())
 
 -- fnArgTypes :: Type -> [Type]
@@ -371,7 +410,8 @@ data DefBranch' pat cond body ty layoutNameTy=
   }
   deriving (Show)
 
-type ElaboratedDefBranch = Elaborated (DefBranch ParamTypeP)
+type ElaboratedDefBranch = Elaborated (DefBranch ())
+type NamedDefBranch = Named (DefBranch ParamTypeP)
 type ParsedDefBranch = Parsed (DefBranch ())
 
 
@@ -392,18 +432,18 @@ type Def pat ty layoutNameTy = DefT Type pat ty layoutNameTy
 type DefBranch pat ty layoutNameTy = DefBranch' pat (ExprX ty layoutNameTy FsName) (ExprX ty layoutNameTy FsName) ty layoutNameTy
 type GuardedExpr ty layoutNameTy = GuardedExpr' (ExprX ty layoutNameTy FsName) (ExprX ty layoutNameTy FsName) ty layoutNameTy
 
-type GuardedExprWithAsn = Elaborated (GuardedExpr' (ElaboratedExpr FsName) (ExprWithAsn FsName))
+type GuardedExprWithAsn = Elaborated (GuardedExpr' (Named ExprX FsName) (ExprWithAsn FsName))
 
-type AsnGuarded = Elaborated (GuardedExpr' (ElaboratedExpr FsName) (Assertion FsName))
+type AsnGuarded = Elaborated (GuardedExpr' (Named ExprX FsName) (Assertion FsName))
 
-data ExprWithAsn a = MkExprWithAsn (Assertion a) (ElaboratedExpr a)
+data ExprWithAsn a = MkExprWithAsn (Assertion a) (Named ExprX a)
   deriving (Show)
 
-type DefBranchWithAsn = Elaborated (DefBranch' ParamTypeP (ElaboratedExpr FsName) (ExprWithAsn FsName))
-type AsnDefBranch = Elaborated (DefBranch' ParamTypeP (ElaboratedExpr FsName) (Assertion SuSLikName))
+type DefBranchWithAsn = Elaborated (DefBranch' ParamTypeP (Named ExprX FsName) (ExprWithAsn FsName))
+type AsnDefBranch = Elaborated (DefBranch' ParamTypeP (Named ExprX FsName) (Assertion SuSLikName))
 
-type DefWithAsn = Elaborated (Def' ([ParamTypeP], ParamTypeP) ParamTypeP (ElaboratedExpr FsName) (ExprWithAsn FsName))
-type AsnDef = Elaborated (Def' ([ParamTypeP], ParamTypeP) ParamTypeP (ElaboratedExpr FsName) (Assertion FsName))
+type DefWithAsn = Elaborated (Def' ([ParamTypeP], ParamTypeP) ParamTypeP (Named ExprX FsName) (ExprWithAsn FsName))
+type AsnDef = Elaborated (Def' ([ParamTypeP], ParamTypeP) ParamTypeP (Named ExprX FsName) (Assertion FsName))
 
 getDefRhs's :: Def' defTy pat cond body ty layoutNameTy -> [body]
 getDefRhs's = concatMap getDefBranchRhs's . defBranches
@@ -542,6 +582,20 @@ naiveSubst ((old, new):rest) fa = naiveSubst rest (fmap go fa)
       | y == old = new
       | otherwise = y
 
+-- | Similar to naiveSubst, but freshens free variables that are not being
+-- substituted.
+naiveSubstM :: forall f. (Eq String, Traversable f) => [(String, String)] -> f String -> FreshGen (f String)
+naiveSubstM subst fa = do
+    let vars = toList fa
+        fvs = vars \\ map fst subst
+
+    freshened <- mapM freshen fvs
+    pure (naiveSubst (subst ++ freshened) fa)
+  where
+    freshen v = do
+      v' <- getFreshWith (v <> "__")
+      pure (v, v')
+
 naiveSubstAsn1 :: (FsName, SuSLikExpr FsName) -> Assertion FsName -> Assertion FsName
 naiveSubstAsn1 subst@(old, new) fa =
     case fa of
@@ -629,11 +683,24 @@ layoutMatchPat layout (MkPattern _ cName args) =
 applyLayoutPat :: Show a => Layout -> [String] -> Pattern' a -> Assertion SuSLikName
 applyLayoutPat layout0 suslikParams pat =
   let layout = mangleLayout layout0
+      r = fmap unmangle $
+            substSuSLikParams
+              (layoutSuSLikParams layout) suslikParams
+              (layoutMatchPat layout pat)
   in
-  fmap unmangle $
-  substSuSLikParams
-    (layoutSuSLikParams layout) suslikParams
-    (layoutMatchPat layout pat)
+  -- trace "----" $
+  -- trace ("subst = " ++ show ((layoutSuSLikParams layout), suslikParams)) $
+  -- trace ("match pat = " ++ show (layoutMatchPat layout pat)) $
+  -- trace ("r = " ++ show r) $
+  r
+  -- trace ("suslikParams = " ++ show suslikParams ++ "; r = " ++ show r) r
+
+-- -- | Freshen RHS vars of 'points-to' that are not in substitution
+-- freshenAssertion :: (SuSLikName, SuSLikName) -> Assertion SuSLikName -> FreshGen (Assertion SuSLikName)
+-- freshenAssertion subst asn =
+--   let fvs = go asn
+--   in
+--   undefined
 
 -- | Given a layout and a pattern, get the SuSLik names that correspond to
 -- each pattern variable
@@ -673,6 +740,8 @@ decoratedLayoutPatternNames mapping =
     go v w
       | w == v = w
       | otherwise = patternVarSuSLikName v w
+-- TODO: Generate equalities to set SuSLik parameters appropriately (for
+-- example, x |-> __p_x0 in the sum example)
 
 lookupPatMapping :: [(FsName, [SuSLikName])] -> FsName -> [SuSLikName]
 lookupPatMapping mappings v =
@@ -680,8 +749,10 @@ lookupPatMapping mappings v =
   in names
 
 -- | Append the pattern var name to the SuSLik name to freshen
-patternVarSuSLikName :: String -> String -> String
-patternVarSuSLikName patVar sName = patVar <> "__" <> sName
+-- TODO: Remove
+patternVarSuSLikName _ sName = sName
+-- patternVarSuSLikName :: String -> String -> String
+-- patternVarSuSLikName patVar sName = patVar <> "__" <> sName
 
 applyLayout :: Layout -> [SuSLikName] -> ConstrName -> [SuSLikName] -> Assertion SuSLikName
 applyLayout layout0 suslikParams cName args =
@@ -961,6 +1032,60 @@ instance (Show a, Ppr a) => Ppr (Assertion a) where
   ppr (IsNull v) = ppr v ++ " == null ; emp"
   ppr (Copy lName src dest) = "func " ++ lName ++ "__copy(" ++ ppr src ++ ", " ++ ppr dest ++ ")"
   ppr (AssertEqual x y rest0) = "(" <> ppr x <> " == " <> ppr y <> ")"
+
+instance Ppr AsnDef where
+  ppr (MkDef name ty branches) =
+    name ++ " : " ++ ppr ty ++ "\n"
+    ++ unlines (map ("  " <>) (map ppr branches))
+
+instance Ppr ParamTypeP where
+  ppr (IntParam Nothing) = "Int"
+  ppr (BoolParam Nothing) = "Bool"
+  ppr (IntParam (Just v)) = "Int[" ++ v ++ "]"
+  ppr (BoolParam (Just v)) = "Bool[" ++ v ++ "]"
+
+  ppr (PtrParam Nothing ty) = "Ptr " ++ ppr ty
+  ppr (PtrParam (Just loc) ty) = "Ptr[" ++ ppr loc ++ "] " ++ ppr ty
+  ppr (LayoutParam (MkParametrizedLayoutName xs name)) =
+    baseLayoutName name ++ "[" ++ intercalate "," (map ppr xs) ++ "]"
+
+instance Ppr ([ParamTypeP], ParamTypeP) where
+  ppr (argTys, resultTy) =
+    intercalate " -> " (map ppr (argTys ++ [resultTy]))
+
+instance Ppr AsnDefBranch where
+  ppr (MkDefBranch pats guardeds) =
+    unwords (map ppr pats) ++ "\n" ++
+    unlines (map ("  | " ++) (map ppr guardeds))
+
+instance Ppr (Pattern' ParamTypeP) where
+  ppr (PatternVar ty v) =
+    v ++ "@[" ++ intercalate "," (loweredParams ty) ++ "]"
+
+  ppr (MkPattern ty cName []) =
+    "(" ++ cName ++ ")@["
+      ++ intercalate "," (loweredParams ty) ++ "]"
+  ppr (MkPattern ty cName params) =
+    "(" ++ cName ++ " " ++ unwords params ++ ")@["
+      ++ intercalate "," (loweredParams ty) ++ "]"
+
+instance Ppr AsnGuarded where
+  ppr (MkGuardedExpr cond body) = ppr cond ++ " := { " ++ ppr body ++ " }"
+
+
+instance Ppr DefWithAsn where 
+  ppr (MkDef name ty branches) =
+    name ++ " : " ++ ppr ty ++ "\n"
+    ++ unlines (map ("  " <>) (map ppr branches))
+
+instance Ppr DefBranchWithAsn where
+  ppr (MkDefBranch pats guardeds) =
+    unwords (map ppr pats) ++ "\n" ++
+    unlines (map ("  | " ++) (map ppr guardeds))
+
+instance Ppr GuardedExprWithAsn where
+  ppr (MkGuardedExpr cond (MkExprWithAsn asn e)) =
+    ppr cond ++ " := { " ++ ppr asn ++ " } & " ++ ppr e
 
 -- type Assertion' a = Assertion (ExprX () Void a)
 

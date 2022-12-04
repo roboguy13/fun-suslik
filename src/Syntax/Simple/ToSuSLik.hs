@@ -36,6 +36,8 @@ defToSuSLik def =
       -- predParams = map (`MkSuSLikParam` LocType) argParams
       --                       ++ map (`MkSuSLikParam` LocType) resultParams
   in
+  -- trace ("def = " ++ show def) $
+  -- trace ("*** resultParams = " ++ show resultParams) $
   -- trace ("outParams = " ++ show resultParams) $
   MkInductivePred
   { inductivePredName = defName def
@@ -69,6 +71,7 @@ defToSuSLik def =
       -- asnCons (PointsToS (modeToMutability mode) x y)
       --         (toHeaplets rest)
     toHeaplets (HeapletApply lName suslikArgs _es rest)
+      | trace ("comparing names " ++ show (baseLayoutName lName, recName)) False = undefined
       | genLayoutName lName == recName || layoutNameHasMode lName =
           asnCons (HeapletApplyS (genLayoutName lName) suslikArgs)
                   (toHeaplets rest)

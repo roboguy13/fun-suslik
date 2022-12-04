@@ -1,3 +1,5 @@
+%generate test [Sll[readonly], Sll[readonly]] Sll
+%generate add [Int, Int] Int
 %generate sum [Dll[readonly]] Int
 %generate cons [Int, Sll[readonly]] Sll
 %generate fold_List [Int, Sll[readonly]] (Ptr Int)
@@ -43,7 +45,7 @@ data PairList := PNil | PCons Pair PairList;
 
 Sll : List >-> layout[x];
 Sll (Nil) := emp;
-Sll (Cons head tail) := x :-> head, (x+1) :-> nxt, Sll[nxt] tail;
+Sll (Cons head tail) := x :-> head, (x+1) :-> tail, Sll[nxt] tail;
 
 -- SllTree : List >-> layout[x];
 -- SllTree (Nil) := emp;
@@ -88,6 +90,15 @@ PairListLayout (PCons head tail) :=
   (x+1) :-> tail,
   PairListLayout tail,
   PairLayout head;
+
+test : List -> List -> List;
+test (Nil) (Nil) := Nil;
+test (Cons x xs) (Nil) := Cons x xs;
+test (Nil) (Cons y ys) := Cons y ys;
+test (Cons x xs) (Cons y ys) := Cons x (test xs ys);
+
+add : Int -> Int -> Int;
+add x y := x + y;
 
 map_sum : ListOfLists -> List;
 map_sum (LNil) := Nil;

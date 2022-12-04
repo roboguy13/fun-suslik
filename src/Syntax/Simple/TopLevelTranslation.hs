@@ -43,7 +43,7 @@ topLevelTranslate layouts def =
     goAsn (MkExprWithAsn asn e) =
       MkExprWithAsn (fromMaybe asn (go e)) e
 
-    go :: ElaboratedExpr FsName -> Maybe (Assertion FsName)
+    go :: Named ExprX FsName -> Maybe (Assertion FsName)
     -- go e0@(Var ty v) = Nothing
     -- go e0@(IntLit i) = Nothing
     -- go e0@(BoolLit b) = Nothing
