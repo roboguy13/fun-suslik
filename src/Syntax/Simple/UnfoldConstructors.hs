@@ -239,6 +239,7 @@ unfoldConstructors layouts def =
       in
       (map VarS (loweredParams outLayout),
        HeapletApply (MkLayoutName Nothing fName) (exprs ++ map VarS (loweredParams outLayout)) [] asn <> asnTemps)
+       -- HeapletApply (MkLayoutName Nothing fName) (exprs ++ map VarS (loweredParams outLayout)) [] asn <> asnTemps)
 
     exprTranslate out e@(ConstrApply ty@(LayoutParam layoutName) cName args) =
       let (_, asns) = first concat . unzip $ map (exprTranslate (Just $ map ppr $ getParamedNameParams layoutName)) args

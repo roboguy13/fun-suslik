@@ -1087,6 +1087,20 @@ instance Ppr GuardedExprWithAsn where
   ppr (MkGuardedExpr cond (MkExprWithAsn asn e)) =
     ppr cond ++ " := { " ++ ppr asn ++ " } & " ++ ppr e
 
+instance Ppr NamedDef where
+  ppr (MkDef name ty branches) =
+    name ++ " : " ++ ppr ty ++ "\n"
+    ++ unlines (map ("  " <>) (map ppr branches))
+
+instance Ppr NamedDefBranch where
+  ppr (MkDefBranch pats guardeds) =
+    unwords (map ppr pats) ++ "\n" ++
+    unlines (map ("  | " ++) (map ppr guardeds))
+
+instance Ppr (Named GuardedExpr) where
+  ppr (MkGuardedExpr cond e) =
+    ppr cond ++ " := " ++ ppr e
+
 -- type Assertion' a = Assertion (ExprX () Void a)
 
 --

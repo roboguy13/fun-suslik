@@ -1,4 +1,4 @@
-%generate test [Sll[readonly], Sll[readonly]] Sll
+%generate test [Sll[readonly], Dll[readonly]] Sll
 %generate add [Int, Int] Int
 %generate sum [Dll[readonly]] Int
 %generate cons [Int, Sll[readonly]] Sll

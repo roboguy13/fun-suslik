@@ -71,7 +71,6 @@ defToSuSLik def =
       -- asnCons (PointsToS (modeToMutability mode) x y)
       --         (toHeaplets rest)
     toHeaplets (HeapletApply lName suslikArgs _es rest)
-      | trace ("comparing names " ++ show (baseLayoutName lName, recName)) False = undefined
       | genLayoutName lName == recName || layoutNameHasMode lName =
           asnCons (HeapletApplyS (genLayoutName lName) suslikArgs)
                   (toHeaplets rest)
@@ -146,7 +145,7 @@ collectParamsAsn :: Assertion a -> [a]
 collectParamsAsn Emp = []
 collectParamsAsn (PointsTo _ lhsLoc _ rest) =
   toList lhsLoc <> collectParamsAsn rest
-collectParamsAsn (HeapletApply layoutName suslikParams _ rest)
+collectParamsAsn (HeapletApply layoutName suslikParams es rest)
   | layoutNameHasMode layoutName =
       foldMap toList (toList suslikParams) <> collectParamsAsn rest
   | otherwise = collectParamsAsn rest

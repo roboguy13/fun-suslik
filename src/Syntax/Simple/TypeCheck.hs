@@ -106,7 +106,7 @@ instAndElaborate fnName argParamTypes outParamType def = do
   elaborated <- elaborateDef argParamTypes outParamType
                   $ instDefCalls argParamTypes outParamType def
   pure $ elaborated
-    { defName = (getPredName oldName (map genParamTypeName argParamTypes) (genParamTypeName outParamType))
+    { defName = oldName --(getPredName oldName (map genParamTypeName argParamTypes) (genParamTypeName outParamType))
     }
 
 instDefCalls :: [ParamType] -> ParamType -> ParsedDef -> ParsedDef

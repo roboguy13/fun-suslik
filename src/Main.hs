@@ -43,20 +43,21 @@ main = do
       let directives = fileDirectives parsed
       let (GenerateDef fnName argLayouts resultLayout:_) = directives
 
-      --   -- defToSuSLik $
-      --   -- unfoldConstructors layouts $
-      -- let x =
-      --       defTranslateLayoutMatch layouts $
-      --       unfoldEmptyConstructors layouts $
-      --       generateNames layouts $
-      --       runTypeCheck fnName layouts adts fnDefs $
-      --         instAndElaborate fnName argLayouts resultLayout $ lookupDef fnDefs fnName
-      -- print fnName
-      -- -- print $
       -- putStrLn $ ppr $
-      --   x
-      -- putStrLn "-----------"
-      -- putStrLn $ ppr $ unfoldConstructors layouts x
+      -- -- print $
+      --   defToSuSLik $
+      --   unfoldConstructors layouts $
+      --   defTranslateLayoutMatch layouts $
+      --   unfoldEmptyConstructors layouts $
+      --   generateNames layouts $
+      --   runTypeCheck fnName layouts adts fnDefs $
+      --     instAndElaborate fnName argLayouts resultLayout $ lookupDef fnDefs fnName
+      -- -- print fnName
+      -- -- -- print $
+      -- -- putStrLn $ ppr $
+      -- --   x
+      -- -- putStrLn "-----------"
+      -- -- putStrLn $ ppr $ unfoldConstructors layouts x
 
       let doDirective :: Directive -> IO ()
           doDirective (GenerateDef fnName argLayouts resultLayout) = do
@@ -72,6 +73,6 @@ main = do
               runTypeCheck fnName layouts adts fnDefs $
                 instAndElaborate fnName argLayouts resultLayout $ lookupDef fnDefs fnName
             putStrLn ""
-      -- mapM_ doDirective directives
-      doDirective $ head directives
+      mapM_ doDirective directives
+      -- doDirective $ head directives
 
