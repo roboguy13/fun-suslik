@@ -12,6 +12,7 @@ module Syntax.Simple.TypeCheck
   where
 
 import           Syntax.Simple.Heaplet
+import           Syntax.Simple.Defunctionalize (baseFnName)
 import           Syntax.FreshGen
 import           Syntax.Name
 
@@ -66,11 +67,12 @@ getLayouts = do
 
 type ParamTypeL = ParamType' Layout
 
-lookupParamType :: ParamType -> TypeCheck ParamTypeL
+lookupParamType :: HasCallStack => ParamType -> TypeCheck ParamTypeL
 lookupParamType (PtrParam v ty) = pure $ PtrParam v ty
 lookupParamType (IntParam v) = pure $ IntParam v
 lookupParamType (BoolParam v) = pure $ BoolParam v
 lookupParamType (LayoutParam layoutName) = LayoutParam <$> lookupLayoutM (baseLayoutName layoutName)
+lookupParamType (FnParam {}) = error "layoutParamType: FnParam"
 
 lookupAdtM :: String -> TypeCheck Adt
 lookupAdtM name = do
@@ -245,7 +247,7 @@ instCall fnName argParamTypes outParamType = go
     go (Le x y) = Le (go x) (go y)
     go (Lt x y) = Lt (go x) (go y)
     go (Apply f ty argTys args) -- TODO: Put in a sanity check for the layouts
-      | f == fnName = instantiate (map go args)
+      | baseFnName f == baseFnName fnName = instantiate (map go args)
       | otherwise = Apply f ty argTys (map go args)
     go (ConstrApply ty cName args) = ConstrApply ty cName (map go args)
     go (Lower layout arg) = Lower layout (go arg)

@@ -1,3 +1,4 @@
+%generate times2 [Int] Int
 %generate cons [Int, Sll[readonly]] Sll
 %generate fold_List [Int, Sll[readonly]] (Ptr Int)
 %generate zipWith [Sll[readonly], Sll[readonly]] Sll
@@ -20,10 +21,10 @@
 %generate reverse [Sll[readonly]] Sll
 %generate zip [Sll[readonly], Sll[readonly]] ZippedLayout
 %generate replicate [Int, Int] Sll
-%generate map [Sll[readonly]] Sll
+-- %generate map [Sll[readonly]] Sll
 %generate mapTimes2 [Sll[readonly]] Sll
 %generate maximum [Sll[readonly]] Int
-%generate foldMap[Int, Sll[mutable]] Int
+-- %generate foldMap[Int, Sll[mutable]] Int
 %generate selfAppend[Sll[readonly]] Sll
 %generate scanr[Int, Sll[readonly]] Sll
 
@@ -187,20 +188,26 @@ fold_List : Int -> List -> Ptr Int;
 fold_List z (Nil) := z;
 fold_List z (Cons x xs) := instantiate [Ptr Int, Ptr Int] (Ptr Int) f (addr x) (fold_List z xs);
 
-foldMap : Int -> List -> Int;
-foldMap z (Nil) := z;
-foldMap z (Cons x xs) := instantiate [Int, Sll[mutable]] Int fold_List z (instantiate [Sll[readonly]] Sll map (lower Sll[readonly] (Cons x xs)));
+-- foldMap : Int -> List -> Int;
+-- foldMap z (Nil) := z;
+-- foldMap z (Cons x xs) := instantiate [Int, Sll[mutable]] Int fold_List z (instantiate [Sll[readonly]] Sll map (lower Sll[readonly] (Cons x xs)));
 
-map : List -> List;
-map (Nil) := Nil;
-map (Cons x xs) := Cons (instantiate [Int] Int f x) (map xs);
+map : (Int -> Int) -> List -> List;
+map f (Nil) := Nil;
+map f (Cons x xs) := Cons (instantiate [Int] Int f x) (map f xs);
+
+times2 : Int -> Int;
+times2 x := x * 2;
 
 mapTimes2 : List -> List;
-mapTimes2 (Nil) := Nil;
-mapTimes2 (Cons x xs) :=
-  let y := x * 2
-  in
-  Cons y (mapTimes2 xs);
+mapTimes2 xs := instantiate [Int -> Int, Sll[readonly]] Sll map times2 xs;
+
+-- mapTimes2 : List -> List;
+-- mapTimes2 (Nil) := Nil;
+-- mapTimes2 (Cons x xs) :=
+--   let y := x * 2
+--   in
+--   Cons y (mapTimes2 xs);
 
 -- let { scr f z [] = [z] ; scr f z (x:xs) = let { nxt = scr f z xs; r = f x (head nxt) } in r : nxt }
 

@@ -8,6 +8,7 @@ import Syntax.Simple.Def
 import Syntax.Simple.Expr
 import Syntax.Simple.Heaplet
 import Syntax.Simple.Parse
+import Syntax.Simple.Defunctionalize
 import Syntax.Simple.ToSuSLik
 import Syntax.Simple.TopLevelTranslation
 import Syntax.Simple.TranslateLayoutMatch
@@ -32,10 +33,16 @@ main = do
       -- fileData <- readFile "examples/List.fsus"
       let parsed = parse' parseFile fileData
       let layouts = fileLayouts parsed
-      let fnDefs = fileFnDefs parsed
+      let fnDefs0 = fileFnDefs parsed
       let adts = fileAdts parsed
 
-      let directives = fileDirectives parsed
+      let (fnDefs1, generated) = fmap concat . unzip $ map (defunctionalize fnDefs0 layouts) fnDefs0
+          generatedDirectives = map fst generated
+          generatedDefs       = map snd generated
+          fnDefs              = fnDefs1 ++ generatedDefs
+
+      let directives0 = fileDirectives parsed
+          directives = directives0 ++ generatedDirectives
 
       -- let (GenerateDef fnName argLayouts resultLayout:_) = directives
       -- print fnName

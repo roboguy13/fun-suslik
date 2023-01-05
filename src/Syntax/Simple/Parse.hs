@@ -416,6 +416,7 @@ parseVar = do
 
 parseParamType0 :: Parser LayoutName -> Parser ParamType
 parseParamType0 p =
+  try (parseFnType *> pure FnParam) <|>
   try (parseBracketed (parseOp "(") (parseOp ")") (parseParamType0 p)) <|>
   try (keyword "Int" *> pure (IntParam Nothing)) <|>
   try (keyword "Bool" *> pure (BoolParam Nothing)) <|>
@@ -562,6 +563,8 @@ parseType = lexeme $
   try parseFnType
     <|>
   parseUnnestedType
+    <|>
+  try (parseBracketed (char '(') (char ')') parseType)
 
 parseBaseType :: Parser BaseType
 parseBaseType =
@@ -576,12 +579,14 @@ parsePtrType =
 
 -- TODO: Parse layout types
 parseUnnestedType :: Parser Type
-parseUnnestedType =
+parseUnnestedType = lexeme $
   fmap baseToType parseBaseType
     <|>
   fmap PtrType parsePtrType
     <|>
-  (fmap AdtType go)
+  fmap AdtType go
+    <|>
+  try (parseBracketed (char '(') (char ')') parseUnnestedType)
   where
     go = do
       str <- parseTypeName
@@ -592,11 +597,11 @@ parseUnnestedType =
     reservedTypes = ["Int", "Bool", "Ptr"]
 
 parseFnType :: Parser Type
-parseFnType = do
-  dom <- leftType
+parseFnType = lexeme $ do
+  dom <- lexeme leftType
   symbol "->"
-  cod <- parseType
+  cod <- lexeme parseType
   pure $ FnType dom cod
   where
-    leftType = parseUnnestedType <|> parseBracketed (char '(') (char ')') parseType
+    leftType = try parseUnnestedType <|> parseBracketed (char '(') (char ')') parseType
 

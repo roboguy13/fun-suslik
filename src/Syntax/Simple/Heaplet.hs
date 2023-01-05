@@ -160,7 +160,12 @@ getParamedNameParams (MkParametrizedLayoutName params _) = params
 --   }
 --   deriving (Show, Eq)
 
-data ParamType' a = PtrParam (Maybe (Loc String)) BaseType | IntParam (Maybe String) | BoolParam (Maybe String) | LayoutParam a
+data ParamType' a
+      = PtrParam (Maybe (Loc String)) BaseType
+      | IntParam (Maybe String)
+      | BoolParam (Maybe String)
+      | LayoutParam a
+      | FnParam -- | NOTE: This should not exist after defunctionalization
   deriving (Functor, Show, Eq, Ord)
 
 type ParamType = ParamType' LayoutName
@@ -338,11 +343,11 @@ data Def' defTy pat cond body ty layoutNameTy =
 type ElaboratedDef = Elaborated (DefT ([ParamTypeP], ParamTypeP) ParamTypeP)
 type ParsedDef = Parsed (Def ())
 
--- fnArgTypes :: Type -> [Type]
--- fnArgTypes (FnType x y) =
---   x : fnArgTypes y
--- fnArgTypes _ = []
---
+fnArgTypes :: Type -> [Type]
+fnArgTypes (FnType x y) =
+  x : fnArgTypes y
+fnArgTypes _ = []
+
 fnResultType :: Type -> Type
 fnResultType (FnType _ t) = fnResultType t
 fnResultType t = t
@@ -397,7 +402,7 @@ getDefBranchRhs's = map getGuardedRhs . defBranchGuardeds
 getGuardedRhs :: GuardedExpr' cond body ty layoutNameTy -> body
 getGuardedRhs (MkGuardedExpr _ x) = x
 
-lookupDef :: [Def pat ty layoutNameTy] -> String -> Def pat ty layoutNameTy
+lookupDef :: HasCallStack => [Def' defTy pat cond body ty layoutNameTy] -> String -> Def' defTy pat cond body ty layoutNameTy
 lookupDef defs name =
   case find ((== name) . defName) defs of
     Nothing -> error $ "Cannot find function " ++ show name

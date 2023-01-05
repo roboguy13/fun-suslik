@@ -39,6 +39,7 @@ executable fun-suslik
       Syntax.Simple.TranslateLayoutMatch
       Syntax.Simple.TopLevelTranslation
       Syntax.Simple.ToSuSLik
+      Syntax.Simple.Defunctionalize
       Syntax.FreshGen
       Syntax.Name
       Syntax.Ppr
