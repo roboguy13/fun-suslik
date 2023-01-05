@@ -22,7 +22,11 @@ import Debug.Trace
 
 defunctionalize :: [ParsedDef] -> [Layout] -> ParsedDef -> (ParsedDef, [(Directive, ParsedDef)])
 defunctionalize globals layouts origDef =
-  runDefun $ runWriterT (defGo origDef)
+  let (newDef, generated) = runDefun $ runWriterT (defGo origDef)
+      generatedDefs = map snd generated
+      subst = zip (map (baseFnName . defName) generatedDefs) (map defName generatedDefs)
+  in
+    (substFnApplyName subst newDef, generated)
   where
     defGo :: ParsedDef -> WriterT [(Directive, ParsedDef)] Defun ParsedDef
     defGo def = do
@@ -44,8 +48,6 @@ defunctionalize globals layouts origDef =
         go (Instantiate inLayouts outLayout fName args) =
           if fName /= defName def && FnParam `elem` inLayouts && any ((== fName) . defName) globals
             then do
-              () <- traceM $ "names: " ++ show (fName, defName def)
-
               let appDef = lookupDef globals fName
               let ixs = getFnParamPositions appDef
               newDef <- fmap (removeFnPatterns ixs) <$> lift (defunApplication globals fName args)
@@ -56,14 +58,6 @@ defunctionalize globals layouts origDef =
               tell $ maybeToList (fmap (directive ,) (fmap (updateRecCalls ixs) newDef))
 
               ys <- traverse go args
-              () <- traceM $ "defun: name      = " ++ defName appDef
-              () <- traceM $ "       type      = " ++ show (defType appDef)
-              () <- traceM $ "       arg types = " ++ show (getArgTypes (defType appDef))
-              () <- traceM $ "       ixs       = " ++ show ixs
-              () <- traceM $ "       fn args   = " ++ show (map (args !!) ixs)
-              () <- traceM $ "       new args  = " ++ show ys
-              () <- traceM $ "       directive = " ++ show directive
-              () <- traceM $ "       def       = " ++ show appDef
               pure $ Instantiate (removeIndices ixs inLayouts) outLayout fName (removeIndices ixs args)
             else
               Instantiate inLayouts outLayout fName <$> traverse go args
@@ -278,15 +272,79 @@ substFnApply1 (paramPosition, newName) def =
         go (IfThenElse ty c t f) =
           IfThenElse ty (go c) (go t) (go f)
         go (Apply fName0 outLayout inLayouts0 args0) =
-          let isHigherOrder = equalsParamAtPos (defBranchPatterns branch) paramPosition fName0
+          let 
               fName =
-                if isHigherOrder
+                if equalsParamAtPos (defBranchPatterns branch) paramPosition fName0
                   then newName
                   else fName0
            in
              Apply fName outLayout inLayouts0 (map go args0)
         go (ConstrApply ty cName args) =
           ConstrApply ty cName (map go args)
+
+
+
+substFnApplyName :: [(String, String)] -> ParsedDef -> ParsedDef
+substFnApplyName subst def = foldr substFnApplyName1 def subst
+
+substFnApplyName1 :: (String, String) -> ParsedDef -> ParsedDef
+substFnApplyName1 (oldName, newName) def =
+  def
+    { defBranches = map branchGo (defBranches def)
+    }
+  where
+
+    branchGo branch =
+      branch
+        { defBranchGuardeds = map goGuarded (defBranchGuardeds branch)
+        }
+      where
+        equalsParamAtPos :: [Pattern] -> Int -> String -> Bool
+        equalsParamAtPos [] pos name = False
+        equalsParamAtPos (PatternVar _ patName : _) 0 name = name == patName
+        equalsParamAtPos (MkPattern {} : _) 0 name = error "substFnApply: Expected pattern variable for function parameter"
+        equalsParamAtPos (_ : rest) n name = equalsParamAtPos rest (n-1) name
+
+
+        goGuarded (MkGuardedExpr cond body) =
+          MkGuardedExpr (go cond) (go body)
+
+        go :: ParsedExpr String -> ParsedExpr String
+        go (Lower ty x) = go x
+        go (Instantiate inLayouts outLayout fName0 args) =
+          let fName =
+                if fName0 == oldName
+                  then newName
+                  else fName0
+           in Instantiate inLayouts outLayout fName (map go args)
+        go (Var ty v) = Var ty v
+        go (IntLit i) = IntLit i
+        go (BoolLit b) = BoolLit b
+        go (Add x y) = Add (go x) (go y)
+        go (Sub x y) = Sub (go x) (go y)
+        go (Mul x y) = Mul (go x) (go y)
+        go (And x y) = And (go x) (go y)
+        go (Or x y) = Or (go x) (go y)
+        go (Not x) = Not (go x)
+        go (Equal x y) = Equal (go x) (go y)
+        go (Le x y) = Le (go x) (go y)
+        go (Lt x y) = Lt (go x) (go y)
+        go (Deref ty x) = Deref ty (go x)
+        go (Addr ty x) = Addr ty (go x)
+        go (LetIn ty v rhs body) =
+          LetIn ty v (go rhs) (go body)
+        go (IfThenElse ty c t f) =
+          IfThenElse ty (go c) (go t) (go f)
+        go (Apply fName0 outLayout inLayouts0 args0) =
+          let fName =
+                if fName0 == oldName
+                  then newName
+                  else fName0
+           in
+             Apply fName outLayout inLayouts0 (map go args0)
+        go (ConstrApply ty cName args) =
+          ConstrApply ty cName (map go args)
+
 
 -- TODO: This is an ugly hack. Use a better way
 baseFnName :: String -> String
