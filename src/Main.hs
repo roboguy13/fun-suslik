@@ -1,24 +1,21 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE LiberalTypeSynonyms #-}
 
-module Main
-  where
+module Main where
 
-import           Syntax.Simple.Def
-import           Syntax.Simple.Expr
-import           Syntax.Simple.Parse
-import           Syntax.Simple.TypeCheck
-import           Syntax.Simple.Heaplet
-import           Syntax.Simple.ToSuSLik
-import           Syntax.Ppr
-
-import           Syntax.Simple.TranslateLayoutMatch
-import           Syntax.Simple.TranslateLets
-import           Syntax.Simple.TopLevelTranslation
-import           Syntax.Simple.UnfoldConstructors
-import           Syntax.Simple.UnfoldEmptyConstructors
-
-import           System.Environment
+import Syntax.Ppr
+import Syntax.Simple.Def
+import Syntax.Simple.Expr
+import Syntax.Simple.Heaplet
+import Syntax.Simple.Parse
+import Syntax.Simple.ToSuSLik
+import Syntax.Simple.TopLevelTranslation
+import Syntax.Simple.TranslateLayoutMatch
+import Syntax.Simple.TranslateLets
+import Syntax.Simple.TypeCheck
+import Syntax.Simple.UnfoldConstructors
+import Syntax.Simple.UnfoldEmptyConstructors
+import System.Environment
 
 isBaseTypeName :: String -> Bool
 isBaseTypeName "Int" = True
@@ -29,8 +26,7 @@ main :: IO ()
 main = do
   getArgs >>= \case
     [] -> error "Expected a source filename"
-    args@(_:_:_) -> error $ "Too many arguments. Expected 1, got " ++ show (length args)
-
+    args@(_ : _ : _) -> error $ "Too many arguments. Expected 1, got " ++ show (length args)
     [fileName] -> do
       fileData <- readFile fileName
       -- fileData <- readFile "examples/List.fsus"
@@ -57,14 +53,14 @@ main = do
           doDirective (GenerateDef fnName argLayouts resultLayout) = do
             putStrLn $
               ppr $
-              defToSuSLik $
-              unfoldConstructors layouts $
-              translateLets $
-              topLevelTranslate layouts $
-              defTranslateLayoutMatch layouts $
-              unfoldEmptyConstructors layouts $
-              runTypeCheck fnName layouts adts fnDefs $
-                instAndElaborate fnName argLayouts resultLayout $ lookupDef fnDefs fnName
+                defToSuSLik $
+                  unfoldConstructors layouts $
+                    translateLets $
+                      topLevelTranslate layouts $
+                        defTranslateLayoutMatch layouts $
+                          unfoldEmptyConstructors layouts $
+                            runTypeCheck fnName layouts adts fnDefs $
+                              instAndElaborate fnName argLayouts resultLayout $
+                                lookupDef fnDefs fnName
             putStrLn ""
       mapM_ doDirective directives
-
