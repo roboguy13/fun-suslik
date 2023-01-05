@@ -15,25 +15,25 @@ import           Control.Monad
 
 import           Data.Foldable
 
-unfoldEmptyConstructors :: [Layout] -> NamedDef -> NamedDef
+unfoldEmptyConstructors :: [Layout] -> ElaboratedDef -> ElaboratedDef
 unfoldEmptyConstructors layouts def =
   def
   { defBranches = map branchTranslate (defBranches def)
   }
   where
-    branchTranslate :: NamedDefBranch -> NamedDefBranch
+    branchTranslate :: ElaboratedDefBranch -> ElaboratedDefBranch
     branchTranslate branch =
       branch
       { defBranchGuardeds = map (guardedTranslate (defBranchPatterns branch)) (defBranchGuardeds branch)
       }
 
-    guardedTranslate :: [Pattern' ParamTypeP] -> Named GuardedExpr -> Named GuardedExpr
+    guardedTranslate :: [Pattern' ParamTypeP] -> Elaborated GuardedExpr -> Elaborated GuardedExpr
     guardedTranslate pats (MkGuardedExpr cond body) =
       MkGuardedExpr
         (go cond)
         (go body)
 
-    go :: Named ExprX FsName -> Named ExprX FsName
+    go :: ElaboratedExpr FsName -> ElaboratedExpr FsName
     go e0@(Var ty v) = e0
     go e0@(IntLit i) = e0
     go e0@(BoolLit b) = e0

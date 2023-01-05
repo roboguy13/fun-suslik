@@ -31,7 +31,13 @@ import Debug.Trace
 
 type SuSLikExpr' = SuSLikExpr SuSLikName
 
-isBaseType :: Named ExprX a -> Bool
+isBaseParam :: ParamType' a -> Bool
+isBaseParam PtrParam{} = False -- Is this correct?
+isBaseParam IntParam{} = True
+isBaseParam BoolParam{} = True
+isBaseParam LayoutParam{} = False
+
+isBaseType :: ElaboratedExpr a -> Bool
 isBaseType (Var ty _) = isBaseParam ty
 isBaseType IntLit{} = True
 isBaseType BoolLit{} = True
@@ -54,7 +60,7 @@ isBaseType (Instantiate _ x _ _) = absurd x
 isBaseType (LetIn _ _v _rhs body) = isBaseType body
 isBaseType (IfThenElse _ _ t _) = isBaseType t
 
-getApplies :: Named ExprX a -> FreshGenT (Writer (Assertion SuSLikName)) [(String, ParamTypeP, [ParamTypeP], [Named ExprX a])]
+getApplies :: ElaboratedExpr a -> FreshGenT (Writer (Assertion SuSLikName)) [(String, ParamTypeP, [ParamTypeP], [ElaboratedExpr a])]
 getApplies (Var ty _) = pure []
 getApplies IntLit{} = pure []
 getApplies BoolLit{} = pure []
@@ -74,7 +80,6 @@ getApplies (Apply f outTy argTys args)
     temp <- getFreshWith "__temp_"
     let [orig] = loweredParams outTy
 
-    -- traceM $ "assert equal: " ++ show (temp, orig)
     lift $ tell $ AssertEqual temp (VarS orig) Emp
 
     --   -- TODO: Use temp points-to here?
@@ -92,7 +97,7 @@ getApplies (IfThenElse _ c t f) =
 getApplies (LetIn _ty _v rhs body) =
   liftA2 (++) (getApplies rhs) (getApplies body)
 
-genTemps :: Named ExprX FsName -> Writer (Assertion FsName) ()
+genTemps :: ElaboratedExpr FsName -> Writer (Assertion FsName) ()
 genTemps (Apply fName outLayout inLayouts args) = do
   when (not (isBaseParam outLayout)) $
     forM_ (loweredParams outLayout) $ \x ->
@@ -131,7 +136,7 @@ genTemps (ConstrApply ty cName args) =
   mapM_ genTemps args
 
 
-setVar :: (SuSLikName, ParamTypeP) -> Named ExprX FsName -> Assertion FsName
+setVar :: (SuSLikName, ParamTypeP) -> ElaboratedExpr FsName -> Assertion FsName
 setVar (v, pTy) rhs =
   case (pTy, getType rhs) of
     (PtrParam {}, Right (PtrParam {})) -> equal -- TODO: Is this correct? Should this be a copy?
@@ -197,7 +202,7 @@ unfoldConstructors layouts def =
     recName :: RecName
     recName = defName def
 
-    exprTranslate :: Maybe [SuSLikName] -> Named ExprX FsName -> ([SuSLikExpr SuSLikName], Assertion SuSLikName)
+    exprTranslate :: Maybe [SuSLikName] -> ElaboratedExpr FsName -> ([SuSLikExpr SuSLikName], Assertion SuSLikName)
     exprTranslate _ (Lower ty _) = absurd ty
     exprTranslate _ (Instantiate _ x _ _) = absurd x
     exprTranslate _ (Var ty v) = (map VarS (loweredParams ty), Emp)
@@ -239,7 +244,6 @@ unfoldConstructors layouts def =
       in
       (map VarS (loweredParams outLayout),
        HeapletApply (MkLayoutName Nothing fName) (exprs ++ map VarS (loweredParams outLayout)) [] asn <> asnTemps)
-       -- HeapletApply (MkLayoutName Nothing fName) (exprs ++ map VarS (loweredParams outLayout)) [] asn <> asnTemps)
 
     exprTranslate out e@(ConstrApply ty@(LayoutParam layoutName) cName args) =
       let (_, asns) = first concat . unzip $ map (exprTranslate (Just $ map ppr $ getParamedNameParams layoutName)) args
@@ -292,12 +296,105 @@ combineTri :: (SuSLikExpr' -> SuSLikExpr' -> SuSLikExpr' -> SuSLikExpr') ->
 combineTri op (es1, asns1) (es2, asns2) (es3, asns3) =
   (zipWith3 op es1 es2 es3, asns1 <> asns2 <> asns3)
 
+getOutParams :: ElaboratedExpr FsName -> [SuSLikExpr SuSLikName]
+getOutParams (Var (LayoutParam paramedName) v) =
+  map (VarS . ppr) $ getParamedNameParams paramedName
+getOutParams (Var _ v) = [VarS v]
+getOutParams (IntLit i) = [IntS i]
+getOutParams (BoolLit b) = [BoolS b]
+getOutParams (And x y) = getOutParamsBin AndS x y
+getOutParams (Or x y) = getOutParamsBin OrS x y
+getOutParams (Not x) =
+  let [x'] = getOutParams x
+  in
+  [NotS x']
+
+getOutParams (Add x y) = getOutParamsBin AddS x y
+getOutParams (Sub x y) = getOutParamsBin SubS x y
+getOutParams (Mul x y) = getOutParamsBin MulS x y
+
+getOutParams (Equal x y) = getOutParamsBin EqualS x y
+getOutParams (Le x y) = getOutParamsBin LeS x y
+getOutParams (Lt x y) = getOutParamsBin LtS x y
+
+getOutParams (Apply f outTy inTys args) =
+  map VarS (loweredParams outTy)
+
+getOutParams (ConstrApply ty cName args) = 
+  map VarS (loweredParams ty)
+
+getOutParams (Deref ty x) =
+  map VarS (loweredParams ty)
+getOutParams (Addr ty x) =
+  map VarS (loweredParams ty)
+getOutParams (IfThenElse ty _ _ _) =
+  map VarS (loweredParams ty)
+
+getOutParams (LetIn ty _ _ _) =
+  map VarS (loweredParams ty)
+
+getOutParams (Lower ty _) = absurd ty
+getOutParams (Instantiate _ x _ _) = absurd x
+
+-- getOutParams (And {}) = genIntermediate
+
+getOutParamsBin ::
+  (SuSLikExpr' -> SuSLikExpr' -> SuSLikExpr') ->
+  ElaboratedExpr FsName ->
+  ElaboratedExpr FsName ->
+  [SuSLikExpr']
+getOutParamsBin op x y =
+  let [x'] = getOutParams x
+      [y'] = getOutParams y
+  in
+  [op x' y']
+--
+--
+-- combineBin :: (SuSLikExpr' -> SuSLikExpr' -> SuSLikExpr') ->
+--   ([SuSLikExpr SuSLikName], Assertion SuSLikName) ->
+--   ([SuSLikExpr SuSLikName], Assertion SuSLikName) ->
+--   ([SuSLikExpr SuSLikName], Assertion SuSLikName)
+-- combineBin op (es1, asns1) (es2, asns2) =
+--   (zipWith op es1 es2, asns1 <> asns2)
+--
+-- getOutParams :: ElaboratedExpr FsName -> ElaboratedExpr FsName
+-- -- getOutParams (Var (LayoutConcrete paramedName) v) =
+-- --   map (\x -> Var _ _) $ getParamedNameParams paramedName
+-- getOutParams e@(Var {}) = e
+-- getOutParams e@(IntLit {}) = e
+-- getOutParams e@(BoolLit {}) = e
+-- getOutParams (And x y) = getOutParamsBin And x y
+-- getOutParams (Or x y) = getOutParamsBin Or x y
+-- getOutParams (Not x) = Not $ getOutParams x
+--
+-- getOutParams (Add x y) = getOutParamsBin Add x y
+-- getOutParams (Sub x y) = getOutParamsBin Sub x y
+-- getOutParams (Mul x y) = getOutParamsBin Mul x y
+--
+-- getOutParams (Equal x y) = getOutParamsBin Equal x y
+-- getOutParams (Le x y) = getOutParamsBin Le x y
+-- getOutParams (Lt x y) = getOutParamsBin Lt x y
+--
+-- getOutParams (Apply f outTy inTys args) =
+--   Var outTy "$unused"
+--
+-- getOutParams (ConstrApply ty cName args) = 
+--   Var ty "$unused"
+--
+-- -- getOutParams (And {}) = genIntermediate
+--
+-- getOutParamsBin ::
+--   (ElaboratedExpr FsName -> ElaboratedExpr FsName -> ElaboratedExpr FsName) ->
+--   ElaboratedExpr FsName ->
+--   ElaboratedExpr FsName ->
+--   ElaboratedExpr FsName
+-- getOutParamsBin op x y =
+--   op (getOutParams x) (getOutParams y)
+
 genLayoutParams :: Layout -> FreshGen [String]
 genLayoutParams layout =
+  -- uniq <- getUniq
+  -- if uniq == 0
+  --   then pure "__
   mapM (getFreshWith . ("__y_" <>)) $ layoutSuSLikParams layout
-
--- -- | Equality constraints to connect the expression output variables to the
--- -- output parameters
--- genOutputEqualities :: [SuSLikName] -> Named ExprX a -> Assertion SuSLikName
--- genOutputEqualities 
 
