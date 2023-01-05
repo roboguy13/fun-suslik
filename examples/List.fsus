@@ -1,8 +1,10 @@
+%generate test [Sll[readonly], Dll[readonly]] Sll
+%generate add [Int, Int] Int
+%generate sum [Dll[readonly]] Int
 %generate cons [Int, Sll[readonly]] Sll
 %generate fold_List [Int, Sll[readonly]] (Ptr Int)
 %generate zipWith [Sll[readonly], Sll[readonly]] Sll
 %generate filterLt9 [Sll[readonly]] Sll
-%generate sum [Sll[readonly]] Int
 %generate constNil[Sll[readonly]] Sll
 %generate car [Sll[readonly]] Int
 %generate sumTailRec [Sll[readonly], Int] Int
@@ -26,6 +28,8 @@
 %generate foldMap[Int, Sll[mutable]] Int
 %generate selfAppend[Sll[readonly]] Sll
 %generate scanr[Int, Sll[readonly]] Sll
+-- %generate subseqs[Sll[readonly]] ListOfListsLayout
+-- %generate foldr_subseqs[ListOfListsLayout[mutable], Sll[mutable]] ListOfListsLayout
 
 data List := Nil | Cons Int List;
 
@@ -41,7 +45,15 @@ data PairList := PNil | PCons Pair PairList;
 
 Sll : List >-> layout[x];
 Sll (Nil) := emp;
-Sll (Cons head tail) := x :-> head, (x+1) :-> tail, Sll tail;
+Sll (Cons head tail) := x :-> head, (x+1) :-> tail, Sll[nxt] tail;
+
+-- SllTree : List >-> layout[x];
+-- SllTree (Nil) := emp;
+-- SllTree (Cons head tail) := x :-> head, (x+1) :-> tail, (x+2) :-> tail, SllTree tail;
+
+Dll : List >-> layout[x,z];
+Dll (Nil) := emp;
+Dll (Cons head tail) := x :-> head, (x + 1) :-> w, (x + 2) :-> z, Dll[w, x] tail;
 
 TreeLayout : Tree >-> layout[x];
 TreeLayout (Leaf) := emp;
@@ -78,6 +90,15 @@ PairListLayout (PCons head tail) :=
   (x+1) :-> tail,
   PairListLayout tail,
   PairLayout head;
+
+test : List -> List -> List;
+test (Nil) (Nil) := Nil;
+test (Cons x xs) (Nil) := Cons x xs;
+test (Nil) (Cons y ys) := Cons y ys;
+test (Cons x xs) (Cons y ys) := Cons x (test xs ys);
+
+add : Int -> Int -> Int;
+add x y := x + y;
 
 map_sum : ListOfLists -> List;
 map_sum (LNil) := Nil;
@@ -173,8 +194,9 @@ reverse (Nil) := Nil;
 reverse (Cons x xs) := instantiate [Sll[mutable], Int] Sll snoc (reverse xs) x;
 
 zip : List -> Zipped;
-zip (Nil) ys := ZNil;
-zip xs (Nil) := ZNil;
+zip (Nil) (Nil) := ZNil;
+zip (Nil) (Cons y ys) := ZNil;
+zip (Cons x xs) (Nil) := ZNil;
 zip (Cons x xs) (Cons y ys) := ZCons x y (zip xs ys);
 
 zipWith : List -> List -> List;
@@ -212,4 +234,24 @@ scanr z (Cons x xs) :=
   let x2 := instantiate [Int, Int] Int f x (instantiate [Sll[mutable]] Int head xs2)
   in
   Cons x2 xs2;
+
+subseqs : List -> ListOfLists;
+subseqs xs :=
+  instantiate [ListOfListsLayout[readonly], Sll[readonly]] ListOfListsLayout
+    foldr_subseqs
+    (lower ListOfListsLayout[readonly] (LCons (lower Sll[readonly] (Nil)) (lower ListOfListsLayout[readonly] (LNil))))
+    xs;
+
+foldr_subseqs : ListOfLists -> List -> ListOfLists;
+foldr_subseqs acc (Nil) := acc;
+foldr_subseqs acc (Cons x xs) :=
+  let acc2 := instantiate [ListOfListsLayout[mutable], Sll[mutable]] ListOfListsLayout foldr_subseqs acc xs
+  in
+  instantiate [ListOfListsLayout[mutable], ListOfListsLayout[mutable]] ListOfListsLayout
+    append_LL
+    acc2
+    (instantiate [Int, ListOfListsLayout[mutable]] ListOfListsLayout
+      map_subseqs
+      x
+      acc2);
 

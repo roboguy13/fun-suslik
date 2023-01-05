@@ -36,7 +36,7 @@ translateLets def =
           (asn <> newAsn)
           body')
 
-    go :: ElaboratedExpr FsName -> Writer (Assertion FsName) (ElaboratedExpr FsName)
+    go :: Named ExprX FsName -> Writer (Assertion FsName) (Named ExprX FsName)
     go e@(Var {}) = pure e
     go e@(IntLit {}) = pure e
     go e@(BoolLit {}) = pure e

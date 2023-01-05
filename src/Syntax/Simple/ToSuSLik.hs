@@ -36,6 +36,8 @@ defToSuSLik def =
       -- predParams = map (`MkSuSLikParam` LocType) argParams
       --                       ++ map (`MkSuSLikParam` LocType) resultParams
   in
+  -- trace ("def = " ++ show def) $
+  -- trace ("*** resultParams = " ++ show resultParams) $
   -- trace ("outParams = " ++ show resultParams) $
   MkInductivePred
   { inductivePredName = defName def
@@ -143,7 +145,7 @@ collectParamsAsn :: Assertion a -> [a]
 collectParamsAsn Emp = []
 collectParamsAsn (PointsTo _ lhsLoc _ rest) =
   toList lhsLoc <> collectParamsAsn rest
-collectParamsAsn (HeapletApply layoutName suslikParams _ rest)
+collectParamsAsn (HeapletApply layoutName suslikParams es rest)
   | layoutNameHasMode layoutName =
       foldMap toList (toList suslikParams) <> collectParamsAsn rest
   | otherwise = collectParamsAsn rest
