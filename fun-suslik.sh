@@ -1,9 +1,9 @@
 #!/bin/sh
 
 if [ -d ".stack-work/dist" ]; then
-  # Prefer a stack executable, if it exists
+  # Use a stack executable, if it exists
   stack exec fun-suslik $1
 else
-  # Otherwise, use cabal
-  cabal exec fun-suslik $1
+  echo Executable not compiled by stack. Run stack build.
+  echo If you want to use cabal, run \'cabal exec fun-suslik \<file\>.fsus\'
 fi
