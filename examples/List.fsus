@@ -27,6 +27,7 @@
 -- %generate foldMap[Int, Sll[mutable]] Int
 %generate selfAppend[Sll[readonly]] Sll
 %generate scanr[Int, Sll[readonly]] Sll
+%generate foldPlus[Sll[readonly]] Int
 
 data List := Nil | Cons Int List;
 
@@ -187,6 +188,17 @@ zipWith (Cons x xs) (Cons y ys) := Cons (instantiate [Int, Int] Int f x y) (zipW
 fold_List : Int -> List -> Ptr Int;
 fold_List z (Nil) := z;
 fold_List z (Cons x xs) := instantiate [Ptr Int, Ptr Int] (Ptr Int) f (addr x) (fold_List z xs);
+
+foldr : (Ptr Int -> Ptr Int -> Ptr Int) -> List -> Ptr Int;
+foldr f z (Nil) := z;
+foldr f z (Cons x xs) := instantiate [Ptr Int, Ptr Int] (Ptr Int) f (addr x) (foldr f z xs);
+
+
+foldPlus : List -> Ptr Int;
+foldPlus xs := instantiate [Ptr Int -> Ptr Int -> Ptr Int, Int, Sll[readonly]] (Ptr Int) foldr plus 0 xs;
+
+plus : Int -> Int -> Int;
+plus x y := x + y;
 
 -- foldMap : Int -> List -> Int;
 -- foldMap z (Nil) := z;
