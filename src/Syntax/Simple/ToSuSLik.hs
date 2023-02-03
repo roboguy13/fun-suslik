@@ -54,40 +54,7 @@ defToSuSLik def =
         go guarded@(MkGuardedExpr _ rhs) =
           MkSuSLikBranch
             (condForGuarded patCond guarded)
-            (toHeaplets rhs)
-
-    toHeaplets :: Assertion FsName -> SuSLikAssertion SuSLikName
-    toHeaplets Emp = mempty
-    toHeaplets (PointsTo mode x (FnOutVar y) rest) =
-      eqCons (MkEquality x (VarS y)) $ toHeaplets rest
-
-    toHeaplets (PointsTo mode x y rest) =
-        -- TODO: This always uses the "standard" (writable) mode. Is this
-        -- correct?
-      asnCons (PointsToS Unrestricted x y) (toHeaplets rest)
-
-      -- asnCons (PointsToS (modeToMutability mode) x y)
-      --         (toHeaplets rest)
-    toHeaplets (HeapletApply lName suslikArgs _es rest)
-      | genLayoutName lName == recName || layoutNameHasMode lName =
-          asnCons (HeapletApplyS (genLayoutName lName) suslikArgs)
-                  (toHeaplets rest)
-      | otherwise =
-          asnCons (FuncS (genLayoutName lName) suslikArgs)
-                  (toHeaplets rest)
-    toHeaplets (Block v sz rest) =
-      asnCons (BlockS v sz)
-              (toHeaplets rest)
-    toHeaplets (TempLoc v rest) =
-      asnCons (TempLocS v)
-              (toHeaplets rest)
-    toHeaplets (IsNull v) = IsNullS v
-    toHeaplets (Copy lName src dest) = CopyS lName src dest
-    toHeaplets (AssertEqual lhs rhs rest) =
-      eqCons (MkEquality (Here lhs) rhs) (toHeaplets rest)
-
-    -- isNonEmptyLayoutBranch :: Pattern a -> Bool
-    -- isNonEmptyLayoutBranch
+            (toHeapletsRec (Just recName) rhs)
 
 toSuSLikParam :: ParamTypeP -> [SuSLikParam]
 -- toSuSLikParam (PtrParam (Just v) IntBase) = [MkSuSLikParam (ppr v) IntType]

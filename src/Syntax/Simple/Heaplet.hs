@@ -867,6 +867,24 @@ setAssertionMode mode = go
     go asn@(Copy _ _ _) = asn
     go (AssertEqual x y rest) = AssertEqual x y (go rest)
 
+setAssertionModeRec :: String -> Mode -> Assertion a -> Assertion a
+setAssertionModeRec recName mode = setAssertionMode mode . go
+  where
+    go Emp = Emp
+    go (PointsTo m x y rest) = PointsTo m x y (go rest)
+    go (HeapletApply name xs ys rest)
+      | baseLayoutName name == recName = HeapletApply (setLayoutNameMode (Just mode) name) xs ys (go rest)
+      | otherwise = HeapletApply name xs ys (go rest)
+    go (Block v sz rest) =
+      Block v sz (go rest)
+
+    go (TempLoc v rest) =
+      TempLoc v (go rest)
+
+    go asn@(IsNull _) = asn
+    go asn@(Copy _ _ _) = asn
+    go (AssertEqual x y rest) = AssertEqual x y (go rest)
+
 instance (Show a, Ppr a) => Ppr (Assertion a) where
   ppr Emp = "emp"
   ppr (PointsTo mode x y rest) = unwords [ppr x, op, ppr y] ++ ", " ++ ppr rest

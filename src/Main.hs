@@ -16,7 +16,14 @@ import Syntax.Simple.TranslateLets
 import Syntax.Simple.TypeCheck
 import Syntax.Simple.UnfoldConstructors
 import Syntax.Simple.UnfoldEmptyConstructors
+
+import Syntax.Simple.SuSLik
+import Syntax.Name
+
 import System.Environment
+
+import Data.List
+import Data.Maybe
 
 isBaseTypeName :: String -> Bool
 isBaseTypeName "Int" = True
@@ -70,4 +77,50 @@ main = do
                               instAndElaborate fnName argLayouts resultLayout $
                                 lookupDef fnDefs fnName
             putStrLn ""
+
+          genLayoutPred :: Mode -> Layout -> IO ()
+          genLayoutPred mode layout =
+            putStrLn $
+              unlines
+                [ "predicate " <> genLayoutName (MkLayoutName (Just mode) (layoutName layout))
+                               <> "(" <> intercalate ", " (layoutSuSLikParams layout) <> ") {"
+                , intercalate "\n" $ map (pprLayoutBranch (layoutName layout) mode (layoutSuSLikParams layout) . snd) (layoutBranches layout)
+                , "}"
+                ]
+
+          pprLayoutBranch :: String -> Mode -> [SuSLikName] -> Assertion FsName -> String
+          pprLayoutBranch recName mode predParams asn =
+            "| " ++ ppr (layoutCond predParams asn) ++ " => { " ++ ppr (toHeapletsRec Nothing (setAssertionModeRec recName mode asn)) ++ " }"
+            
+
+          genSpec :: Directive -> IO ()
+          genSpec (GenerateDef fnName argLayouts resultLayout) = do
+            let argNames = map (('x':) . show) $ zipWith const [1..] argLayouts
+                resultName = "r"
+                resultTempName = "r0"
+                locName n = "loc " <> n
+
+                precond param@LayoutParam{} n = Just $ genParamTypeName param <> "(" <> n <> ")"
+                precond _ _ = Nothing
+
+                fnPredName = getPredName fnName (map genParamTypeName argLayouts) (genParamTypeName resultLayout)
+
+                postcond = fnPredName <> "(" <> intercalate ", " argNames <> ", " <> resultTempName <> ")"
+            putStrLn $
+              unlines
+                [ "void " <> fnName <> "(" <> intercalate ", " (map locName (argNames ++ [resultName])) <> ")"
+                , "  { " <> intercalate " ** " (catMaybes (zipWith precond argLayouts argNames)) <> " ** " <> resultName <> " :-> 0" <> " }"
+                , "  { " <> postcond <> " ** " <> resultName <> " :-> " <> resultTempName <> " }"
+                , "{ ?? }"
+                ]
+
+      putStrLn "*** Layout predicates ***\n"
+      mapM_ (genLayoutPred Input) layouts
+      -- mapM_ (genLayoutPred Output) layouts
+
+      putStrLn "\n*** Function predicates ***\n"
       mapM_ doDirective directives
+
+      putStrLn "\n*** Function specifications ***\n"
+      mapM_ genSpec directives
+

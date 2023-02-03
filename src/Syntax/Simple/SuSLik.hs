@@ -162,3 +162,52 @@ instance Ppr a => Ppr [Equality a] where
 data SuSLikType = IntType | LocType | BoolType | SetType
   deriving (Show)
 
+toHeapletsRec :: Maybe String -> Assertion FsName -> SuSLikAssertion SuSLikName
+toHeapletsRec recName_maybe = go
+  where
+    go Emp = mempty
+    go (PointsTo mode x (FnOutVar y) rest) =
+      eqCons (MkEquality x (VarS y)) $ go rest
+
+    go (PointsTo mode x y rest) =
+        -- TODO: This always uses the "standard" (writable) mode. Is this
+        -- correct?
+      asnCons (PointsToS Unrestricted x y) (go rest)
+
+      -- asnCons (PointsToS (modeToMutability mode) x y)
+      --         (go rest)
+    go (HeapletApply lName suslikArgs _es rest)
+      | Just recName <- recName_maybe
+      , genLayoutName lName == recName || layoutNameHasMode lName =
+          asnCons (HeapletApplyS (genLayoutName lName) suslikArgs)
+                  (go rest)
+      | Just{} <- recName_maybe =
+          asnCons (FuncS (genLayoutName lName) suslikArgs)
+                  (go rest)
+      | otherwise =
+          asnCons (HeapletApplyS (genLayoutName lName) suslikArgs)
+                  (go rest)
+    go (Block v sz rest) =
+      asnCons (BlockS v sz)
+              (go rest)
+    go (TempLoc v rest) =
+      asnCons (TempLocS v)
+              (go rest)
+    go (IsNull v) = IsNullS v
+    go (Copy lName src dest) = CopyS lName src dest
+    go (AssertEqual lhs rhs rest) =
+      eqCons (MkEquality (Here lhs) rhs) (go rest)
+
+layoutCond :: [SuSLikName] -> Assertion FsName -> SuSLikExpr FsName
+layoutCond [] _ = BoolS True
+layoutCond predParams asn =
+  foldr1 AndS (map isZero usedParams ++ map (NotS . isZero) otherParams)
+  where
+    isZero n = VarS n `EqualS` IntS 0
+    usedParams = filter isUsed predParams
+    otherParams = predParams \\ usedParams
+
+    asnLocs = pointsLocs asn
+
+    isUsed p = p `elem` map getLocBase asnLocs
+
