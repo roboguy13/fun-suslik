@@ -1,3 +1,21 @@
+Setup
+---
+
+To install the necessary GHC executable and the dependencies, run
+
+    stack setup
+
+To build the project, run
+
+    stack build
+
+To run the compiler, run
+
+    ./fun-suslik.sh filename.fsus
+
+where `filename.fsus` is the source file you want to compile.
+
+
 Compiler Stages
 ---
 
