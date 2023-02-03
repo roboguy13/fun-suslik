@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE GADTs #-}
@@ -32,6 +33,10 @@ import qualified Data.Map as Map
 import           Data.Void
 
 import           Data.Foldable
+import           Data.Data
+
+import           Control.Lens.TH
+import           Control.Lens.Plated
 
 import Debug.Trace
 
@@ -239,7 +244,8 @@ data ExprX ty layoutNameTy a where
   -- ExprLayoutBranch :: Scope ParamIndex LayoutBranchE a -> Expr a
 
   -- LayoutCaseLambda :: Scope 
-  deriving (Functor, Foldable, Traversable, Show)
+  deriving (Functor, Foldable, Traversable, Show, Data)
+
 
 getType :: ExprX ty Void a -> Either BaseType ty
 getType (Var ty _) = Right ty
@@ -1025,6 +1031,15 @@ instance Monad Loc where
   return = pure
   Here x >>= f = f x
   (x :+ i) >>= f = f x
+
+$(makePrisms ''ExprX)
+
+instance (Data ty, Data layoutNameTy, Data a) => Plated (ExprX ty layoutNameTy a)
+
+rewriteExprM :: Monad m => (ExprX ty layoutNameTy a -> m (ExprX ty' layoutNameTy' a')) -> ExprX ty layoutNameTy a -> m (ExprX ty' layoutNameTy' a')
+rewriteExprM f = go
+  where
+    go (And x y) = go =<< f (And x y)
 
 -- {-
 -- data BranchElement a where
