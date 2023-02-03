@@ -9,3 +9,5 @@ dist-newstyle
 *.pdf
 *.out
 *~
+.stack-work
+.stack-work/*
