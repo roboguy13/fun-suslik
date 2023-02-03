@@ -1036,10 +1036,10 @@ $(makePrisms ''ExprX)
 
 instance (Data ty, Data layoutNameTy, Data a) => Plated (ExprX ty layoutNameTy a)
 
-rewriteExprM :: Monad m => (ExprX ty layoutNameTy a -> m (ExprX ty' layoutNameTy' a')) -> ExprX ty layoutNameTy a -> m (ExprX ty' layoutNameTy' a')
-rewriteExprM f = go
-  where
-    go (And x y) = go =<< f (And x y)
+-- rewriteExprM :: Monad m => (ExprX ty layoutNameTy a -> m (ExprX ty' layoutNameTy' a')) -> ExprX ty layoutNameTy a -> m (ExprX ty' layoutNameTy' a')
+-- rewriteExprM f = go
+--   where
+--     go (And x y) = go =<< f (And x y)
 
 -- {-
 -- data BranchElement a where
