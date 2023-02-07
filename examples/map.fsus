@@ -1,0 +1,17 @@
+%generate mapAdd1 [Sll[readonly]] Sll
+
+data List := Nil | Cons Int List;
+
+Sll : List >-> layout[x];
+Sll (Nil) := emp;
+Sll (Cons head tail) := x :-> head, (x+1) :-> tail, Sll tail;
+
+map : (Int -> Int) -> List -> List;
+map f (Nil) := Nil;
+map f (Cons x xs) := Cons (instantiate [Int] Int f x) (map f xs);
+
+add1 : Int -> Int;
+add1 x := x + 1;
+
+mapAdd1 : List -> List;
+mapAdd1 xs := instantiate [Int -> Int, Sll[readonly]] Sll map add1 xs;

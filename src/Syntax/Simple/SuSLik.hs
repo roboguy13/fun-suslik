@@ -201,7 +201,7 @@ toHeapletsRec recName_maybe = go
 layoutCond :: [SuSLikName] -> Assertion FsName -> SuSLikExpr FsName
 layoutCond [] _ = BoolS True
 layoutCond predParams asn =
-  foldr1 AndS (map isZero usedParams ++ map (NotS . isZero) otherParams)
+  foldr1 AndS (map (NotS . isZero) usedParams ++ map isZero otherParams)
   where
     isZero n = VarS n `EqualS` IntS 0
     usedParams = filter isUsed predParams

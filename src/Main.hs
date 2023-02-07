@@ -83,7 +83,7 @@ main = do
             putStrLn $
               unlines
                 [ "predicate " <> genLayoutName (MkLayoutName (Just mode) (layoutName layout))
-                               <> "(" <> intercalate ", " (layoutSuSLikParams layout) <> ") {"
+                               <> "(" <> intercalate ", " (map ("loc " ++) (layoutSuSLikParams layout)) <> ") {"
                 , intercalate "\n" $ map (pprLayoutBranch (layoutName layout) mode (layoutSuSLikParams layout) . snd) (layoutBranches layout)
                 , "}"
                 ]
