@@ -142,6 +142,10 @@ data ParsedFile =
   }
   deriving (Show)
 
+instance Size ParsedFile where
+  size (MkParsedFile defs adts layouts directives) =
+    sum (map size defs) + sum (map size adts) + sum (map size layouts)
+
 instance Semigroup ParsedFile where
   MkParsedFile x y z w <> MkParsedFile x' y' z' w' =
     MkParsedFile (x <> x') (y <> y') (z <> z') (w <> w')

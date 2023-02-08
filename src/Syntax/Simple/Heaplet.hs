@@ -63,7 +63,7 @@ data SuSLikExpr a where
   MulS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
 
   IteS :: SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a -> SuSLikExpr a
-  deriving (Show, Functor, Foldable)
+  deriving (Show, Functor, Foldable, Data)
 
 instance Applicative SuSLikExpr where
   pure = return
@@ -171,7 +171,7 @@ data ParamType' a
       | BoolParam (Maybe String)
       | LayoutParam a
       | FnParam -- | NOTE: This should not exist after defunctionalization
-  deriving (Functor, Show, Eq, Ord)
+  deriving (Functor, Show, Eq, Ord, Data)
 
 type ParamType = ParamType' LayoutName
 
@@ -288,7 +288,7 @@ type Elaborated f = f ParamTypeP Void
 type Expr = Elaborated ExprX
 
 data Pattern' a = MkPattern a ConstrName [FsName] | PatternVar a FsName
-  deriving (Show)
+  deriving (Show, Data)
 
 patternMapNames :: (FsName -> FsName) -> Pattern' a -> Pattern' a
 patternMapNames f (MkPattern x cName args) = MkPattern x cName (map f args)
@@ -341,7 +341,7 @@ data Def' defTy pat cond body ty layoutNameTy =
   , defType :: defTy
   , defBranches :: [DefBranch' pat cond body ty layoutNameTy]
   }
-  deriving (Show)
+  deriving (Show, Data)
 
 -- TODO: Implement base type parameters:
 -- type ElaboratedDef = Elaborated (DefT ([FsParam], FsParam) ParametrizedLayoutName)
@@ -363,7 +363,7 @@ data DefBranch' pat cond body ty layoutNameTy=
   { defBranchPatterns :: [Pattern' pat]
   , defBranchGuardeds :: [GuardedExpr' cond body ty layoutNameTy]
   }
-  deriving (Show)
+  deriving (Show, Data)
 
 type ElaboratedDefBranch = Elaborated (DefBranch ParamTypeP)
 type ParsedDefBranch = Parsed (DefBranch ())
@@ -377,7 +377,7 @@ data GuardedExpr' cond body ty layoutNameTy =
   { guardedCond :: cond
   , guardedBody :: body
   }
-  deriving (Show)
+  deriving (Show, Data)
 
 type DefT defTy pat ty layoutNameTy = Def' defTy pat (ExprX ty layoutNameTy FsName) (ExprX ty layoutNameTy FsName) ty layoutNameTy
 
@@ -417,7 +417,7 @@ lookupDef defs name =
 data BaseType where
   IntBase :: BaseType
   BoolBase :: BaseType
-  deriving (Show, Eq, Ord)
+  deriving (Show, Eq, Ord, Data)
 
 instance Ppr BaseType where
   ppr IntBase = "Int"
@@ -435,7 +435,7 @@ data Type where
   AdtType :: String -> Type
   -- LayoutType :: Layout -> Type
   LayoutType :: String -> Int -> Type
-  deriving (Show)
+  deriving (Show, Data)
 
 baseToType :: BaseType -> Type
 baseToType IntBase = IntType
@@ -713,13 +713,13 @@ getBlockSizes asn =
 -- suslikName = MkName
 --
 data Mode = Input | Output
-  deriving (Show, Eq, Ord)
+  deriving (Show, Eq, Ord, Data)
 
 data LayoutName =
   MkLayoutName
     (Maybe Mode) -- | This is Nothing if we are actually refering to a predicate generated for a function, rather than a layout
     String
-  deriving (Show, Eq, Ord)
+  deriving (Show, Eq, Ord, Data)
 
 data ParametrizedLayoutName =
   MkParametrizedLayoutName
@@ -1031,7 +1031,7 @@ instance (Show a, Ppr a) => Ppr (Assertion a) where
 -- --   deriving (Show, Functor, Foldable, Traversable)
 --
 data Loc a = Here a | a :+ Int
-  deriving (Show, Functor, Foldable, Traversable, Eq, Ord)
+  deriving (Show, Functor, Foldable, Traversable, Eq, Ord, Data)
 
 getLocBase :: Loc a -> a
 getLocBase (Here x) = x
@@ -1051,87 +1051,86 @@ instance Monad Loc where
   (x :+ i) >>= f = f x
 
 $(makePrisms ''ExprX)
+$(makeLenses ''Def')
 
 instance (Data ty, Data layoutNameTy, Data a) => Plated (ExprX ty layoutNameTy a)
+instance Data a => Plated (Pattern' a)
+instance (Data a, Data b, Data c, Data d) => Plated (GuardedExpr' a b c d)
+instance (Data a, Data b, Data c, Data d, Data e) => Plated (DefBranch' a b c d e)
+instance (Data e, Data f, Data a, Data b, Data c, Data d) => Plated (Def' a b c d e f)
+instance Data a => Plated (SuSLikExpr a)
 
--- rewriteExprM :: Monad m => (ExprX ty layoutNameTy a -> m (ExprX ty' layoutNameTy' a')) -> ExprX ty layoutNameTy a -> m (ExprX ty' layoutNameTy' a')
--- rewriteExprM f = go
---   where
---     go (And x y) = go =<< f (And x y)
+class Size a where
+  size :: a -> Int
 
--- {-
--- data BranchElement a where
---   MkBranchElement :: Heaplet a -> BranchElement a
---   BranchVar :: a -> BranchElement a -- | Represents an unknown (list of) heaplets using a SuSLikName
---   deriving (Show, Functor, Foldable, Traversable)
+instance Size (Pattern' a) where
+  size (MkPattern _ _ xs) = 2 + length xs
+  size (PatternVar _ _) = 2
+
+instance (Size a, Size b) => Size (GuardedExpr' a b c d) where
+  size (MkGuardedExpr lhs rhs) = 1 + size lhs + size rhs
+
+instance (Size b, Size c) => Size (DefBranch' a b c d e) where
+  size (MkDefBranch pats guardeds) = 1 + sum (map size pats) + sum (map size guardeds)
+
+instance (Size a, Size c, Size d) => Size (Def' a b c d e f) where
+  size (MkDef _ ty branches) = 1 + size ty + sum (map size branches)
+
+instance Size BaseType where
+  size IntBase = 1
+  size BoolBase = 1
+
+instance Size Type where
+  size IntType = 1
+  size BoolType = 1
+  size (PtrType b) = 1 + size b
+  size (FnType x y) = 1 + size x + size y
+  size (AdtType _) = 2
+  size (LayoutType _ _) = 3
+
+instance (Data a, Data b, Data c) => Size (ExprX a b c) where
+  size = length . universe
+
+instance (Size a, Size b) => Size (a, b) where
+  size (x, y) = size x + size y
+
+instance Size Layout where
+  size (MkLayout _ _ params branches) = 3 + length params + sum (map size branches)
+
+instance Data a => Size (SuSLikExpr a) where
+  size = length . universe
+
+instance Data a => Size (Assertion a) where
+  size Emp = 1
+  size (PointsTo _ loc e asn) = 1 + size loc + size e + size asn
+  size (HeapletApply lName suslikArgs exprArgs asn) = 2 + sum (map size suslikArgs) + sum (map size exprArgs) + size asn
+  size (TempLoc n asn) = 2 + size asn
+  size (Block _ _ asn) = 3 + size asn
+  size (IsNull x) = 2
+  size (Copy x y z) = 4
+  size (AssertEqual x e asn) = 2 + size e + size asn
+
+instance Size (Loc a) where
+  size (Here x) = 2
+  size (a :+ i) = 3
+
+instance Size Adt where
+  size (MkAdt _ branches) = 2 + sum (map size branches)
+
+instance Size AdtBranch where
+  size (MkAdtBranch cName ty) = 2 + sum (map size ty)
+
+-- data Adt =
+--   MkAdt
+--   { adtName :: String
+--   , adtBranches :: [AdtBranch]
+--   }
+--   deriving (Show)
 --
--- instance Applicative BranchElement where
---   pure = BranchVar
---   (<*>) = ap
---
--- instance Monad BranchElement where
---   return = pure
---   BranchVar x >>= f = f x
---   MkBranchElement (PointsTo (Here loc) y) >>= f = do
---     loc' <- f loc
---     y' <- f y
---     MkBranchElement (PointsTo (Here loc') y')
---   MkBranchElement (PointsTo (x :+ i) y) >>= f = do
---     x' <- f x
---     y' <- f y
---     MkBranchElement (PointsTo (x' :+ i) y')
---
---   MkBranchElement (HeapletApply layoutName xs ys) >>= f = do
---     xs' <- mapM f xs
---     ys' <- f ys
---     MkBranchElement $ HeapletApply layoutName xs' ys'
---
--- newtype LayoutBranch a = MkLayoutBranch { getLayoutBranch :: [BranchElement a] }
---   deriving (Show, Functor)
---
--- instance Applicative LayoutBranch where
---   pure x = MkLayoutBranch [pure x]
---   (<*>) = ap
---
--- instance Monad LayoutBranch where
---   return = pure
---   -- MkLayoutBranch xs0 >>= f = _ $ map (>>= (map _ . getLayoutBranch)) xs0
---   MkLayoutBranch xs0 >>= f =
---     let xs' = map (traverse f) xs0
---     in
---     MkLayoutBranch $ fmap join $ concatMap getLayoutBranch xs'
---     -- let xs' = map (_ f) xs0
---     -- in
---     -- undefined
---     -- MkLayoutBranch $ _ $ map (>>= concatMap (getLayoutBranch . _)) xs0
---
--- -- instance Applicative (LayoutBranch a) where
--- --   pure x = MkLayoutBranch [pure x]
--- --   (<*>) = ap
--- --
--- -- instance Monad (LayoutBranch a) where
--- --   return = pure
--- --   MkLayoutBranch xs0 >>= f = do
--- --     let xs0' = concatMap (getLayoutBranch . go) xs0
--- --
--- --     MkLayoutBranch xs0'
--- --     where
--- --       go (MkBranchElement (PointsTo (Here loc) y)) = do
--- --         loc' <- f loc
--- --
--- --         MkLayoutBranch $ [MkBranchElement (PointsTo (Here loc') y)]
--- --
--- --       go (MkBranchElement (HeapletApply layoutName xs ys)) = do
--- --         xs' <- mapM f xs
--- --         MkLayoutBranch $ [MkBranchElement (HeapletApply layoutName xs' ys)]
--- -}
---
--- $(deriveShow1 ''Loc)
--- -- $(deriveShow1 ''Heaplet)
--- -- $(deriveShow1 ''LayoutBranch)
--- $(deriveShow1 ''Expr)
--- -- $(deriveShow1 ''BranchElement)
---
--- deriving instance Show a => Show (Expr a)
--- -- deriving instance (Show (f a), Show a) => Show (LayoutBranch f a)
---
+-- data AdtBranch =
+--   MkAdtBranch
+--   { adtBranchConstr :: ConstrName
+--   , adtBranchFields :: [Type]
+--   }
+--   deriving (Show)
+

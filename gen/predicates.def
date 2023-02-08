@@ -1,0 +1,11 @@
+predicate ro_Sll(loc x) {
+| (x == 0) => { emp }
+| (not (x == 0)) => { x :-> head ** (x+1) :-> tail ** ro_Sll(tail) }
+}
+
+
+predicate mapAdd1__rw_Sll__ro_Sll(loc __p_x0, loc __r_x) {
+| (__p_x0 == 0) => { __r_x == 0 ; emp }
+| (not (__p_x0 == 0)) => { __p_x0 :-> head ** (__p_x0+1) :-> tail ** [__p_x0,2] ** mapAdd1__rw_Sll__ro_Sll(tail, __p_x1) ** __r_x :-> (head + 1) ** (__r_x+1) :-> __p_x1 ** [__r_x,2] }
+}
+

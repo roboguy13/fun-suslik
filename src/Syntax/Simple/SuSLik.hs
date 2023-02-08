@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 
 module Syntax.Simple.SuSLik
   where
@@ -13,13 +14,20 @@ import           Syntax.Ppr
 
 import           Data.List
 
+import           Data.Data
+import           Data.Data.Lens
+import           Control.Lens (universe)
+
 data InductivePred =
   MkInductivePred
   { inductivePredName :: String
   , inductivePredParams :: [SuSLikParam]
   , inductivePredBranches :: [SuSLikBranch]
   }
-  deriving (Show)
+  deriving (Show, Data)
+
+instance Size InductivePred where
+  size (MkInductivePred n xs ys) = 2 + sum (map size xs) + sum (map size ys)
 
 instance Ppr InductivePred where
   ppr (MkInductivePred name params branches) =
@@ -37,7 +45,7 @@ data SuSLikSig =
   , suslikSigParams :: [SuSLikParam]
   , suslikSigPre :: SuSLikAssertion String
   , suslikSigPost :: SuSLikAssertion String
-  }
+  } deriving (Data)
 
 instance Ppr SuSLikSig where
   ppr (MkSuSLikSig name params pre post) =
@@ -53,7 +61,10 @@ data SuSLikParam =
   { suslikParamName :: String
   , suslikParamType :: SuSLikType
   }
-  deriving (Show)
+  deriving (Show, Data)
+
+instance Size SuSLikParam where
+  size (MkSuSLikParam n ty) = 2 + size ty
 
 instance Ppr SuSLikParam where
   ppr (MkSuSLikParam name ty) = unwords [ppr ty, ppr name]
@@ -73,13 +84,16 @@ data SuSLikBranch =
   { suslikBranchCond :: SuSLikExpr SuSLikName
   , suslikBranchRhs :: SuSLikAssertion SuSLikName
   }
-  deriving (Show)
+  deriving (Show, Data)
+
+instance Size SuSLikBranch where
+  size (MkSuSLikBranch lhs rhs) = 1 + size lhs + size rhs
 
 instance Ppr SuSLikBranch where
   ppr (MkSuSLikBranch cond rhs) = unwords [ppr cond, "=>", "{", ppr rhs, "}"]
 
 data PointsToMutability = Unrestricted | ReadOnly | Temp
-  deriving (Show)
+  deriving (Show, Data)
 
 modeToMutability :: Mode -> PointsToMutability
 modeToMutability Input = ReadOnly
@@ -92,16 +106,31 @@ data Heaplet a where
   TempLocS :: a -> Heaplet a
   -- FuncS :: String -> [SuSLikExpr a] -> SuSLikExpr a -> Heaplet a
   FuncS :: String -> [SuSLikExpr a] -> Heaplet a
-  deriving (Show, Functor)
+  deriving (Show, Functor, Data)
+
+instance Data a => Size (Heaplet a) where
+  size (PointsToS mut loc e) = 2 + size loc + size e
+  size (HeapletApplyS n xs) = 2 + sum (map size xs)
+  size (BlockS x i) = 3
+  size (TempLocS i) = 2
+  size (FuncS s xs) = 2 + sum (map size xs)
 
 data SuSLikAssertion a where
   CopyS :: String -> a -> a -> SuSLikAssertion a
   IsNullS :: a -> SuSLikAssertion a
   Heaplets :: [Equality a] -> [Heaplet a] -> SuSLikAssertion a
-  deriving (Show, Functor)
+  deriving (Show, Functor, Data)
 
 data Equality a = MkEquality (Loc a) (SuSLikExpr a)
-  deriving (Show, Functor)
+  deriving (Show, Functor, Data)
+
+instance Data a => Size (Equality a) where
+  size (MkEquality loc e) = 1 + size loc + size e
+
+instance Data a => Size (SuSLikAssertion a) where
+  size (CopyS x y z) = 3
+  size (IsNullS x) = 2
+  size (Heaplets xs ys) = 1 + sum (map size xs) + sum (map size ys)
 
 instance Semigroup (SuSLikAssertion a) where
   Heaplets [] [] <> y = y
@@ -160,7 +189,13 @@ instance Ppr a => Ppr [Equality a] where
   ppr (x:xs) = ppr x <> " && " <> ppr xs
 
 data SuSLikType = IntType | LocType | BoolType | SetType
-  deriving (Show)
+  deriving (Show, Data)
+
+instance Size SuSLikType where
+  size IntType = 1
+  size LocType = 1
+  size BoolType = 1
+  size SetType = 1
 
 toHeapletsRec :: Maybe String -> Assertion FsName -> SuSLikAssertion SuSLikName
 toHeapletsRec recName_maybe = go
@@ -210,4 +245,25 @@ layoutCond predParams asn =
     asnLocs = pointsLocs asn
 
     isUsed p = p `elem` map getLocBase asnLocs
+
+data Spec a =
+  MkSpec
+    { specFnName :: String
+    , specParams :: [(SuSLikType, String)]
+    , specPre :: [Heaplet a]
+    , specPost :: [Heaplet a]
+    }
+  deriving (Show, Data)
+
+instance Ppr a => Ppr (Spec a) where
+  ppr (MkSpec fnName params pre post) =
+    unlines
+      [ "void " <> fnName <> "(" <> intercalate ", " (map (\(ty, x) -> unwords [ppr ty, ppr x]) params) <> ")"
+      , "  { " <> intercalate " ** " (map ppr pre) <> " }"
+      , "  { " <> intercalate " ** " (map ppr post) <> " }"
+      , "{ ?? }"
+      ]
+
+instance Data a => Size (Spec a) where
+  size (MkSpec _ params pre post) = 2 + (2*length params) + sum (map size pre) + sum (map size post)
 

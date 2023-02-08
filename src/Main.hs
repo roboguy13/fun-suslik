@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE LiberalTypeSynonyms #-}
+{-# LANGUAGE TupleSections #-}
 
 module Main where
 
@@ -30,9 +31,21 @@ isBaseTypeName "Int" = True
 isBaseTypeName "Bool" = True
 isBaseTypeName _ = False
 
+data Options =
+  MkOptions
+  { optionsShowAstSize :: Bool
+  }
+
+setupOptions :: [String] -> (Options, [String])
+setupOptions args =
+  if "--no-ast-size" `elem` args
+    then (MkOptions { optionsShowAstSize = False }, args \\ ["--no-ast-size"])
+    else (MkOptions { optionsShowAstSize = True  }, args)
+
 main :: IO ()
 main = do
-  getArgs >>= \case
+  (options, restArgs) <- fmap setupOptions getArgs
+  case restArgs of
     [] -> error "Expected a source filename"
     args@(_ : _ : _) -> error $ "Too many arguments. Expected 1, got " ++ show (length args)
     [fileName] -> do
@@ -63,20 +76,17 @@ main = do
       --   runTypeCheck fnName layouts adts fnDefs $
       --     instAndElaborate fnName argLayouts resultLayout $ lookupDef fnDefs fnName
 
-      let doDirective :: Directive -> IO ()
-          doDirective (GenerateDef fnName argLayouts resultLayout) = do
-            putStrLn $
-              ppr $
-                defToSuSLik $
-                  unfoldConstructors layouts $
-                    translateLets $
-                      topLevelTranslate layouts $
-                        defTranslateLayoutMatch layouts $
-                          unfoldEmptyConstructors layouts $
-                            runTypeCheck fnName layouts adts fnDefs $
-                              instAndElaborate fnName argLayouts resultLayout $
-                                lookupDef fnDefs fnName
-            putStrLn ""
+      let doDirective :: Directive -> InductivePred
+          doDirective (GenerateDef fnName argLayouts resultLayout) =
+            defToSuSLik $
+              unfoldConstructors layouts $
+                translateLets $
+                  topLevelTranslate layouts $
+                    defTranslateLayoutMatch layouts $
+                      unfoldEmptyConstructors layouts $
+                        runTypeCheck fnName layouts adts fnDefs $
+                          instAndElaborate fnName argLayouts resultLayout $
+                            lookupDef fnDefs fnName
 
           genLayoutPred :: Mode -> Layout -> IO ()
           genLayoutPred mode layout =
@@ -93,34 +103,46 @@ main = do
             "| " ++ ppr (layoutCond predParams asn) ++ " => { " ++ ppr (toHeapletsRec Nothing (setAssertionModeRec recName mode asn)) ++ " }"
             
 
-          genSpec :: Directive -> IO ()
-          genSpec (GenerateDef fnName argLayouts resultLayout) = do
+          genSpec :: Directive -> Spec String
+          genSpec (GenerateDef fnName argLayouts resultLayout) =
             let argNames = map (('x':) . show) $ zipWith const [1..] argLayouts
                 resultName = "r"
                 resultTempName = "r0"
                 locName n = "loc " <> n
 
-                precond param@LayoutParam{} n = Just $ genParamTypeName param <> "(" <> n <> ")"
+                -- precond param@LayoutParam{} n = Just $ genParamTypeName param <> "(" <> n <> ")"
+                precond param@LayoutParam{} arg = Just $ HeapletApplyS (genParamTypeName param) [arg]
                 precond _ _ = Nothing
 
                 fnPredName = getPredName fnName (map genParamTypeName argLayouts) (genParamTypeName resultLayout)
 
                 postcond = fnPredName <> "(" <> intercalate ", " argNames <> ", " <> resultTempName <> ")"
-            putStrLn $
-              unlines
-                [ "void " <> fnName <> "(" <> intercalate ", " (map locName (argNames ++ [resultName])) <> ")"
-                , "  { " <> intercalate " ** " (catMaybes (zipWith precond argLayouts argNames)) <> " ** " <> resultName <> " :-> 0" <> " }"
-                , "  { " <> postcond <> " ** " <> resultName <> " :-> " <> resultTempName <> " }"
-                , "{ ?? }"
-                ]
+            in
+            MkSpec
+              { specFnName = fnName
+              , specParams = map (LocType,) (argNames ++ [resultName])
+              , specPre = catMaybes (zipWith precond argLayouts (map VarS argNames))
+              , specPost =
+                    [HeapletApplyS fnPredName (map VarS (argNames ++ [resultTempName]))
+                    ,PointsToS Unrestricted (Here resultName) (VarS resultTempName)
+                    ]
+              }
+
 
       putStrLn "*** Layout predicates ***\n"
       mapM_ (genLayoutPred Input) layouts
       -- mapM_ (genLayoutPred Output) layouts
 
+      let fnPreds = map doDirective directives
+
       putStrLn "\n*** Function predicates ***\n"
-      mapM_ doDirective directives
+      mapM_ (putStrLn . ppr) fnPreds
+
+      let specs = map genSpec directives
 
       putStrLn "\n*** Function specifications ***\n"
-      mapM_ genSpec directives
+      mapM_ (putStrLn . ppr) specs
+
+      putStrLn $ "\n--- Source AST size: " ++ show (size parsed)
+      putStrLn $ "\n--- SuSLik AST size: " ++ show (sum (map size layouts) + sum (map size fnPreds) + sum (map size specs))
 

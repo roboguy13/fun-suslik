@@ -1,0 +1,18 @@
+
+/* void mapAdd1(loc x1, loc r) */
+/*   { ro_Sll(x1) ** r :-> 0 } */
+/*   { mapAdd1__rw_Sll__ro_Sll(x1, r0) ** r :-> r0 } */
+/* { ?? } */
+
+/* void map__df_add10(loc x1, loc r) */
+/*   { ro_Sll(x1) ** r :-> 0 } */
+/*   { map__df_add10__rw_Sll__ro_Sll(x1, r0) ** r :-> r0 } */
+/* { ?? } */
+
+void mapAdd1(loc x1, loc r)
+  { ro_Sll(x1) ** r :-> a }
+  { mapAdd1__rw_Sll__ro_Sll(x1, r0) ** r :-> r0 }
+{ ?? }
+
+###
+
