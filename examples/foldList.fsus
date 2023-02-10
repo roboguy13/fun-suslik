@@ -1,4 +1,4 @@
-%generate fold_List [Int, Sll[readonly]] (Ptr Int)
+%generate foldList [Int, Sll[readonly]] (Ptr Int)
 
 data List := Nil | Cons Int List;
 
