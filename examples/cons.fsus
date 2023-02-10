@@ -1,0 +1,11 @@
+%generate cons [Int, Sll[readonly]] Sll
+
+data List := Nil | Cons Int List;
+
+Sll : List >-> layout[x];
+Sll (Nil) := emp;
+Sll (Cons head tail) := x :-> head, (x+1) :-> tail, Sll tail;
+
+cons : Int -> List -> List;
+cons x xs := Cons x xs;
+

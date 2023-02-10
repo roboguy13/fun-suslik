@@ -1,0 +1,17 @@
+%generate maximum [Sll[readonly]] Int
+
+data List := Nil | Cons Int List;
+
+Sll : List >-> layout[x];
+Sll (Nil) := emp;
+Sll (Cons head tail) := x :-> head, (x+1) :-> tail, Sll tail;
+
+maximum : List -> Int;
+maximum (Nil) := 0;
+maximum (Cons x xs) :=
+  let i := maximum xs
+  in
+  if i < x
+    then x
+    else i;
+

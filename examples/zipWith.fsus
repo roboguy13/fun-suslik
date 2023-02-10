@@ -1,0 +1,15 @@
+%generate zipWith [Sll[readonly], Sll[readonly]] Sll
+
+data List := Nil | Cons Int List;
+
+Sll : List >-> layout[x];
+Sll (Nil) := emp;
+Sll (Cons head tail) := x :-> head, (x+1) :-> tail, Sll tail;
+
+zipWith : List -> List -> List;
+zipWith (Nil) (Nil) := Nil;
+zipWith (Nil) (Cons y ys) := Nil;
+zipWith (Cons x xs) (Nil) := Nil;
+zipWith (Cons x xs) (Cons y ys) := Cons (instantiate [Int, Int] Int f x y) (zipWith xs ys);
+
+

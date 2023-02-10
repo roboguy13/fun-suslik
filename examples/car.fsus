@@ -1,0 +1,12 @@
+%generate car [Sll[readonly]] Int
+
+data List := Nil | Cons Int List;
+
+Sll : List >-> layout[x];
+Sll (Nil) := emp;
+Sll (Cons head tail) := x :-> head, (x+1) :-> tail, Sll tail;
+
+car : List -> Int;
+car (Nil) := 0;
+car (Cons x xs) := x;
+

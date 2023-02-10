@@ -1,0 +1,16 @@
+%generate cons [Int, Sll[readonly]] Sll
+%generate append [Sll[readonly], Sll[readonly]] Sll
+
+data List := Nil | Cons Int List;
+
+Sll : List >-> layout[x];
+Sll (Nil) := emp;
+Sll (Cons head tail) := x :-> head, (x+1) :-> tail, Sll tail;
+
+append : List -> List -> List;
+append (Nil) ys := ys;
+append (Cons x xs) ys := instantiate [Ptr Int, Sll[mutable]] Sll cons (addr x) (append xs ys);
+
+cons : Int -> List -> List;
+cons x xs := Cons x xs;
+

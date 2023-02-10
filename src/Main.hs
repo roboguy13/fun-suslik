@@ -120,7 +120,7 @@ main = do
             in
             MkSpec
               { specFnName = fnName
-              , specParams = map (LocType,) (argNames ++ [resultName])
+              , specParams = map (LocTypeS,) (argNames ++ [resultName])
               , specPre = catMaybes (zipWith precond argLayouts (map VarS argNames))
               , specPost =
                     [HeapletApplyS fnPredName (map VarS (argNames ++ [resultTempName]))
@@ -145,4 +145,5 @@ main = do
 
       putStrLn $ "\n--- Source AST size: " ++ show (size parsed)
       putStrLn $ "\n--- SuSLik AST size: " ++ show (sum (map size layouts) + sum (map size fnPreds) + sum (map size specs))
+      print parsed
 

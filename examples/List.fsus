@@ -1,33 +1,18 @@
-%generate times2 [Int] Int
-%generate cons [Int, Sll[readonly]] Sll
-%generate fold_List [Int, Sll[readonly]] (Ptr Int)
-%generate zipWith [Sll[readonly], Sll[readonly]] Sll
-%generate filterLt9 [Sll[readonly]] Sll
-%generate sum [Sll[readonly]] Int
-%generate constNil[Sll[readonly]] Sll
-%generate car [Sll[readonly]] Int
-%generate sumTailRec [Sll[readonly], Int] Int
 %generate take [Int, Sll[readonly]] Sll
 %generate const [Sll[readonly], Sll[readonly]] Sll
 %generate leftList [TreeLayout[readonly]] Sll
 %generate singleton [Int] Sll
 %generate even [Sll[readonly]] Sll
 %generate odd [Sll[readonly]] Sll
-%generate append [Sll[readonly], Sll[readonly]] Sll
-%generate map_sum [ListOfListsLayout[readonly]] Sll
-%generate maximum_sum [ListOfListsLayout[readonly]] Int
 %generate flatten [ListOfListsLayout[readonly]] Sll
 %generate snoc [Sll[readonly], Int] Sll
 %generate reverse [Sll[readonly]] Sll
 %generate zip [Sll[readonly], Sll[readonly]] ZippedLayout
 %generate replicate [Int, Int] Sll
 -- %generate map [Sll[readonly]] Sll
-%generate mapTimes2 [Sll[readonly]] Sll
-%generate maximum [Sll[readonly]] Int
 -- %generate foldMap[Int, Sll[mutable]] Int
 %generate selfAppend[Sll[readonly]] Sll
 %generate scanr[Int, Sll[readonly]] Sll
-%generate foldPlus[Sll[readonly]] Int
 
 data List := Nil | Cons Int List;
 
@@ -81,38 +66,14 @@ PairListLayout (PCons head tail) :=
   PairListLayout tail,
   PairLayout head;
 
-map_sum : ListOfLists -> List;
-map_sum (LNil) := Nil;
-map_sum (LCons xs xss) := Cons (instantiate [Sll[readonly]] Int sum xs) (map_sum xss);
-
-maximum_sum : ListOfLists -> Int;
-maximum_sum xss := instantiate [Sll[mutable]] Int maximum (instantiate [ListOfListsLayout[readonly]] Sll map_sum xss);
-
 const : List -> List -> List;
 const (Nil) (Nil) := Nil;
 const (Cons x xs) (Cons y ys) := Cons x xs;
 const (Cons x xs) (Nil) := Cons x xs;
 const (Nil) (Cons y ys) := Nil;
 
-constNil : List -> List;
-constNil (Nil) := Nil;
-constNil (Cons head tail) := Nil;
-
-cons : Int -> List -> List;
-cons x xs := Cons x xs;
-
-car : List -> Int;
-car (Nil) := 0;
-car (Cons x xs) := x;
-
 singleton : Int -> List;
 singleton x := Cons x (Nil);
-
-filterLt9 : List -> List;
-filterLt9 (Nil) := Nil;
-filterLt9 (Cons head tail)
-  | head < 9       := filterLt9 tail;
-  | not (head < 9) := Cons head (filterLt9 tail);
 
 leftList : Tree -> List;
 leftList (Leaf) := Nil;
@@ -126,14 +87,6 @@ odd : List -> List;
 odd (Nil) := Nil;
 odd (Cons head tail) := Cons head (instantiate [Sll[readonly]] Sll even tail);
 
-sum : List -> Int;
-sum (Nil) := 0;
-sum (Cons head tail) := head + (sum tail);
-
-sumTailRec : List -> Int -> Int;
-sumTailRec (Nil) acc := acc;
-sumTailRec (Cons head tail) acc := sumTailRec tail (head + acc);
-
 replicate : Int -> Int -> List;
 replicate n i
   | n == 0 := Nil;
@@ -144,19 +97,6 @@ take i (Nil) := Nil;
 take i (Cons head tail)
   | i == 0 := Nil;
   | not (i == 0) := Cons head (take (i - 1) tail);
-
-maximum : List -> Int;
-maximum (Nil) := 0;
-maximum (Cons x xs) :=
-  let i := maximum xs
-  in
-  if i < x
-    then x
-    else i;
-
-append : List -> List -> List;
-append (Nil) ys := ys;
-append (Cons x xs) ys := instantiate [Ptr Int, Sll[mutable]] Sll cons (addr x) (append xs ys);
 
 selfAppend : List -> List;
 selfAppend xs :=
@@ -179,27 +119,6 @@ zip (Nil) ys := ZNil;
 zip xs (Nil) := ZNil;
 zip (Cons x xs) (Cons y ys) := ZCons x y (zip xs ys);
 
-zipWith : List -> List -> List;
-zipWith (Nil) (Nil) := Nil;
-zipWith (Nil) (Cons y ys) := Nil;
-zipWith (Cons x xs) (Nil) := Nil;
-zipWith (Cons x xs) (Cons y ys) := Cons (instantiate [Int, Int] Int f x y) (zipWith xs ys);
-
-fold_List : Int -> List -> Ptr Int;
-fold_List z (Nil) := z;
-fold_List z (Cons x xs) := instantiate [Ptr Int, Ptr Int] (Ptr Int) f (addr x) (fold_List z xs);
-
-foldr : (Ptr Int -> Ptr Int -> Ptr Int) -> List -> Ptr Int;
-foldr f z (Nil) := z;
-foldr f z (Cons x xs) := instantiate [Ptr Int, Ptr Int] (Ptr Int) f (addr x) (foldr f z xs);
-
-
-foldPlus : List -> Ptr Int;
-foldPlus xs := instantiate [Ptr Int -> Ptr Int -> Ptr Int, Int, Sll[readonly]] (Ptr Int) foldr plus 0 xs;
-
-plus : Int -> Int -> Int;
-plus x y := x + y;
-
 -- foldMap : Int -> List -> Int;
 -- foldMap z (Nil) := z;
 -- foldMap z (Cons x xs) := instantiate [Int, Sll[mutable]] Int fold_List z (instantiate [Sll[readonly]] Sll map (lower Sll[readonly] (Cons x xs)));
@@ -208,11 +127,6 @@ map : (Int -> Int) -> List -> List;
 map f (Nil) := Nil;
 map f (Cons x xs) := Cons (instantiate [Int] Int f x) (map f xs);
 
-times2 : Int -> Int;
-times2 x := x * 2;
-
-mapTimes2 : List -> List;
-mapTimes2 xs := instantiate [Int -> Int, Sll[readonly]] Sll map times2 xs;
 
 -- mapTimes2 : List -> List;
 -- mapTimes2 (Nil) := Nil;

@@ -1,0 +1,12 @@
+%generate constNil[Sll[readonly]] Sll
+
+data List := Nil | Cons Int List;
+
+Sll : List >-> layout[x];
+Sll (Nil) := emp;
+Sll (Cons head tail) := x :-> head, (x+1) :-> tail, Sll tail;
+
+constNil : List -> List;
+constNil (Nil) := Nil;
+constNil (Cons head tail) := Nil;
+

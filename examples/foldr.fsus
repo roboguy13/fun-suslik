@@ -1,0 +1,19 @@
+%generate foldPlus[Sll[readonly]] Int
+%generate plus[Int, Int] Int
+
+data List := Nil | Cons Int List;
+
+Sll : List >-> layout[x];
+Sll (Nil) := emp;
+Sll (Cons head tail) := x :-> head, (x+1) :-> tail, Sll tail;
+
+foldr : (Ptr Int -> Ptr Int -> Ptr Int) -> List -> Ptr Int;
+foldr f z (Nil) := z;
+foldr f z (Cons x xs) := instantiate [Ptr Int, Ptr Int] (Ptr Int) f (addr x) (foldr f z xs);
+
+
+foldPlus : List -> Ptr Int;
+foldPlus xs := instantiate [Ptr Int -> Ptr Int -> Ptr Int, Int, Sll[readonly]] (Ptr Int) foldr plus 0 xs;
+
+plus : Int -> Int -> Int;
+plus x y := x + y;

@@ -70,13 +70,13 @@ instance Ppr SuSLikParam where
   ppr (MkSuSLikParam name ty) = unwords [ppr ty, ppr name]
 
 instance Ppr SuSLikType where
-  ppr IntType = "int"
-  ppr BoolType = "bool"
-  ppr SetType = "set"
-  ppr LocType = "loc"
+  ppr IntTypeS = "int"
+  ppr BoolTypeS = "bool"
+  ppr SetTypeS = "set"
+  ppr LocTypeS = "loc"
 
 locParam :: String -> SuSLikParam
-locParam n = MkSuSLikParam n LocType
+locParam n = MkSuSLikParam n LocTypeS
 
 -- NOTE: For now, does not support pure part
 data SuSLikBranch =
@@ -188,14 +188,14 @@ instance Ppr a => Ppr [Equality a] where
   ppr [x] = ppr x
   ppr (x:xs) = ppr x <> " && " <> ppr xs
 
-data SuSLikType = IntType | LocType | BoolType | SetType
+data SuSLikType = IntTypeS | LocTypeS | BoolTypeS | SetTypeS
   deriving (Show, Data)
 
 instance Size SuSLikType where
-  size IntType = 1
-  size LocType = 1
-  size BoolType = 1
-  size SetType = 1
+  size IntTypeS = 1
+  size LocTypeS = 1
+  size BoolTypeS = 1
+  size SetTypeS = 1
 
 toHeapletsRec :: Maybe String -> Assertion FsName -> SuSLikAssertion SuSLikName
 toHeapletsRec recName_maybe = go

@@ -1,0 +1,12 @@
+%generate fold_List [Int, Sll[readonly]] (Ptr Int)
+
+data List := Nil | Cons Int List;
+
+Sll : List >-> layout[x];
+Sll (Nil) := emp;
+Sll (Cons head tail) := x :-> head, (x+1) :-> tail, Sll tail;
+
+foldList : Int -> List -> Ptr Int;
+foldList z (Nil) := z;
+foldList z (Cons x xs) := instantiate [Ptr Int, Ptr Int] (Ptr Int) f (addr x) (foldList z xs);
+

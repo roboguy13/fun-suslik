@@ -59,13 +59,13 @@ defToSuSLik def =
 toSuSLikParam :: ParamTypeP -> [SuSLikParam]
 -- toSuSLikParam (PtrParam (Just v) IntBase) = [MkSuSLikParam (ppr v) IntType]
 -- toSuSLikParam (PtrParam (Just v) BoolBase) = [MkSuSLikParam (ppr v) BoolType]
-toSuSLikParam (PtrParam (Just v) _) = [MkSuSLikParam (ppr v) LocType]
-toSuSLikParam (IntParam (Just v)) = [MkSuSLikParam v IntType]
-toSuSLikParam (BoolParam (Just v)) = [MkSuSLikParam v BoolType]
+toSuSLikParam (PtrParam (Just v) _) = [MkSuSLikParam (ppr v) LocTypeS]
+toSuSLikParam (IntParam (Just v)) = [MkSuSLikParam v IntTypeS]
+toSuSLikParam (BoolParam (Just v)) = [MkSuSLikParam v BoolTypeS]
 toSuSLikParam (IntParam Nothing) = []
 toSuSLikParam (BoolParam Nothing) = []
 toSuSLikParam (PtrParam Nothing _) = []
-toSuSLikParam p@(LayoutParam {}) = map (`MkSuSLikParam` LocType) $ loweredParams p
+toSuSLikParam p@(LayoutParam {}) = map (`MkSuSLikParam` LocTypeS) $ loweredParams p
 
 patCondForBranch :: [(Pattern' a, [SuSLikName])] -> [SuSLikName] -> AsnDefBranch -> SuSLikExpr SuSLikName
 patCondForBranch inParams0 outParams branch =

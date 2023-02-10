@@ -1,0 +1,29 @@
+%generate sum [Sll[readonly]] Int
+%generate map_sum [ListOfListsLayout[readonly]] Sll
+%generate maximum_sum [ListOfListsLayout[readonly]] Int
+
+data List := Nil | Cons Int List;
+data ListOfLists := LNil | LCons List ListOfLists;
+
+Sll : List >-> layout[x];
+Sll (Nil) := emp;
+Sll (Cons head tail) := x :-> head, (x+1) :-> tail, Sll tail;
+
+ListOfListsLayout : ListOfLists >-> layout[x];
+ListOfListsLayout (LNil) := emp;
+ListOfListsLayout (LCons head tail) :=
+  x :-> head, (x+1) :-> tail, ListOfListsLayout tail,
+  Sll head;
+
+sum : List -> Int;
+sum (Nil) := 0;
+sum (Cons head tail) := head + (sum tail);
+
+map_sum : ListOfLists -> List;
+map_sum (LNil) := Nil;
+map_sum (LCons xs xss) := Cons (instantiate [Sll[readonly]] Int sum xs) (map_sum xss);
+
+
+maximum_sum : ListOfLists -> Int;
+maximum_sum xss := instantiate [Sll[mutable]] Int maximum (instantiate [ListOfListsLayout[readonly]] Sll map_sum xss);
+
