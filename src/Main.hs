@@ -88,13 +88,23 @@ main = do
                           instAndElaborate fnName argLayouts resultLayout $
                             lookupDef fnDefs fnName
 
+          -- toHeapletsRec
           genLayoutPred :: Mode -> Layout -> IO ()
           genLayoutPred mode layout =
+            let branchHeaplets = map (getSuSLikAsnHeaplets . toHeapletsRec Nothing . snd) $ layoutBranches layout
+                branchBlocks = map genBlocks' branchHeaplets
+
+                pprAsn = pprLayoutBranch (layoutName layout) mode (layoutSuSLikParams layout)
+
+                getBranchAsn :: [(FsName, Int)] -> (a, Assertion FsName) -> Assertion FsName
+                getBranchAsn [] (_, asn) = asn
+                getBranchAsn blocks (_, asn) = foldr (uncurry Block) asn blocks
+            in
             putStrLn $
               unlines
                 [ "predicate " <> genLayoutName (MkLayoutName (Just mode) (layoutName layout))
                                <> "(" <> intercalate ", " (map ("loc " ++) (layoutSuSLikParams layout)) <> ") {"
-                , intercalate "\n" $ map (pprLayoutBranch (layoutName layout) mode (layoutSuSLikParams layout) . snd) (layoutBranches layout)
+                , intercalate "\n" $ zipWith (\blocks -> pprAsn . getBranchAsn blocks) branchBlocks (layoutBranches layout)
                 , "}"
                 ]
 

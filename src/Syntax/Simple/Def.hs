@@ -27,6 +27,8 @@ import           Control.Arrow (first, second, (&&&), (***))
 
 import           GHC.Stack
 
+import           Control.Lens
+
 import Debug.Trace
 
 findMaxIndex :: [Heaplet SuSLikName] -> SuSLikName -> Int
@@ -44,13 +46,28 @@ findMaxIndex heaplets name = go 0 heaplets + 1
       | otherwise = go curr rest
     go curr (TempLocS {} : rest) = go curr rest
 
-genBlock :: [Heaplet SuSLikName] -> SuSLikName -> [Heaplet SuSLikName]
-genBlock heaplets name =
+genBlock' :: [Heaplet SuSLikName] -> SuSLikName -> [(SuSLikName, Int)]
+genBlock' heaplets name =
   let ix = (findMaxIndex heaplets name)
   in
     if ix > 1
-      then [BlockS name ix]
+      then [(name, ix)]
       else []
+
+genBlock :: [Heaplet SuSLikName] -> SuSLikName -> [Heaplet SuSLikName]
+genBlock xs = map (uncurry BlockS) . genBlock' xs
+
+genBlocks' :: [Heaplet SuSLikName] -> [(SuSLikName, Int)]
+genBlocks' xs = nub $ concatMap (genBlock' xs) (getPointsToLhsNames xs)
+
+genBlocks :: [Heaplet SuSLikName] -> [Heaplet SuSLikName]
+genBlocks xs = concatMap (genBlock xs) (getPointsToLhsNames xs)
+
+getPointsToLhsNames :: [Heaplet SuSLikName] -> [SuSLikName]
+getPointsToLhsNames xs = xs ^.. each._PointsToS._2.to getLocBase.to nub
+
+withBlocks :: [Heaplet SuSLikName] -> [Heaplet SuSLikName]
+withBlocks xs = xs ++ genBlocks xs
 
 -- toSuSLikExpr :: Expr FsName -> SuSLikExpr SuSLikName
 -- toSuSLikExpr (Var v) = VarS v

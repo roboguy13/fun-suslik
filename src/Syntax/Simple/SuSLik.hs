@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Syntax.Simple.SuSLik
   where
@@ -17,6 +18,7 @@ import           Data.List
 import           Data.Data
 import           Data.Data.Lens
 import           Control.Lens (universe)
+import           Control.Lens.TH
 
 data InductivePred =
   MkInductivePred
@@ -120,6 +122,11 @@ data SuSLikAssertion a where
   IsNullS :: a -> SuSLikAssertion a
   Heaplets :: [Equality a] -> [Heaplet a] -> SuSLikAssertion a
   deriving (Show, Functor, Data)
+
+getSuSLikAsnHeaplets :: SuSLikAssertion a -> [Heaplet a]
+getSuSLikAsnHeaplets (CopyS _ _ _) = []
+getSuSLikAsnHeaplets (IsNullS _) = []
+getSuSLikAsnHeaplets (Heaplets _ hs) = hs
 
 data Equality a = MkEquality (Loc a) (SuSLikExpr a)
   deriving (Show, Functor, Data)
@@ -266,4 +273,6 @@ instance Ppr a => Ppr (Spec a) where
 
 instance Data a => Size (Spec a) where
   size (MkSpec _ params pre post) = 2 + (2*length params) + sum (map size pre) + sum (map size post)
+
+$(makePrisms ''Heaplet)
 

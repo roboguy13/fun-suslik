@@ -1052,6 +1052,7 @@ instance Monad Loc where
 
 $(makePrisms ''ExprX)
 $(makeLenses ''Def')
+$(makePrisms ''Loc)
 
 instance (Data ty, Data layoutNameTy, Data a) => Plated (ExprX ty layoutNameTy a)
 instance Data a => Plated (Pattern' a)
