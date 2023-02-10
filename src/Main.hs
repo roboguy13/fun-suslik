@@ -145,5 +145,4 @@ main = do
 
       putStrLn $ "\n--- Source AST size: " ++ show (size parsed)
       putStrLn $ "\n--- SuSLik AST size: " ++ show (sum (map size layouts) + sum (map size fnPreds) + sum (map size specs))
-      print parsed
 
