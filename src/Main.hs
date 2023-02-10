@@ -121,7 +121,7 @@ main = do
             MkSpec
               { specFnName = fnName
               , specParams = map (LocTypeS,) (argNames ++ [resultName])
-              , specPre = catMaybes (zipWith precond argLayouts (map VarS argNames))
+              , specPre = catMaybes (zipWith precond argLayouts (map VarS argNames)) ++ [PointsToS Unrestricted (Here resultName) (IntS 0)]
               , specPost =
                     [HeapletApplyS fnPredName (map VarS (argNames ++ [resultTempName]))
                     ,PointsToS Unrestricted (Here resultName) (VarS resultTempName)
