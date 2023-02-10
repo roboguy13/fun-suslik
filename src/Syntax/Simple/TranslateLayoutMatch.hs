@@ -41,6 +41,10 @@ defTranslateLayoutMatch layoutEnv def =
       where
 
         applyPat :: Pattern' ParamTypeP -> Assertion SuSLikName
+        applyPat (PatternVar (LayoutParam p@(MkParametrizedLayoutName params0 layoutName)) v) =
+          let params = map getLocBase params0
+          in
+          HeapletApply layoutName (map VarS params) [Var () v] Emp
         applyPat (PatternVar {}) = Emp
         applyPat pat@(MkPattern (LayoutParam (MkParametrizedLayoutName params0 layoutName)) cName patParams) =
           let params = map getLocBase params0
@@ -48,8 +52,9 @@ defTranslateLayoutMatch layoutEnv def =
               applied = removeHeapletApplies layoutName $ applyLayoutPat layout params (MkPattern () cName patParams)
           in
           if anyPatVarOccurs pat body || isEmp applied
-            then removeHeapletApplies layoutName $ applyLayoutPat layout params (MkPattern () cName patParams)
-            else HeapletApply layoutName (map VarS params) (map (Var ()) patParams) Emp
+          then removeHeapletApplies layoutName $ applyLayoutPat layout params (MkPattern () cName patParams)
+          else HeapletApply layoutName (map VarS params) (map (Var ()) patParams) Emp
+
         applyPat pat@(MkPattern {}) = error $ "applyPat: Pattern match on non-layout: " ++ show pat
 
 
