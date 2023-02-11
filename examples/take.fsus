@@ -1,0 +1,19 @@
+%generate take[NatLayout[readonly], Sll[readonly]] Sll
+
+data List := Nil | Cons Int List;
+data Nat := Z | S Nat;
+
+Sll : List >-> layout[x];
+Sll (Nil) := emp;
+Sll (Cons head tail) := x :-> head, (x+1) :-> tail, Sll tail;
+
+NatLayout : Nat >-> layout[x];
+NatLayout (Z) := emp;
+NatLayout (S n) := x :-> n, NatLayout n;
+
+take : Nat -> List -> List;
+take (Z) (Nil) := Nil;
+take (Z) (Cons x xs) := Nil;
+take (S n) (Nil) := Nil;
+take (S n) (Cons x xs) := Cons x (take n xs);
+
