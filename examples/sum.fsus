@@ -1,6 +1,6 @@
 %generate sum [Sll[readonly]] Int
-%generate map_sum [ListOfListsLayout[readonly]] Sll
-%generate maximum_sum [ListOfListsLayout[readonly]] Int
+-- %generate map_sum [ListOfListsLayout[readonly]] Sll
+-- %generate maximum_sum [ListOfListsLayout[readonly]] Int
 
 data List := Nil | Cons Int List;
 data ListOfLists := LNil | LCons List ListOfLists;

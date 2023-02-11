@@ -1,0 +1,23 @@
+%generate mapSum [ListOfListsLayout[readonly]] Sll
+
+
+data List := Nil | Cons Int List;
+
+data ListOfLists := LNil | LCons List ListOfLists;
+
+Sll : List >-> layout[x];
+Sll (Nil) := emp;
+Sll (Cons head tail) := x :-> head, (x+1) :-> tail, Sll tail;
+
+ListOfListsLayout : ListOfLists >-> layout[x];
+ListOfListsLayout (LNil) := emp;
+ListOfListsLayout (LCons head tail) :=
+  x :-> head, (x+1) :-> tail, ListOfListsLayout tail,
+  Sll head;
+
+mapSum : ListOfLists -> List;
+mapSum (LNil) := Nil;
+mapSum (LCons xs xss) :=
+  Cons (instantiate [Sll[readonly]] Int sum xs)
+       (mapSum xss);
+
