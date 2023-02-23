@@ -1,0 +1,11 @@
+%generate fold_list [Int, Sll[readonly]] (Ptr Int)
+
+fold_List : Int -> List -> Ptr Int;
+fold_List z (Nil) := z;
+fold_List z (Const x xs) :=
+  instantiate
+    [Ptr Int, Ptr Int]
+    (Ptr Int)
+    f
+    (addr x)
+    (fold_List z xs);
