@@ -1,0 +1,10 @@
+%generate add1[Int] Int
+
+data Unit := TT;
+
+UnitLayout : Unit >-> layout[x];
+UnitLayout (Unit) := emp;
+
+add1 : Int -> Int;
+add1 n := n + 1;
+

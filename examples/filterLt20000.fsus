@@ -1,0 +1,14 @@
+%generate filterLt20000 [Sll[readonly]] Sll
+
+data List := Nil | Cons Int List;
+
+Sll : List >-> layout[x];
+Sll (Nil) := emp;
+Sll (Cons head tail) := x :-> head, (x+1) :-> tail, Sll tail;
+
+filterLt20000 : List -> List;
+filterLt20000 (Nil) := Nil;
+filterLt20000 (Cons head tail)
+  | head < 20000       := filterLt20000 tail;
+  | not (head < 20000) := Cons head (filterLt20000 tail);
+

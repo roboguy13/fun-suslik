@@ -1,0 +1,18 @@
+%generate treeAdd1 [TreeLayout[readonly]] TreeLayout
+
+data Tree := Leaf | Node Int Tree Tree;
+
+TreeLayout : Tree >-> layout[x];
+TreeLayout (Leaf) := emp;
+TreeLayout (Node payload left right) :=
+  x :-> payload,
+  (x+1) :-> left,
+  (x+2) :-> right,
+  TreeLayout left,
+  TreeLayout right;
+
+treeAdd1 : Tree -> Tree;
+treeAdd1 (Leaf) := Leaf;
+treeAdd1 (Node v l r) :=
+  Node (v+1) (treeAdd1 l) (treeAdd1 r);
+
