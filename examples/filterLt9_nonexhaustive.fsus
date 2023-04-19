@@ -1,0 +1,13 @@
+%generate filterLt9 [Sll[readonly]] Sll
+
+data List := Nil | Cons Int List;
+
+Sll : List >-> layout[x];
+Sll (Nil) := emp;
+Sll (Cons head tail) := x :-> head, (x+1) :-> tail, Sll tail;
+
+filterLt9 : List -> List;
+filterLt9 (Nil) := Nil;
+filterLt9 (Cons head tail)
+  | not (head < 9) := Cons head (filterLt9 tail);
+
