@@ -1,4 +1,4 @@
-%generate filterLt20000 [Sll[readonly]] Sll
+%generate filterLt20000 [Sll[mutable]] Sll
 
 data List := Nil | Cons Int List;
 

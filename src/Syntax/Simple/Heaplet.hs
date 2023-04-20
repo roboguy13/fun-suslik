@@ -719,7 +719,14 @@ data LayoutName =
   MkLayoutName
     (Maybe Mode) -- | This is Nothing if we are actually refering to a predicate generated for a function, rather than a layout
     String
-  deriving (Show, Eq, Ord, Data)
+  deriving (Show, Data)
+
+-- Don't compare modes
+instance Eq LayoutName where
+  MkLayoutName _ x == MkLayoutName _ y = x == y
+
+instance Ord LayoutName where
+  compare (MkLayoutName _ x) (MkLayoutName _ y) = compare x y
 
 data ParametrizedLayoutName =
   MkParametrizedLayoutName
@@ -906,6 +913,7 @@ instance (Show a, Ppr a) => Ppr (Assertion a) where
   ppr (IsNull v) = ppr v ++ " == null ; emp"
   ppr (Copy lName src dest) = "func " ++ lName ++ "__copy(" ++ ppr src ++ ", " ++ ppr dest ++ ")"
   ppr (AssertEqual x y rest0) = "(" <> ppr x <> " == " <> ppr y <> ")"
+
 
 -- type Assertion' a = Assertion (ExprX () Void a)
 

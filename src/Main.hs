@@ -91,7 +91,7 @@ main = do
           -- toHeapletsRec
           genLayoutPred :: Mode -> Layout -> IO ()
           genLayoutPred mode layout =
-            let branchHeaplets = map (getSuSLikAsnHeaplets . toHeapletsRec Nothing . snd) $ layoutBranches layout
+            let branchHeaplets = map (getSuSLikAsnHeaplets . toHeapletsRec (Just mode) Nothing . snd) $ layoutBranches layout
                 branchBlocks = map genBlocks' branchHeaplets
 
                 pprAsn = pprLayoutBranch (layoutName layout) mode (layoutSuSLikParams layout)
@@ -110,7 +110,7 @@ main = do
 
           pprLayoutBranch :: String -> Mode -> [SuSLikName] -> Assertion FsName -> String
           pprLayoutBranch recName mode predParams asn =
-            "| " ++ ppr (layoutCond predParams asn) ++ " => { " ++ ppr (toHeapletsRec Nothing (setAssertionModeRec recName mode asn)) ++ " }"
+            "| " ++ ppr (layoutCond predParams asn) ++ " => { " ++ ppr (toHeapletsRec (Just Input) Nothing (setAssertionModeRec recName mode asn)) ++ " }"
             
 
           genSpec :: Directive -> Spec String

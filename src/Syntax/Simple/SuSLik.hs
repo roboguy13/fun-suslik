@@ -204,8 +204,8 @@ instance Size SuSLikType where
   size BoolTypeS = 1
   size SetTypeS = 1
 
-toHeapletsRec :: Maybe String -> Assertion FsName -> SuSLikAssertion SuSLikName
-toHeapletsRec recName_maybe = go
+toHeapletsRec :: Maybe Mode -> Maybe String -> Assertion FsName -> SuSLikAssertion SuSLikName
+toHeapletsRec mode_maybe recName_maybe = go
   where
     go Emp = mempty
     go (PointsTo mode x (FnOutVar y) rest) =
@@ -214,7 +214,13 @@ toHeapletsRec recName_maybe = go
     go (PointsTo mode x y rest) =
         -- TODO: This always uses the "standard" (writable) mode. Is this
         -- correct?
-      asnCons (PointsToS Unrestricted x y) (go rest)
+      -- asnCons (PointsToS (modeToMutability mode) x y) (go rest)
+      let mode' =
+            case mode_maybe of
+              Nothing -> Unrestricted
+              Just m -> modeToMutability m
+      in
+      asnCons (PointsToS mode' x y) (go rest)
 
       -- asnCons (PointsToS (modeToMutability mode) x y)
       --         (go rest)

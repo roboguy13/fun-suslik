@@ -54,7 +54,7 @@ defToSuSLik def =
         go guarded@(MkGuardedExpr _ rhs) =
           MkSuSLikBranch
             (condForGuarded patCond guarded)
-            (toHeapletsRec (Just recName) rhs)
+            (toHeapletsRec Nothing (Just recName) rhs)
 
 toSuSLikParam :: ParamTypeP -> [SuSLikParam]
 -- toSuSLikParam (PtrParam (Just v) IntBase) = [MkSuSLikParam (ppr v) IntType]
