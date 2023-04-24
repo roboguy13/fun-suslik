@@ -1,0 +1,3 @@
+[submodule "suslik"]
+	path = suslik
+	url = https://github.com/roboguy13/suslik
