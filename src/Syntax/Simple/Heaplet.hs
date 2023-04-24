@@ -853,7 +853,8 @@ pattern HeapletApply' name xs ys rest = HeapletApply (MkLayoutName (Just Input) 
 genLayoutName :: LayoutName -> String
 genLayoutName (MkLayoutName Nothing layoutName) = layoutName
 genLayoutName (MkLayoutName (Just Input) layoutName) = "ro_" <> layoutName
-genLayoutName (MkLayoutName (Just Output) layoutName) = "rw_" <> layoutName
+genLayoutName (MkLayoutName (Just Output) layoutName) = "ro_" <> layoutName -- TODO: Fix
+-- genLayoutName (MkLayoutName (Just Output) layoutName) = "rw_" <> layoutName
 
 setLayoutNameMode :: Maybe Mode -> LayoutName -> LayoutName
 setLayoutNameMode mode (MkLayoutName _ name) = MkLayoutName mode name

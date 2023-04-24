@@ -22,6 +22,12 @@ import Syntax.Simple.SuSLik
 import Syntax.Name
 
 import System.Environment
+import System.IO
+import System.Exit
+import System.Process
+
+import Control.Monad
+
 
 import Data.List
 import Data.Maybe
@@ -36,11 +42,24 @@ data Options =
   { optionsShowAstSize :: Bool
   }
 
+data OutputKind = DirectOutput | IndirectOutput
+
 setupOptions :: [String] -> (Options, [String])
 setupOptions args =
   if "--no-ast-size" `elem` args
     then (MkOptions { optionsShowAstSize = False }, args \\ ["--no-ast-size"])
     else (MkOptions { optionsShowAstSize = True  }, args)
+
+suslikOptions :: [String]
+suslikOptions = ["--stdin", "true"
+                -- ,"-o", "2"
+                ,"-c", "2"
+                ,"-b", "true"
+                ,"-g", "true"
+                ]
+
+suslikCmd :: String
+suslikCmd = "./suslik.sh"
 
 main :: IO ()
 main = do
@@ -89,7 +108,7 @@ main = do
                             lookupDef fnDefs fnName
 
           -- toHeapletsRec
-          genLayoutPred :: Mode -> Layout -> IO ()
+          genLayoutPred :: Mode -> Layout -> String
           genLayoutPred mode layout =
             let branchHeaplets = map (getSuSLikAsnHeaplets . toHeapletsRec (Just mode) Nothing . snd) $ layoutBranches layout
                 branchBlocks = map genBlocks' branchHeaplets
@@ -100,7 +119,6 @@ main = do
                 getBranchAsn [] (_, asn) = asn
                 getBranchAsn blocks (_, asn) = foldr (uncurry Block) asn blocks
             in
-            putStrLn $
               unlines
                 [ "predicate " <> genLayoutName (MkLayoutName (Just mode) (layoutName layout))
                                <> "(" <> intercalate ", " (map ("loc " ++) (layoutSuSLikParams layout)) <> ") {"
@@ -111,14 +129,23 @@ main = do
           pprLayoutBranch :: String -> Mode -> [SuSLikName] -> Assertion FsName -> String
           pprLayoutBranch recName mode predParams asn =
             "| " ++ ppr (layoutCond predParams asn) ++ " => { " ++ ppr (toHeapletsRec (Just Input) Nothing (setAssertionModeRec recName mode asn)) ++ " }"
-            
 
-          genSpec :: Directive -> Spec String
-          genSpec (GenerateDef fnName argLayouts resultLayout) =
+          getOutputTempName :: OutputKind -> String -> String
+          getOutputTempName DirectOutput s = s
+          getOutputTempName IndirectOutput s = s <> "0"
+
+          genOutputHeaplet :: OutputKind -> String -> [Heaplet String]
+          genOutputHeaplet DirectOutput _ = []
+          genOutputHeaplet IndirectOutput name = 
+            [PointsToS Unrestricted (Here name) (VarS (getOutputTempName IndirectOutput name))]
+
+          genSpec :: OutputKind -> Directive -> Spec String
+          genSpec outputKind (GenerateDef fnName argLayouts resultLayout) =
             let argNames = map (('x':) . show) $ zipWith const [1..] argLayouts
                 resultName = "r"
-                resultTempName = "r0"
+                resultTempName = getOutputTempName outputKind resultName
                 locName n = "loc " <> n
+                freshVarName = "initialVal"
 
                 -- precond param@LayoutParam{} n = Just $ genParamTypeName param <> "(" <> n <> ")"
                 precond param@LayoutParam{} arg = Just $ HeapletApplyS (genParamTypeName param) [arg]
@@ -131,28 +158,48 @@ main = do
             MkSpec
               { specFnName = fnName
               , specParams = map (LocTypeS,) (argNames ++ [resultName])
-              , specPre = catMaybes (zipWith precond argLayouts (map VarS argNames)) ++ [PointsToS Unrestricted (Here resultName) (IntS 0)]
+              , specPre = catMaybes (zipWith precond argLayouts (map VarS argNames)) ++ [PointsToS Unrestricted (Here resultName) (VarS freshVarName)]
               , specPost =
-                    [HeapletApplyS fnPredName (map VarS (argNames ++ [resultTempName]))
-                    ,PointsToS Unrestricted (Here resultName) (VarS resultTempName)
-                    ]
+                    HeapletApplyS fnPredName (map VarS (argNames ++ [resultTempName]))
+                    : genOutputHeaplet outputKind resultName
               }
 
 
-      putStrLn "*** Layout predicates ***\n"
-      mapM_ (genLayoutPred Input) layouts
-      -- mapM_ (genLayoutPred Output) layouts
-
       let fnPreds = map doDirective directives
+          mkSpecs outputKind = map (genSpec outputKind) directives
+          directSpecs = map (genSpec DirectOutput) directives
+          mkOutString outputKind =
+            ["// *** Layout predicates ***\n"
+            ,unlines $ map (genLayoutPred Input) layouts
+            ,"\n// *** Function predicates ***\n"
+            ,unlines $ map ppr fnPreds
+            ,"\n// *** Function specifications ***\n"
+            ,unlines $ map ppr (mkSpecs outputKind)
+            ]
+          outString = mkOutString IndirectOutput
+          directOutString = mkOutString DirectOutput
 
-      putStrLn "\n*** Function predicates ***\n"
-      mapM_ (putStrLn . ppr) fnPreds
+      -- (Just stdin_handle, Just stdout_handle, _stderr_handle, procHandle)
+      --   <- createProcess (proc "./suslik/suslik" suslikOptions) { std_in = CreatePipe, std_out = CreatePipe }
 
-      let specs = map genSpec directives
+      putStrLn (unlines outString)
 
-      putStrLn "\n*** Function specifications ***\n"
-      mapM_ (putStrLn . ppr) specs
+      -- when (optionsShowAstSize options) $ do
+      --   putStrLn $ "\n--- Source AST size: " ++ show (size parsed)
+      --   putStrLn $ "\n--- SuSLik AST size: " ++ show (sum (map size layouts) + sum (map size fnPreds) + sum (map size specs))
 
-      putStrLn $ "\n--- Source AST size: " ++ show (size parsed)
-      putStrLn $ "\n--- SuSLik AST size: " ++ show (sum (map size layouts) + sum (map size fnPreds) + sum (map size specs))
+      (exitCode, suslikOut, stderrOut) <- readCreateProcessWithExitCode (proc suslikCmd suslikOptions) (unlines outString)
+
+      putStrLn suslikOut
+      -- putStrLn stderrOut
+
+      case exitCode of
+        ExitSuccess -> putStrLn "Succeeded"
+        ExitFailure e -> do
+          putStrLn "######### Indirect output failed. Trying direct output..."
+          putStrLn (unlines directOutString)
+          (exitCode, suslikOut, stderrOut) <- readCreateProcessWithExitCode (proc suslikCmd suslikOptions) (unlines directOutString)
+          putStrLn suslikOut
+          putStrLn stderrOut
+          exitWith exitCode
 

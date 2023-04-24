@@ -44,7 +44,7 @@ defTranslateLayoutMatch layoutEnv def =
         applyPat (PatternVar (LayoutParam p@(MkParametrizedLayoutName params0 layoutName)) v) =
           let params = map getLocBase params0
           in
-          HeapletApply layoutName (map VarS params) [Var () v] Emp
+          Emp --HeapletApply layoutName (map VarS params) [Var () v] Emp
         applyPat (PatternVar {}) = Emp
         applyPat pat@(MkPattern (LayoutParam (MkParametrizedLayoutName params0 layoutName)) cName patParams) =
           let params = map getLocBase params0

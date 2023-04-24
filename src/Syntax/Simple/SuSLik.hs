@@ -181,7 +181,7 @@ instance Ppr a => Ppr (Heaplet a) where
 --   ppr xs = intercalate " ** " $ map ppr xs
 
 instance Ppr a => Ppr (SuSLikAssertion a) where
-  ppr (CopyS lName src dest) = "func " <> lName <> "__copy(" <> ppr src <> ", " <> ppr dest <> ")"
+  ppr (CopyS lName src dest) = "ro_" <> lName <> "(" <> ppr src <> ") ** func " <> lName <> "__copy(" <> ppr src <> ", " <> ppr dest <> ")"
   ppr (IsNullS v) = ppr v <> " == null ; emp"
   ppr (Heaplets [] []) = "emp"
   ppr (Heaplets [] xs) = intercalate " ** " $ map ppr xs
