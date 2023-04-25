@@ -1,0 +1,72 @@
+// *** Layout predicates ***
+
+predicate ro_Sll(loc x) {
+| (x == 0) => { emp }
+| (not (x == 0)) => { [x,2] ** x :-> head ** (x+1) :-> tail ** ro_Sll(tail) }
+}
+predicate ro_TreeLayout(loc x) {
+| (x == 0) => { emp }
+| (not (x == 0)) => { [x,3] ** x :-> payload ** (x+1) :-> left ** (x+2) :-> right ** ro_TreeLayout(left) ** ro_TreeLayout(right) }
+}
+
+
+// *** Function predicates ***
+
+predicate leftList__ro_Sll__ro_TreeLayout(loc __p_x0, loc __r_x) {
+| (__p_x0 == 0) => { __r_x == 0 ; emp }
+| (not (__p_x0 == 0)) => { __p_x0 :-> a ** (__p_x0+1) :-> b ** (__p_x0+2) :-> c ** [__p_x0,3] ** leftList__ro_Sll__ro_TreeLayout(b, __p_x1) ** __r_x :-> a ** (__r_x+1) :-> __p_x1 ** [__r_x,2] }
+}
+
+
+// *** Function specifications ***
+
+
+void leftList(loc x1, loc r)
+  { ro_TreeLayout(x1) ** r :-> initialVal }
+  { leftList__ro_Sll__ro_TreeLayout(x1, r0) ** r :-> r0 }
+{ ?? }
+
+{r :-> initialVal ** ro_TreeLayout(x1)<_alpha_4>}
+{r :-> r0 ** leftList__ro_Sll__ro_TreeLayout(x1, r0)<_alpha_5>}
+void leftList (loc x1, loc r) {
+  if (x1 == 0) {
+    *r = 0;
+  } else {
+    let l = *(x1 + 1);
+    let ri = *(x1 + 2);
+    leftList(l, x1);
+    let r0 = *x1;
+    leftList(ri, x1);
+    leftList0017013011(r0, ri, l, x1, r);
+  }
+}
+
+{_alpha_1x1 < _alpha_4 && _alpha_2x1 < _alpha_4 && not (r == 0) && not (r == x) && not (x == 0) && true ; (x + 1) :-> l ** (x + 2) :-> ri ** r :-> initialVal1 ** x :-> r02 ** leftList__ro_Sll__ro_TreeLayout(l, r01)<_alpha_51>[1,0] ** leftList__ro_Sll__ro_TreeLayout(ri, r02)<_alpha_52>[1,0] ** [x, 3]}
+{not (r == 0) ; r :-> r0 ** leftList__ro_Sll__ro_TreeLayout(x, r0)<_alpha_5>}
+void leftList0017013011 (loc r01, loc ri, loc l, loc x, loc r) {
+  let r02 = *x;
+  if (l == 0) {
+    let r0 = malloc(2);
+    *(x + 1) = ri;
+    *r = r0;
+    *(r0 + 1) = r02;
+    *r0 = r02;
+  } else {
+    let a = *l;
+    let b = *(l + 1);
+    let _ = *(r01 + 1);
+    *(l + 2) = ri;
+    *l = r02;
+    leftList0017013011(_, ri, b, l, r01);
+    let r0 = *r01;
+    *(r01 + 1) = r0;
+    *r = r01;
+    *r01 = r02;
+  }
+}
+
+
+--- Source AST size: 104
+
+--- SuSLik AST size: 159
+Succeeded

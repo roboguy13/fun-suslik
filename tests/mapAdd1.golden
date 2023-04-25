@@ -1,0 +1,46 @@
+// *** Layout predicates ***
+
+predicate ro_Sll(loc x) {
+| (x == 0) => { emp }
+| (not (x == 0)) => { [x,2] ** x :=> head ** (x+1) :=> tail ** ro_Sll(tail) }
+}
+
+
+// *** Function predicates ***
+
+predicate mapAdd1__ro_Sll__ro_Sll(loc __p_x0, loc __r_x) {
+| (__p_x0 == 0) => { __r_x == 0 ; emp }
+| (not (__p_x0 == 0)) => { __p_x0 :-> head ** (__p_x0+1) :-> tail ** [__p_x0,2] ** mapAdd1__ro_Sll__ro_Sll(tail, __p_x1) ** __r_x :-> (head + 1) ** (__r_x+1) :-> __p_x1 ** [__r_x,2] }
+}
+
+
+// *** Function specifications ***
+
+
+void mapAdd1(loc x1, loc r)
+  { ro_Sll(x1) ** r :-> initialVal }
+  { mapAdd1__ro_Sll__ro_Sll(x1, r0) ** r :-> r0 }
+{ ?? }
+
+{r :-> initialVal ** ro_Sll(x1)<_alpha_2>}
+{r :-> r0 ** mapAdd1__ro_Sll__ro_Sll(x1, r0)<_alpha_3>}
+void mapAdd1 (loc x1, loc r) {
+  if (x1 == 0) {
+    *r = 0;
+  } else {
+    let h = *x1;
+    let t = *(x1 + 1);
+    mapAdd1(t, r);
+    let r01 = *r;
+    let r0 = malloc(2);
+    *r = r0;
+    *(r0 + 1) = r01;
+    *r0 = h + 1;
+  }
+}
+
+
+--- Source AST size: 59
+
+--- SuSLik AST size: 113
+Succeeded

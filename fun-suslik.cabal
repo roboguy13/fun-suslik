@@ -21,13 +21,12 @@ maintainer:         roboguy06@gmail.com
 -- category:
 extra-source-files: CHANGELOG.md
 
-executable fun-suslik
-    main-is:          Main.hs
-
+library fun-suslik-lib
     ghc-options: -Wincomplete-patterns
 
     -- Modules included in this executable, other than Main.
     other-modules:
+      Testing.Test
       Syntax.Simple.Def
       Syntax.Simple.Expr
       Syntax.Simple.Parse
@@ -61,6 +60,49 @@ executable fun-suslik
                       megaparsec,
                       lens,
                       process,
-                      split,
+                      tasty,
+                      tasty-golden,
+                      filepath,
+                      aeson,
+                      bytestring,
     hs-source-dirs:   src
     default-language: Haskell2010
+
+executable fun-suslik
+    main-is:          Main.hs
+    build-depends:    base,
+                      uniplate,
+                      equivalence,
+                      mtl,
+                      STMonadTrans,
+                      containers,
+                      deriving-compat,
+                      bifunctors,
+                      bound,
+                      megaparsec,
+                      lens,
+                      process,
+                      tasty,
+                      tasty-golden,
+                      filepath,
+                      aeson,
+                      bytestring,
+                      fun-suslik-lib,
+    hs-source-dirs:   src
+    default-language: Haskell2010
+
+test-suite fun-suslik-tests
+    type: exitcode-stdio-1.0
+    main-is: Testing/Test.hs
+    hs-source-dirs:   src
+    default-language: Haskell2010
+    ghc-options: -main-is Testing.Test
+    build-depends: base,
+                   process,
+                   tasty,
+                   tasty-golden,
+                   filepath,
+                   aeson,
+                   bytestring,
+                   fun-suslik-lib,
+

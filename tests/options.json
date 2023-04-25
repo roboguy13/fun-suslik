@@ -1,0 +1,10 @@
+[{"name": "append", "options": []}
+,{"name": "filterLt9", "options": []}
+,{"name": "mapAdd1", "options": []}
+,{"name": "maximum", "options": []}
+,{"name": "take", "options": []}
+,{"name": "cons", "options": []}
+,{"name": "leftList", "options": ["--only-rw", "-+"]}
+,{"name": "mapSum", "options": []}
+,{"name": "singleton", "options": []}
+]

@@ -1,0 +1,61 @@
+// *** Layout predicates ***
+
+predicate ro_Sll(loc x) {
+| (x == 0) => { emp }
+| (not (x == 0)) => { [x,2] ** x :=> head ** (x+1) :=> tail ** ro_Sll(tail) }
+}
+predicate ro_NatLayout(loc x) {
+| (x == 0) => { emp }
+| (not (x == 0)) => { x :=> n ** ro_NatLayout(n) }
+}
+
+
+// *** Function predicates ***
+
+predicate take__ro_Sll__ro_NatLayout__ro_Sll(loc __p_x0, loc __p_x1, loc __r_x) {
+| ((__p_x0 == 0) && (__p_x1 == 0)) => { __r_x == 0 ; emp }
+| ((__p_x0 == 0) && (not (__p_x1 == 0))) => { __r_x == 0 ; ro_Sll(__p_x1) }
+| ((__p_x1 == 0) && (not (__p_x0 == 0))) => { __r_x == 0 ; ro_NatLayout(__p_x0) }
+| ((not (__p_x0 == 0)) && (not (__p_x1 == 0))) => { __p_x0 :-> n ** __p_x1 :-> x ** (__p_x1+1) :-> xs ** [__p_x1,2] ** take__ro_Sll__ro_NatLayout__ro_Sll(n, xs, __p_x2) ** __r_x :-> x ** (__r_x+1) :-> __p_x2 ** [__r_x,2] }
+}
+
+
+// *** Function specifications ***
+
+
+void take(loc x1, loc x2, loc r)
+  { ro_NatLayout(x1) ** ro_Sll(x2) ** r :-> initialVal }
+  { take__ro_Sll__ro_NatLayout__ro_Sll(x1, x2, r0) ** r :-> r0 }
+{ ?? }
+
+{r :-> initialVal ** ro_NatLayout(x1)<_alpha_5> ** ro_Sll(x2)<_alpha_6>}
+{r :-> r0 ** take__ro_Sll__ro_NatLayout__ro_Sll(x1, x2, r0)<_alpha_7>}
+void take (loc x1, loc x2, loc r) {
+  if (x2 == 0) {
+    if (x1 == 0) {
+      *r = 0;
+    } else {
+      *r = 0;
+    }
+  } else {
+    let h = *x2;
+    let t = *(x2 + 1);
+    if (x1 == 0) {
+      *r = 0;
+    } else {
+      let n = *x1;
+      take(n, t, r);
+      let r01 = *r;
+      let r0 = malloc(2);
+      *r = r0;
+      *(r0 + 1) = r01;
+      *r0 = h;
+    }
+  }
+}
+
+
+--- Source AST size: 112
+
+--- SuSLik AST size: 193
+Succeeded

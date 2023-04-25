@@ -230,15 +230,15 @@ main = do
       unless (optionsOnlyGenerate options) $ do
         (exitCode, suslikOut, stderrOut) <- readCreateProcessWithExitCode (proc suslikCmd susOpts) (unlines outString)
 
-        putStrLn suslikOut
         -- putStrLn stderrOut
 
-        when (optionsShowAstSize options) $ do
-          putStrLn $ "\n--- Source AST size: " ++ show (size parsed)
-          putStrLn $ "\n--- SuSLik AST size: " ++ show (sum (map size layoutPreds) + sum (map size fnPreds) + sum (map size indirectSpecs))
 
         case exitCode of
           ExitSuccess ->  do
+            putStrLn suslikOut
+            when (optionsShowAstSize options) $ do
+              putStrLn $ "\n--- Source AST size: " ++ show (size parsed)
+              putStrLn $ "\n--- SuSLik AST size: " ++ show (sum (map size layoutPreds) + sum (map size fnPreds) + sum (map size indirectSpecs))
             putStrLn "Succeeded"
           ExitFailure e -> do
             putStrLn "######### Indirect output failed. Trying direct output..."

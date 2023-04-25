@@ -1,0 +1,51 @@
+// *** Layout predicates ***
+
+predicate ro_Sll(loc x) {
+| (x == 0) => { emp }
+| (not (x == 0)) => { [x,2] ** x :=> head ** (x+1) :=> tail ** ro_Sll(tail) }
+}
+
+
+// *** Function predicates ***
+
+predicate filterLt9__ro_Sll__ro_Sll(loc __p_x0, loc __r_x) {
+| (__p_x0 == 0) => { __r_x == 0 ; emp }
+| ((not (__p_x0 == 0)) && (head < 9)) => { __p_x0 :-> head ** (__p_x0+1) :-> tail ** [__p_x0,2] ** filterLt9__ro_Sll__ro_Sll(tail, __r_x) }
+| ((not (__p_x0 == 0)) && (not (head < 9))) => { __p_x0 :-> head ** (__p_x0+1) :-> tail ** [__p_x0,2] ** filterLt9__ro_Sll__ro_Sll(tail, __p_x3) ** __r_x :-> head ** (__r_x+1) :-> __p_x3 ** [__r_x,2] }
+}
+
+
+// *** Function specifications ***
+
+
+void filterLt9(loc x1, loc r)
+  { ro_Sll(x1) ** r :-> initialVal }
+  { filterLt9__ro_Sll__ro_Sll(x1, r0) ** r :-> r0 }
+{ ?? }
+
+{r :-> initialVal ** ro_Sll(x1)<_alpha_3>}
+{r :-> r0 ** filterLt9__ro_Sll__ro_Sll(x1, r0)<_alpha_4>}
+void filterLt9 (loc x1, loc r) {
+  if (x1 == 0) {
+    *r = 0;
+  } else {
+    let h = *x1;
+    let t = *(x1 + 1);
+    if (h < 9) {
+      filterLt9(t, r);
+    } else {
+      filterLt9(t, r);
+      let r01 = *r;
+      let r0 = malloc(2);
+      *r = r0;
+      *(r0 + 1) = r01;
+      *r0 = h;
+    }
+  }
+}
+
+
+--- Source AST size: 66
+
+--- SuSLik AST size: 144
+Succeeded
