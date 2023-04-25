@@ -1,2 +1,2 @@
 #!/bin/sh
-cabal test --test-show-details=streaming
+cabal test --test-show-details=streaming "$@"

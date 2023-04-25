@@ -15,6 +15,16 @@ To run the compiler, run
 
 where `filename.fsus` is the source file you want to compile.
 
+Running Tests
+---
+
+To run every test:
+
+    ./run-tests.sh
+
+To run an individual test, in this case `filterLt9`:
+
+    ./run-tests.sh --test-options='-p "/filterLt9/"'
 
 Compiler Stages
 ---
