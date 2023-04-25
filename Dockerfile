@@ -8,7 +8,7 @@ RUN echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | tee /etc/ap
   && (curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | gpg --no-default-keyring --keyring gnupg-ring:/etc/apt/trusted.gpg.d/scalasbt-release.gpg --import) \
   && chmod 644 /etc/apt/trusted.gpg.d/scalasbt-release.gpg \
   && apt-get update \
-  && apt-get install -y sbt \
+  && apt-get install -y sbt=1.4.9 \
   && (curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | BOOTSTRAP_HASKELL_NONINTERACTIVE=1 BOOTSTRAP_HASKELL_MINIMAL=1 sh)
 
 COPY . /app
