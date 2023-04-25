@@ -268,14 +268,17 @@ data Spec a =
     }
   deriving (Show, Data)
 
-instance Ppr a => Ppr (Spec a) where
-  ppr (MkSpec fnName params pre post) =
+showAuxSpec :: Ppr a => Spec a -> String
+showAuxSpec (MkSpec fnName params pre post) =
     unlines
       [ "void " <> fnName <> "(" <> intercalate ", " (map (\(ty, x) -> unwords [ppr ty, ppr x]) params) <> ")"
       , "  { " <> intercalate " ** " (map ppr pre) <> " }"
       , "  { " <> intercalate " ** " (map ppr post) <> " }"
-      , "{ ?? }"
       ]
+
+instance Ppr a => Ppr (Spec a) where
+  ppr spec =
+      showAuxSpec spec ++ "{ ?? }"
 
 instance Data a => Size (Spec a) where
   size (MkSpec _ params pre post) = 2 + (2*length params) + sum (map size pre) + sum (map size post)

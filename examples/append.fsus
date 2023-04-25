@@ -1,3 +1,4 @@
+%generate cons [Int, Sll[readonly]] Sll
 %generate append [Sll[readonly], Sll[readonly]] Sll
 
 data List := Nil | Cons Int List;

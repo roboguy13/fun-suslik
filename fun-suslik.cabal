@@ -61,5 +61,6 @@ executable fun-suslik
                       megaparsec,
                       lens,
                       process,
+                      split,
     hs-source-dirs:   src
     default-language: Haskell2010

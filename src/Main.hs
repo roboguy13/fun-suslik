@@ -27,7 +27,7 @@ import System.Exit
 import System.Process
 
 import Control.Monad
-
+import Control.Applicative
 
 import Data.List
 import Data.Maybe
@@ -40,15 +40,34 @@ isBaseTypeName _ = False
 data Options =
   MkOptions
   { optionsShowAstSize :: Bool
+  , optionsOnlyGenerate :: Bool
+  , optionsOnlyRW :: Bool
   }
 
 data OutputKind = DirectOutput | IndirectOutput
 
 setupOptions :: [String] -> (Options, [String])
 setupOptions args =
-  if "--no-ast-size" `elem` args
-    then (MkOptions { optionsShowAstSize = False }, args \\ ["--no-ast-size"])
-    else (MkOptions { optionsShowAstSize = True  }, args)
+  (MkOptions
+    { optionsShowAstSize = "--no-ast-size" `notElem` args
+    , optionsOnlyGenerate = "--only-generate" `elem` args
+    , optionsOnlyRW = "--only-rw" `elem` args
+    }
+  ,args \\ ["--no-ast-size", "--only-generate", "--only-rw"]
+  )
+  -- if "--no-ast-size" `elem` args
+  --   then (MkOptions { optionsShowAstSize = False }, args \\ ["--no-ast-size"])
+  --   else (MkOptions { optionsShowAstSize = True  }, args)
+
+getSuSLikCmdArgs :: [String] -> (Maybe [String], [String])
+getSuSLikCmdArgs args =
+  let (before, sus) = span (/="-+") args
+      susResult =
+        case drop 1 sus of
+          [] -> Nothing
+          s -> Just s
+  in
+  (susResult, before)
 
 suslikOptions :: [String]
 suslikOptions = ["--stdin", "true"
@@ -63,7 +82,9 @@ suslikCmd = "./suslik.sh"
 
 main :: IO ()
 main = do
-  (options, restArgs) <- fmap setupOptions getArgs
+  (susOpts_maybe, restArgs0) <- fmap getSuSLikCmdArgs getArgs
+  let susOpts = fromMaybe suslikOptions susOpts_maybe
+      (options, restArgs) = setupOptions restArgs0
   case restArgs of
     [] -> error "Expected a source filename"
     args@(_ : _ : _) -> error $ "Too many arguments. Expected 1, got " ++ show (length args)
@@ -107,8 +128,14 @@ main = do
                           instAndElaborate fnName argLayouts resultLayout $
                             lookupDef fnDefs fnName
 
+          layoutGenMode_maybe :: Maybe Mode
+          layoutGenMode_maybe =
+            if optionsOnlyRW options
+              then Nothing
+              else Just Input
+
           -- toHeapletsRec
-          genLayoutPred :: Mode -> Layout -> String
+          genLayoutPred :: Mode -> Layout -> InductivePred
           genLayoutPred mode layout =
             let branchHeaplets = map (getSuSLikAsnHeaplets . toHeapletsRec (Just mode) Nothing . snd) $ layoutBranches layout
                 branchBlocks = map genBlocks' branchHeaplets
@@ -119,12 +146,21 @@ main = do
                 getBranchAsn [] (_, asn) = asn
                 getBranchAsn blocks (_, asn) = foldr (uncurry Block) asn blocks
             in
-              unlines
-                [ "predicate " <> genLayoutName (MkLayoutName (Just mode) (layoutName layout))
-                               <> "(" <> intercalate ", " (map ("loc " ++) (layoutSuSLikParams layout)) <> ") {"
-                , intercalate "\n" $ zipWith (\blocks -> pprAsn . getBranchAsn blocks) branchBlocks (layoutBranches layout)
-                , "}"
-                ]
+              MkInductivePred
+                { inductivePredName = genLayoutName (MkLayoutName (Just mode) (layoutName layout))
+                , inductivePredParams = map locParam $ layoutSuSLikParams layout
+                , inductivePredBranches = zipWith (\blocks branch ->
+                    let asn = getBranchAsn blocks branch
+                    in
+                    MkSuSLikBranch
+                      (layoutCond (layoutSuSLikParams layout) asn) $ toHeapletsRec layoutGenMode_maybe Nothing asn) branchBlocks (layoutBranches layout)
+                }
+              -- unlines
+              --   [ "predicate " <> genLayoutName (MkLayoutName (Just mode) (layoutName layout))
+              --                  <> "(" <> intercalate ", " (map ("loc " ++) (layoutSuSLikParams layout)) <> ") {"
+              --   , intercalate "\n" $ zipWith (\blocks -> pprAsn . getBranchAsn blocks) branchBlocks (layoutBranches layout)
+              --   , "}"
+              --   ]
 
           pprLayoutBranch :: String -> Mode -> [SuSLikName] -> Assertion FsName -> String
           pprLayoutBranch recName mode predParams asn =
@@ -167,15 +203,22 @@ main = do
 
       let fnPreds = map doDirective directives
           mkSpecs outputKind = map (genSpec outputKind) directives
+
           directSpecs = map (genSpec DirectOutput) directives
+          indirectSpecs = map (genSpec IndirectOutput) directives
+
+          layoutPreds = map (genLayoutPred Input) layouts
+
           mkOutString outputKind =
             ["// *** Layout predicates ***\n"
-            ,unlines $ map (genLayoutPred Input) layouts
+            ,unlines $ map ppr layoutPreds
             ,"\n// *** Function predicates ***\n"
             ,unlines $ map ppr fnPreds
             ,"\n// *** Function specifications ***\n"
-            ,unlines $ map ppr (mkSpecs outputKind)
+            ,unlines $ map showAuxSpec (init (mkSpecs outputKind))
+            ,ppr (last (mkSpecs outputKind))
             ]
+          -- directSpecs = mkSpecs DirectOutput
           outString = mkOutString IndirectOutput
           directOutString = mkOutString DirectOutput
 
@@ -184,22 +227,27 @@ main = do
 
       putStrLn (unlines outString)
 
-      -- when (optionsShowAstSize options) $ do
-      --   putStrLn $ "\n--- Source AST size: " ++ show (size parsed)
-      --   putStrLn $ "\n--- SuSLik AST size: " ++ show (sum (map size layouts) + sum (map size fnPreds) + sum (map size specs))
+      unless (optionsOnlyGenerate options) $ do
+        (exitCode, suslikOut, stderrOut) <- readCreateProcessWithExitCode (proc suslikCmd susOpts) (unlines outString)
 
-      (exitCode, suslikOut, stderrOut) <- readCreateProcessWithExitCode (proc suslikCmd suslikOptions) (unlines outString)
+        putStrLn suslikOut
+        -- putStrLn stderrOut
 
-      putStrLn suslikOut
-      -- putStrLn stderrOut
+        when (optionsShowAstSize options) $ do
+          putStrLn $ "\n--- Source AST size: " ++ show (size parsed)
+          putStrLn $ "\n--- SuSLik AST size: " ++ show (sum (map size layoutPreds) + sum (map size fnPreds) + sum (map size indirectSpecs))
 
-      case exitCode of
-        ExitSuccess -> putStrLn "Succeeded"
-        ExitFailure e -> do
-          putStrLn "######### Indirect output failed. Trying direct output..."
-          putStrLn (unlines directOutString)
-          (exitCode, suslikOut, stderrOut) <- readCreateProcessWithExitCode (proc suslikCmd suslikOptions) (unlines directOutString)
-          putStrLn suslikOut
-          putStrLn stderrOut
-          exitWith exitCode
+        case exitCode of
+          ExitSuccess ->  do
+            putStrLn "Succeeded"
+          ExitFailure e -> do
+            putStrLn "######### Indirect output failed. Trying direct output..."
+            putStrLn (unlines directOutString)
+            when (optionsShowAstSize options) $ do
+              putStrLn $ "\n--- Source AST size: " ++ show (size parsed)
+              putStrLn $ "\n--- SuSLik AST size: " ++ show (sum (map size layoutPreds) + sum (map size fnPreds) + sum (map size directSpecs))
+            (exitCode, suslikOut, stderrOut) <- readCreateProcessWithExitCode (proc suslikCmd susOpts) (unlines directOutString)
+            putStrLn suslikOut
+            putStrLn stderrOut
+            exitWith exitCode
 

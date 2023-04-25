@@ -1,3 +1,3 @@
 #!/bin/sh
 
-cabal exec fun-suslik $1
+cabal exec fun-suslik -- "$@"
