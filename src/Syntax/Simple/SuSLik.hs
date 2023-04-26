@@ -111,8 +111,8 @@ data Heaplet a where
   deriving (Show, Functor, Data)
 
 instance Data a => Size (Heaplet a) where
-  size (PointsToS mut loc e) = 2 + size loc + size e
-  size (HeapletApplyS n xs) = 2 + sum (map size xs)
+  size (PointsToS mut loc e) = 1 + size loc + size e
+  size (HeapletApplyS n xs) = 1 + sum (map size xs)
   size (BlockS x i) = 3
   size (TempLocS i) = 2
   size (FuncS s xs) = 2 + sum (map size xs)
