@@ -46,4 +46,4 @@ void mapAdd1 (loc x1, loc r) {
 
 --- Source AST size: 59
 
---- SuSLik AST size: 123
+--- SuSLik AST size: 109

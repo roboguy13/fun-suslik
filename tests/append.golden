@@ -64,7 +64,7 @@ void append(loc x1, loc x2, loc r)
 
 --- Source AST size: 84
 
---- SuSLik AST size: 156
+--- SuSLik AST size: 141
 {r :-> initialVal ** ro_Sll(x1)<_alpha_7> ** ro_Sll(x2)<_alpha_8>}
 {append__ro_Sll__ro_Sll__ro_Sll(x1, x2, r)<_alpha_9>}
 void append (loc x1, loc x2, loc r) {

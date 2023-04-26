@@ -43,4 +43,4 @@ void maximum (loc x1, loc r) {
 
 --- Source AST size: 61
 
---- SuSLik AST size: 124
+--- SuSLik AST size: 112

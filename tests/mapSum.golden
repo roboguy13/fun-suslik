@@ -50,4 +50,4 @@ void mapSum (loc x1, loc r) {
 
 --- Source AST size: 97
 
---- SuSLik AST size: 163
+--- SuSLik AST size: 145

@@ -17,17 +17,16 @@ predicate singleton__ro_Sll__Int(int __p_0, loc __r_x) {
 
 
 void singleton(loc x1, loc r)
-  { x1 :-> x1__i ** r :-> initialVal }
-  { x1 :-> x1__i ** singleton__ro_Sll__Int(x1__i, r0) ** r :-> r0 }
+  { r :-> initialVal }
+  { singleton__ro_Sll__Int(x1, r0) ** r :-> r0 }
 { ?? }
 
-{r :-> initialVal ** x1 :-> x1__i}
-{r :-> r0 ** x1 :-> x1__i ** singleton__ro_Sll__Int(x1__i, r0)<_alpha_1>}
+{r :-> initialVal}
+{r :-> r0 ** singleton__ro_Sll__Int(x1, r0)<_alpha_1>}
 void singleton (loc x1, loc r) {
-  let x = *x1;
   let r0 = malloc(2);
   *r = r0;
-  *r0 = x;
+  *r0 = x1;
   *(r0 + 1) = 0;
 }
 
@@ -35,4 +34,4 @@ void singleton (loc x1, loc r) {
 
 --- Source AST size: 47
 
---- SuSLik AST size: 88
+--- SuSLik AST size: 70

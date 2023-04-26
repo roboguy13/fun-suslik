@@ -24,36 +24,30 @@ predicate take__ro_Sll__ro_NatLayout__ro_Sll(loc __p_x0, loc __p_x1, loc __r_x) 
 
 
 void take(loc x1, loc x2, loc r)
-  { x1 :-> x1__i ** x2 :-> x2__i ** ro_NatLayout(x1__i) ** ro_Sll(x2__i) ** r :-> initialVal }
-  { x1 :-> x1__i ** x2 :-> x2__i ** take__ro_Sll__ro_NatLayout__ro_Sll(x1__i, x2__i, r0) ** r :-> r0 }
+  { ro_NatLayout(x1) ** ro_Sll(x2) ** r :-> initialVal }
+  { take__ro_Sll__ro_NatLayout__ro_Sll(x1, x2, r0) ** r :-> r0 }
 { ?? }
 
-{r :-> initialVal ** x1 :-> x1__i ** x2 :-> x2__i ** ro_NatLayout(x1__i)<_alpha_5> ** ro_Sll(x2__i)<_alpha_6>}
-{r :-> r0 ** x1 :-> x1__i ** x2 :-> x2__i ** take__ro_Sll__ro_NatLayout__ro_Sll(x1__i, x2__i, r0)<_alpha_7>}
+{r :-> initialVal ** ro_NatLayout(x1)<_alpha_5> ** ro_Sll(x2)<_alpha_6>}
+{r :-> r0 ** take__ro_Sll__ro_NatLayout__ro_Sll(x1, x2, r0)<_alpha_7>}
 void take (loc x1, loc x2, loc r) {
-  let x1_ = *x1;
-  let x = *x2;
-  if (x == 0) {
-    if (x1_ == 0) {
+  if (x2 == 0) {
+    if (x1 == 0) {
       *r = 0;
     } else {
       *r = 0;
     }
   } else {
-    let h = *x;
-    let t = *(x + 1);
-    if (x1_ == 0) {
+    let h = *x2;
+    let t = *(x2 + 1);
+    if (x1 == 0) {
       *r = 0;
     } else {
-      let n = *x1_;
-      *r = n;
-      *x2 = t;
-      take(r, x2, x1);
-      let r01 = *x1;
+      let n = *x1;
+      take(n, t, r);
+      let r01 = *r;
       let r0 = malloc(2);
-      *x1 = x1_;
       *r = r0;
-      *x2 = x;
       *(r0 + 1) = r01;
       *r0 = h;
     }
@@ -64,4 +58,4 @@ void take (loc x1, loc x2, loc r) {
 
 --- Source AST size: 112
 
---- SuSLik AST size: 213
+--- SuSLik AST size: 175
