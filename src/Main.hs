@@ -42,6 +42,7 @@ data Options =
   { optionsShowAstSize :: Bool
   , optionsOnlyGenerate :: Bool
   , optionsOnlyRW :: Bool
+  , optionsIndirectArgs :: Bool
   }
 
 data OutputKind = DirectOutput | IndirectOutput
@@ -52,8 +53,9 @@ setupOptions args =
     { optionsShowAstSize = "--no-ast-size" `notElem` args
     , optionsOnlyGenerate = "--only-generate" `elem` args
     , optionsOnlyRW = "--only-rw" `elem` args
+    , optionsIndirectArgs = "--indirect-args" `elem` args
     }
-  ,args \\ ["--no-ast-size", "--only-generate", "--only-rw"]
+  ,args \\ ["--no-ast-size", "--only-generate", "--only-rw", "--indirect-args"]
   )
   -- if "--no-ast-size" `elem` args
   --   then (MkOptions { optionsShowAstSize = False }, args \\ ["--no-ast-size"])
@@ -175,9 +177,22 @@ main = do
           genOutputHeaplet IndirectOutput name = 
             [PointsToS Unrestricted (Here name) (VarS (getOutputTempName IndirectOutput name))]
 
+          -- Generate argument heaplets for pre/postcondition based on
+          -- whether --indirect-args is set
+          genArg :: String -> [Heaplet String]
+          genArg name
+            | optionsIndirectArgs options = [PointsToS Unrestricted (Here name) (VarS (name <> "__i"))]
+            | otherwise                   = []
+            
+          argTarget :: String -> String
+          argTarget name
+            | optionsIndirectArgs options = name <> "__i"
+            | otherwise                   = name
+
           genSpec :: OutputKind -> Directive -> Spec String
           genSpec outputKind (GenerateDef fnName argLayouts resultLayout) =
-            let argNames = map (('x':) . show) $ zipWith const [1..] argLayouts
+            let argNames0 = map (('x':) . show) $ zipWith const [1..] argLayouts
+                argNames = map argTarget argNames0
                 resultName = "r"
                 resultTempName = getOutputTempName outputKind resultName
                 locName n = "loc " <> n
@@ -194,8 +209,11 @@ main = do
             MkSpec
               { specFnName = fnName
               , specParams = map (LocTypeS,) (argNames ++ [resultName])
-              , specPre = catMaybes (zipWith precond argLayouts (map VarS argNames)) ++ [PointsToS Unrestricted (Here resultName) (VarS freshVarName)]
+              , specPre =
+                  concatMap genArg argNames0 ++
+                  catMaybes (zipWith precond argLayouts (map VarS argNames)) ++ [PointsToS Unrestricted (Here resultName) (VarS freshVarName)]
               , specPost =
+                  concatMap genArg argNames0 ++
                     HeapletApplyS fnPredName (map VarS (argNames ++ [resultTempName]))
                     : genOutputHeaplet outputKind resultName
               }
