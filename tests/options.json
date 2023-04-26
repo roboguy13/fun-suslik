@@ -1,10 +1,10 @@
-[{"name": "append", "options": []}
-,{"name": "filterLt9", "options": ["-c", "2", "-b", "true"]}
+[{"name": "append", "options": ["--no-indirect-args"]}
+,{"name": "filterLt9", "options": ["-+", "-b", "true", "-c", "2"]}
 ,{"name": "mapAdd1", "options": []}
 ,{"name": "maximum", "options": []}
 ,{"name": "take", "options": []}
 ,{"name": "cons", "options": []}
-,{"name": "leftList", "options": ["--only-rw", "-+"]}
+,{"name": "leftList", "options": ["--no-indirect-args", "--only-rw", "-+", "-c", "2"]}
 ,{"name": "mapSum", "options": []}
 ,{"name": "singleton", "options": []}
 ]

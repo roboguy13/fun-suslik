@@ -1,0 +1,46 @@
+// *** Layout predicates ***
+
+predicate ro_Sll(loc x) {
+| (x == 0) => { emp }
+| (not (x == 0)) => { [x,2] ** x :=> head ** (x+1) :=> tail ** ro_Sll(tail) }
+}
+
+
+// *** Function predicates ***
+
+predicate maximum__Int__ro_Sll(loc __p_x0, int __r) {
+| (__p_x0 == 0) => { __r == 0 ; emp }
+| (not (__p_x0 == 0)) => { i == __p_1 && __r == ((i < x) ? x : i) && __temp_0 == __p_1 ; __p_x0 :-> x ** (__p_x0+1) :-> xs ** [__p_x0,2] ** maximum__Int__ro_Sll(xs, __temp_0) }
+}
+
+
+// *** Function specifications ***
+
+
+void maximum(loc x1, loc r)
+  { x1 :-> x1__i ** ro_Sll(x1__i) ** r :-> initialVal }
+  { x1 :-> x1__i ** maximum__Int__ro_Sll(x1__i, r0) ** r :-> r0 }
+{ ?? }
+
+{r :-> initialVal ** x1 :-> x1__i ** ro_Sll(x1__i)<_alpha_2>}
+{r :-> r0 ** x1 :-> x1__i ** maximum__Int__ro_Sll(x1__i, r0)<_alpha_3>}
+void maximum (loc x1, loc r) {
+  let x = *x1;
+  if (x == 0) {
+    *r = 0;
+  } else {
+    let h = *x;
+    let t = *(x + 1);
+    *r = t;
+    maximum(r, x1);
+    let r0 = *x1;
+    *x1 = x;
+    *r = r0 < h ? h : r0;
+  }
+}
+
+
+
+--- Source AST size: 61
+
+--- SuSLik AST size: 124

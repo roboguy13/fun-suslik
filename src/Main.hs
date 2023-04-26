@@ -53,9 +53,9 @@ setupOptions args =
     { optionsShowAstSize = "--no-ast-size" `notElem` args
     , optionsOnlyGenerate = "--only-generate" `elem` args
     , optionsOnlyRW = "--only-rw" `elem` args
-    , optionsIndirectArgs = "--indirect-args" `elem` args
+    , optionsIndirectArgs = "--no-indirect-args" `notElem` args
     }
-  ,args \\ ["--no-ast-size", "--only-generate", "--only-rw", "--indirect-args"]
+  ,args \\ ["--no-ast-size", "--only-generate", "--only-rw", "--no-indirect-args"]
   )
   -- if "--no-ast-size" `elem` args
   --   then (MkOptions { optionsShowAstSize = False }, args \\ ["--no-ast-size"])
@@ -72,12 +72,15 @@ getSuSLikCmdArgs args =
   (susResult, before)
 
 suslikOptions :: [String]
-suslikOptions = ["--stdin", "true"
-                -- ,"-o", "2"
-                ,"-c", "2"
+suslikOptions = suslikStdinOption ++
+                [-- ,"-o", "2"
+                 "-c", "2"
                 ,"-b", "true"
                 ,"-g", "true"
                 ]
+
+suslikStdinOption :: [String]
+suslikStdinOption = ["--stdin", "true"]
 
 suslikCmd :: String
 suslikCmd = "./suslik.sh"
@@ -85,7 +88,7 @@ suslikCmd = "./suslik.sh"
 main :: IO ()
 main = do
   (susOpts_maybe, restArgs0) <- fmap getSuSLikCmdArgs getArgs
-  let susOpts = suslikOptions `union` fromMaybe [] susOpts_maybe
+  let susOpts = maybe suslikOptions (suslikStdinOption ++) susOpts_maybe
       (options, restArgs) = setupOptions restArgs0
   case restArgs of
     [] -> error "Expected a source filename"

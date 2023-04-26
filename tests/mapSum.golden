@@ -1,0 +1,53 @@
+// *** Layout predicates ***
+
+predicate ro_Sll(loc x) {
+| (x == 0) => { emp }
+| (not (x == 0)) => { [x,2] ** x :=> head ** (x+1) :=> tail ** ro_Sll(tail) }
+}
+predicate ro_ListOfListsLayout(loc x) {
+| (x == 0) => { emp }
+| (not (x == 0)) => { [x,2] ** x :=> head ** (x+1) :=> tail ** ro_ListOfListsLayout(tail) ** ro_Sll(head) }
+}
+
+
+// *** Function predicates ***
+
+predicate mapSum__ro_Sll__ro_ListOfListsLayout(loc __p_x0, loc __r_x) {
+| (__p_x0 == 0) => { __r_x == 0 ; emp }
+| (not (__p_x0 == 0)) => { __r_x == __p_1 ; __p_x0 :-> xs ** (__p_x0+1) :-> xss ** ro_Sll(xs) ** [__p_x0,2] ** func sum__Int__ro_Sll(xs, __p_1) ** mapSum__ro_Sll__ro_ListOfListsLayout(xss, __p_x4) ** (__r_x+1) :-> __p_x4 ** [__r_x,2] }
+}
+
+
+// *** Function specifications ***
+
+
+void mapSum(loc x1, loc r)
+  { x1 :-> x1__i ** ro_ListOfListsLayout(x1__i) ** r :-> initialVal }
+  { x1 :-> x1__i ** mapSum__ro_Sll__ro_ListOfListsLayout(x1__i, r0) ** r :-> r0 }
+{ ?? }
+
+{r :-> initialVal ** x1 :-> x1__i ** ro_ListOfListsLayout(x1__i)<_alpha_5>}
+{r :-> r0 ** x1 :-> x1__i ** mapSum__ro_Sll__ro_ListOfListsLayout(x1__i, r0)<_alpha_6>}
+void mapSum (loc x1, loc r) {
+  let x = *x1;
+  if (x == 0) {
+    *r = 0;
+  } else {
+    let h = *x;
+    let t = *(x + 1);
+    *r = t;
+    mapSum(r, x1);
+    let r01 = *x1;
+    let r0 = malloc(2);
+    *x1 = x;
+    *r = r0;
+    *(r0 + 1) = r01;
+    sum__Int__ro_Sll(h, r0);
+  }
+}
+
+
+
+--- Source AST size: 97
+
+--- SuSLik AST size: 163

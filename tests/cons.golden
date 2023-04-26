@@ -1,0 +1,52 @@
+// *** Layout predicates ***
+
+predicate ro_Sll(loc x) {
+| (x == 0) => { emp }
+| (not (x == 0)) => { [x,2] ** x :=> head ** (x+1) :=> tail ** ro_Sll(tail) }
+}
+
+
+// *** Function predicates ***
+
+predicate cons__ro_Sll__Int__ro_Sll(int __p_0, loc __p_x1, loc __r_x) {
+| true => { __r_x :-> __p_0 ** (__r_x+1) :-> __p_x1 ** [__r_x,2] }
+}
+
+
+// *** Function specifications ***
+
+
+void cons(loc x1, loc x2, loc r)
+  { x1 :-> x1__i ** x2 :-> x2__i ** ro_Sll(x2__i) ** r :-> initialVal }
+  { x1 :-> x1__i ** x2 :-> x2__i ** cons__ro_Sll__Int__ro_Sll(x1__i, x2__i, r0) ** r :-> r0 }
+{ ?? }
+
+{r :-> initialVal ** x1 :-> x1__i ** x2 :-> x2__i ** ro_Sll(x2__i)<_alpha_1>}
+{r :-> r0 ** x1 :-> x1__i ** x2 :-> x2__i ** cons__ro_Sll__Int__ro_Sll(x1__i, x2__i, r0)<_alpha_2>}
+void cons (loc x1, loc x2, loc r) {
+  let x1_ = *x1;
+  let x = *x2;
+  if (x == 0) {
+    let r0 = malloc(2);
+    *r = r0;
+    *r0 = x1_;
+    *(r0 + 1) = x;
+  } else {
+    let t = *(x + 1);
+    *x2 = t;
+    cons(r, x2, x1);
+    let r0 = *x1;
+    free(x);
+    *r0 = x1_;
+    *(r0 + 1) = x;
+    *x1 = x1_;
+    *r = r0;
+    *x2 = x;
+  }
+}
+
+
+
+--- Source AST size: 52
+
+--- SuSLik AST size: 107

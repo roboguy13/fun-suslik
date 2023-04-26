@@ -1,0 +1,84 @@
+// *** Layout predicates ***
+
+predicate ro_Sll(loc x) {
+| (x == 0) => { emp }
+| (not (x == 0)) => { [x,2] ** x :=> head ** (x+1) :=> tail ** ro_Sll(tail) }
+}
+
+
+// *** Function predicates ***
+
+predicate cons__ro_Sll__Int__ro_Sll(int __p_0, loc __p_x1, loc __r_x) {
+| true => { __r_x :-> __p_0 ** (__r_x+1) :-> __p_x1 ** [__r_x,2] }
+}
+predicate append__ro_Sll__ro_Sll__ro_Sll(loc __p_x0, loc __p_x1, loc __r_x) {
+| (__p_x0 == 0) => { ro_Sll(__p_x1) ** func Sll__copy(__p_x1, __r_x) }
+| (not (__p_x0 == 0)) => { __p_x0 :-> x ** (__p_x0+1) :-> xs ** [__p_x0,2] ** func cons__ro_Sll__Ptr_Int__ro_Sll(__p_x0, __p_x2, __r_x) ** append__ro_Sll__ro_Sll__ro_Sll(xs, __p_x1, __p_x2) ** temploc __p_x2 }
+}
+
+
+// *** Function specifications ***
+
+void cons(loc x1, loc x2, loc r)
+  { ro_Sll(x2) ** r :-> initialVal }
+  { cons__ro_Sll__Int__ro_Sll(x1, x2, r0) ** r :-> r0 }
+
+
+void append(loc x1, loc x2, loc r)
+  { ro_Sll(x1) ** ro_Sll(x2) ** r :-> initialVal }
+  { append__ro_Sll__ro_Sll__ro_Sll(x1, x2, r0) ** r :-> r0 }
+{ ?? }
+
+######### Indirect output failed. Trying direct output...
+// *** Layout predicates ***
+
+predicate ro_Sll(loc x) {
+| (x == 0) => { emp }
+| (not (x == 0)) => { [x,2] ** x :=> head ** (x+1) :=> tail ** ro_Sll(tail) }
+}
+
+
+// *** Function predicates ***
+
+predicate cons__ro_Sll__Int__ro_Sll(int __p_0, loc __p_x1, loc __r_x) {
+| true => { __r_x :-> __p_0 ** (__r_x+1) :-> __p_x1 ** [__r_x,2] }
+}
+predicate append__ro_Sll__ro_Sll__ro_Sll(loc __p_x0, loc __p_x1, loc __r_x) {
+| (__p_x0 == 0) => { ro_Sll(__p_x1) ** func Sll__copy(__p_x1, __r_x) }
+| (not (__p_x0 == 0)) => { __p_x0 :-> x ** (__p_x0+1) :-> xs ** [__p_x0,2] ** func cons__ro_Sll__Ptr_Int__ro_Sll(__p_x0, __p_x2, __r_x) ** append__ro_Sll__ro_Sll__ro_Sll(xs, __p_x1, __p_x2) ** temploc __p_x2 }
+}
+
+
+// *** Function specifications ***
+
+void cons(loc x1, loc x2, loc r)
+  { ro_Sll(x2) ** r :-> initialVal }
+  { cons__ro_Sll__Int__ro_Sll(x1, x2, r) }
+
+
+void append(loc x1, loc x2, loc r)
+  { ro_Sll(x1) ** ro_Sll(x2) ** r :-> initialVal }
+  { append__ro_Sll__ro_Sll__ro_Sll(x1, x2, r) }
+{ ?? }
+
+
+--- Source AST size: 84
+
+--- SuSLik AST size: 156
+{r :-> initialVal ** ro_Sll(x1)<_alpha_7> ** ro_Sll(x2)<_alpha_8>}
+{append__ro_Sll__ro_Sll__ro_Sll(x1, x2, r)<_alpha_9>}
+void append (loc x1, loc x2, loc r) {
+  if (x1 == 0) {
+    Sll__copy(x2, r);
+  } else {
+    let t = *(x1 + 1);
+    let __ = malloc(1);
+    append(t, x2, __);
+    cons__ro_Sll__Ptr_Int__ro_Sll(x1, __, r);
+    let _ = *__;
+    typefree(_);
+    free(__);
+  }
+}
+
+

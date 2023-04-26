@@ -1,0 +1,38 @@
+// *** Layout predicates ***
+
+predicate ro_Sll(loc x) {
+| (x == 0) => { emp }
+| (not (x == 0)) => { [x,2] ** x :=> head ** (x+1) :=> tail ** ro_Sll(tail) }
+}
+
+
+// *** Function predicates ***
+
+predicate singleton__ro_Sll__Int(int __p_0, loc __r_x) {
+| true => { __r_x :-> __p_0 ** (__r_x+1) :-> 0 ** [__r_x,2] }
+}
+
+
+// *** Function specifications ***
+
+
+void singleton(loc x1, loc r)
+  { x1 :-> x1__i ** r :-> initialVal }
+  { x1 :-> x1__i ** singleton__ro_Sll__Int(x1__i, r0) ** r :-> r0 }
+{ ?? }
+
+{r :-> initialVal ** x1 :-> x1__i}
+{r :-> r0 ** x1 :-> x1__i ** singleton__ro_Sll__Int(x1__i, r0)<_alpha_1>}
+void singleton (loc x1, loc r) {
+  let x = *x1;
+  let r0 = malloc(2);
+  *r = r0;
+  *r0 = x;
+  *(r0 + 1) = 0;
+}
+
+
+
+--- Source AST size: 47
+
+--- SuSLik AST size: 88
