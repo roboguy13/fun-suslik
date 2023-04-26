@@ -12,6 +12,10 @@ predicate ro_ListOfListsLayout(loc x) {
 
 // *** Function predicates ***
 
+predicate sum__Int__ro_Sll(loc __p_x0, int __r) {
+| (__p_x0 == 0) => { __r == 0 ; emp }
+| (not (__p_x0 == 0)) => { __r == (head + __p_1) && __temp_0 == __p_1 ; __p_x0 :-> head ** (__p_x0+1) :-> tail ** [__p_x0,2] ** sum__Int__ro_Sll(tail, __temp_0) }
+}
 predicate mapSum__ro_Sll__ro_ListOfListsLayout(loc __p_x0, loc __r_x) {
 | (__p_x0 == 0) => { __r_x == 0 ; emp }
 | (not (__p_x0 == 0)) => { __r_x == __p_1 ; __p_x0 :-> xs ** (__p_x0+1) :-> xss ** ro_Sll(xs) ** [__p_x0,2] ** func sum__Int__ro_Sll(xs, __p_1) ** mapSum__ro_Sll__ro_ListOfListsLayout(xss, __p_x4) ** (__r_x+1) :-> __p_x4 ** [__r_x,2] }
@@ -20,26 +24,27 @@ predicate mapSum__ro_Sll__ro_ListOfListsLayout(loc __p_x0, loc __r_x) {
 
 // *** Function specifications ***
 
+void sum(loc x1, loc r)
+  { ro_Sll(x1) ** r :-> initialVal }
+  { sum__Int__ro_Sll(x1, r0) ** r :-> r0 }
+
 
 void mapSum(loc x1, loc r)
-  { x1 :-> x1__i ** ro_ListOfListsLayout(x1__i) ** r :-> initialVal }
-  { x1 :-> x1__i ** mapSum__ro_Sll__ro_ListOfListsLayout(x1__i, r0) ** r :-> r0 }
+  { ro_ListOfListsLayout(x1) ** r :-> initialVal }
+  { mapSum__ro_Sll__ro_ListOfListsLayout(x1, r0) ** r :-> r0 }
 { ?? }
 
-{r :-> initialVal ** x1 :-> x1__i ** ro_ListOfListsLayout(x1__i)<_alpha_5>}
-{r :-> r0 ** x1 :-> x1__i ** mapSum__ro_Sll__ro_ListOfListsLayout(x1__i, r0)<_alpha_6>}
+{r :-> initialVal ** ro_ListOfListsLayout(x1)<_alpha_10>}
+{r :-> r0 ** mapSum__ro_Sll__ro_ListOfListsLayout(x1, r0)<_alpha_11>}
 void mapSum (loc x1, loc r) {
-  let x = *x1;
-  if (x == 0) {
+  if (x1 == 0) {
     *r = 0;
   } else {
-    let h = *x;
-    let t = *(x + 1);
-    *r = t;
-    mapSum(r, x1);
-    let r01 = *x1;
+    let h = *x1;
+    let t = *(x1 + 1);
+    mapSum(t, r);
+    let r01 = *r;
     let r0 = malloc(2);
-    *x1 = x;
     *r = r0;
     *(r0 + 1) = r01;
     sum__Int__ro_Sll(h, r0);
@@ -48,6 +53,6 @@ void mapSum (loc x1, loc r) {
 
 
 
---- Source AST size: 97
+--- Source AST size: 119
 
---- SuSLik AST size: 145
+--- SuSLik AST size: 204
