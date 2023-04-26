@@ -7,4 +7,5 @@
 ,{"name": "leftList", "options": ["--no-indirect-args", "--only-rw", "-+", "-c", "2"]}
 ,{"name": "mapSum", "options": []}
 ,{"name": "singleton", "options": ["--no-indirect-args"]}
+,{"name": "sum", "options": []}
 ]
