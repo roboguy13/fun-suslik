@@ -19,11 +19,3 @@ sum : List -> Int;
 sum (Nil) := 0;
 sum (Cons head tail) := head + (sum tail);
 
-map_sum : ListOfLists -> List;
-map_sum (LNil) := Nil;
-map_sum (LCons xs xss) := Cons (instantiate [Sll[readonly]] Int sum xs) (map_sum xss);
-
-
-maximum_sum : ListOfLists -> Int;
-maximum_sum xss := instantiate [Sll[mutable]] Int maximum (instantiate [ListOfListsLayout[readonly]] Sll map_sum xss);
-

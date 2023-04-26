@@ -45,6 +45,6 @@ void sum (loc x1, loc r) {
 
 
 
---- Source AST size: 132
+--- Source AST size: 95
 
 --- SuSLik AST size: 137
