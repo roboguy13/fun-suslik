@@ -85,7 +85,7 @@ suslikCmd = "./suslik.sh"
 main :: IO ()
 main = do
   (susOpts_maybe, restArgs0) <- fmap getSuSLikCmdArgs getArgs
-  let susOpts = fromMaybe suslikOptions susOpts_maybe
+  let susOpts = suslikOptions `union` fromMaybe [] susOpts_maybe
       (options, restArgs) = setupOptions restArgs0
   case restArgs of
     [] -> error "Expected a source filename"
@@ -208,7 +208,7 @@ main = do
             in
             MkSpec
               { specFnName = fnName
-              , specParams = map (LocTypeS,) (argNames ++ [resultName])
+              , specParams = map (LocTypeS,) (argNames0 ++ [resultName])
               , specPre =
                   concatMap genArg argNames0 ++
                   catMaybes (zipWith precond argLayouts (map VarS argNames)) ++ [PointsToS Unrestricted (Here resultName) (VarS freshVarName)]
@@ -254,10 +254,10 @@ main = do
         case exitCode of
           ExitSuccess ->  do
             putStrLn suslikOut
+            putStrLn stderrOut
             when (optionsShowAstSize options) $ do
               putStrLn $ "\n--- Source AST size: " ++ show (size parsed)
               putStrLn $ "\n--- SuSLik AST size: " ++ show (sum (map size layoutPreds) + sum (map size fnPreds) + sum (map size indirectSpecs))
-            putStrLn "Succeeded"
           ExitFailure e -> do
             putStrLn "######### Indirect output failed. Trying direct output..."
             putStrLn (unlines directOutString)

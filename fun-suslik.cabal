@@ -89,6 +89,23 @@ executable fun-suslik
                       fun-suslik-lib,
     hs-source-dirs:   src
     default-language: Haskell2010
+    other-modules:
+        Syntax.FreshGen
+        Syntax.Name
+        Syntax.Ppr
+        Syntax.Simple.Def
+        Syntax.Simple.Defunctionalize
+        Syntax.Simple.Expr
+        Syntax.Simple.Heaplet
+        Syntax.Simple.Parse
+        Syntax.Simple.SuSLik
+        Syntax.Simple.ToSuSLik
+        Syntax.Simple.TopLevelTranslation
+        Syntax.Simple.TranslateLayoutMatch
+        Syntax.Simple.TranslateLets
+        Syntax.Simple.TypeCheck
+        Syntax.Simple.UnfoldConstructors
+        Syntax.Simple.UnfoldEmptyConstructors
 
 test-suite fun-suslik-tests
     type: exitcode-stdio-1.0

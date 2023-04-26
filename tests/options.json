@@ -1,5 +1,5 @@
 [{"name": "append", "options": []}
-,{"name": "filterLt9", "options": []}
+,{"name": "filterLt9", "options": ["-c", "2", "-b", "true"]}
 ,{"name": "mapAdd1", "options": []}
 ,{"name": "maximum", "options": []}
 ,{"name": "take", "options": []}
