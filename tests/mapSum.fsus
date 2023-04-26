@@ -21,3 +21,7 @@ mapSum (LCons xs xss) :=
   Cons (instantiate [Sll[readonly]] Int sum xs)
        (mapSum xss);
 
+sum : List -> Int;
+sum (Nil) := 0;
+sum (Cons head tail) := head + (sum tail);
+
