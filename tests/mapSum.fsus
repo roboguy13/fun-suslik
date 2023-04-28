@@ -15,13 +15,13 @@ ListOfListsLayout (LCons head tail) :=
   x :-> head, (x+1) :-> tail, ListOfListsLayout tail,
   Sll head;
 
-sum : List -> Int;
+sum : (Ptr List) -> Int;
 sum (Nil) := 0;
 sum (Cons head tail) := head + (sum tail);
 
 mapSum : ListOfLists -> List;
 mapSum (LNil) := Nil;
 mapSum (LCons xs xss) :=
-  Cons (instantiate [Sll[readonly]] Int sum xs)
+  Cons (instantiate [Sll[readonly]] Int sum (addr xs))
        (mapSum xss);
 
