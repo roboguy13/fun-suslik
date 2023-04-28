@@ -130,8 +130,6 @@ type ConcreteType = ConcreteType' LayoutName
 
 type LoweredType = ConcreteType' ParametrizedLayoutName
 
--- data FsParam = IntParam String | BoolParam String | LayoutParam LayoutName [String]
-
 withParams :: [String] -> ParamType -> ParamTypeP
 withParams [v] (PtrParam _ ty) = PtrParam (Just (Here v)) ty
 withParams [v] IntParam{} = IntParam (Just v)
@@ -141,10 +139,13 @@ withParams params (LayoutParam name) = LayoutParam $ MkParametrizedLayoutName (m
 forgetParams :: LoweredType -> ConcreteType
 forgetParams = fmap getParamedName
 
--- loweredParams :: LoweredType -> [String]
--- loweredParams IntConcrete = []
--- loweredParams BoolConcrete = []
--- loweredParams (LayoutConcrete (MkParametrizedLayoutName params _)) = params
+toType :: ParamTypeP -> Type
+toType (PtrParam _ ty) = PtrType ty
+toType (IntParam {}) = IntType
+toType (BoolParam {}) = BoolType
+toType (LayoutParam n) =
+  LayoutType (genLayoutName (getParamedName n)) (length (getParamedNameParams n))
+toType FnParam = error "toType: FnParam"
 
 loweredParams :: ParamTypeP -> [String]
 loweredParams (PtrParam v _ty) = maybeToList (fmap ppr v)
@@ -158,15 +159,8 @@ getParamedName (MkParametrizedLayoutName _ name) = name
 getParamedNameParams :: ParametrizedLayoutName -> [Loc String]
 getParamedNameParams (MkParametrizedLayoutName params _) = params
 
--- data LoweredType =
---   MkLoweredType
---   { loweredParams :: [String]
---   , loweredType :: ConcreteType
---   }
---   deriving (Show, Eq)
-
 data ParamType' a
-      = PtrParam (Maybe (Loc String)) BaseType
+      = PtrParam (Maybe (Loc String)) Type
       | IntParam (Maybe String)
       | BoolParam (Maybe String)
       | LayoutParam a
@@ -180,11 +174,6 @@ genParamTypeName (PtrParam _ ty) = "Ptr " <> ppr ty
 genParamTypeName IntParam{} = "Int"
 genParamTypeName BoolParam{} = "Bool"
 genParamTypeName (LayoutParam layoutName) = genLayoutName layoutName
-
--- paramTypeToConcrete :: ParamType' a -> ConcreteType' a
--- paramTypeToConcrete IntParam = IntConcrete
--- paramTypeToConcrete BoolParam = BoolConcrete
--- paramTypeToConcrete (LayoutParam x) = LayoutConcrete x
 
 data ExprX ty layoutNameTy a where
   Var :: ty -> a -> ExprX ty layoutNameTy a
@@ -228,22 +217,6 @@ data ExprX ty layoutNameTy a where
   LetIn :: ty -> a -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a 
 
   IfThenElse :: ty -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a
-
-  --   -- | Represents @lower L_1 . f . lift L_2@
-  -- LiftLowerFn ::
-  --   layoutNameTy -> -- | L_1
-  --   layoutNameTy -> -- | L_2
-  --   ExprX ty layoutNameTy a -> -- | f
-  --   ExprX ty layoutNameTy a
-
-  -- ExprLayoutBranch :: [Heaplet a] -> Expr a
-
-  -- ExprPointsTo :: Loc (Expr a) -> Expr a -> Expr a
-  -- ExprHeapletApply :: String -> [Expr a] -> Expr a -> Expr a
-  --
-  -- ExprLayoutBranch :: Scope ParamIndex LayoutBranchE a -> Expr a
-
-  -- LayoutCaseLambda :: Scope 
   deriving (Functor, Foldable, Traversable, Show, Data)
 
 
@@ -268,12 +241,6 @@ getType (Deref ty _) = Right ty
 getType (Addr ty _) = Right ty
 getType (LetIn ty _ _ _) = Right ty
 getType (IfThenElse ty _ _ _) = Right ty
-
--- getType' :: ElaboratedExpr a -> ParamTypeP
--- getType' e =
---   case getType e of
---     Left base -> _ $ baseToType base
---     Right ty -> ty
 
 -- TODO: Make this better
 instance (Show a, Show layoutNameTy, Show ty) => Ppr (ExprX ty layoutNameTy a) where
@@ -427,15 +394,27 @@ data Type where
   IntType :: Type
   BoolType :: Type
 
-  PtrType :: BaseType -> Type
+  PtrType :: Type -> Type
 
   FnType :: Type -> Type -> Type
 
-  -- AdtType :: Adt -> Type
   AdtType :: String -> Type
-  -- LayoutType :: Layout -> Type
   LayoutType :: String -> Int -> Type
-  deriving (Show, Data)
+  deriving (Show, Data, Eq, Ord)
+
+instance Ppr Type where
+  ppr = go
+    where
+      go IntType = ppr IntBase
+      go BoolType = ppr BoolBase
+
+      go (PtrType t) = ppr' t
+      go (FnType src tgt) = ppr' src <> " -> " <> ppr' tgt
+      go (AdtType s) = s
+      go (LayoutType str i) = str
+
+      ppr' t@(FnType src tgt) = "(" <> go t <> ")"
+      ppr' x = go x
 
 baseToType :: BaseType -> Type
 baseToType IntBase = IntType
@@ -502,8 +481,6 @@ toSuSLikExpr recName (Lt x y) = LtS (toSuSLikExpr recName x) (toSuSLikExpr recNa
 
 toSuSLikExpr recName e0@(Apply f outTy inTys args) =
   head $ map (mkVar (f == recName)) (loweredParams outTy)
-  -- head $ map FnOutVar (loweredParams outTy)
-  -- head $ map VarS (loweredParams outTy)
 
 toSuSLikExpr recName e0@(ConstrApply ty cName args) = 
   head $ map VarS (loweredParams ty)
@@ -590,10 +567,6 @@ layoutMatch layout0 cName args =
   in
   naiveSubst (zip params args) asn
 
--- layoutMatchPat :: Show a => Layout -> Pattern' a -> Assertion SuSLikName
--- layoutMatchPat layout e@(PatternVar {}) = error $ "layoutMatch: Pattern variable: " ++ show e
--- layoutMatchPat layout (MkPattern _ cName args) = layoutMatch layout cName args
-
 layoutMatchPat :: Show a => Layout -> Pattern' a -> Assertion SuSLikName
 layoutMatchPat layout e@(PatternVar {}) = error $ "layoutMatch: Pattern variable: " ++ show e
 layoutMatchPat layout (MkPattern _ cName args) = 
@@ -628,9 +601,6 @@ applyLayoutExpr layout0 suslikParams cName args =
       subst = zip params args
       r = fmap unmangle $ naiveSubstAsn subst mangledAsn
   in
-  -- trace ("subst = " ++ show subst) $
-  -- trace ("mangledAsn = " ++ show mangledAsn) $
-  -- trace ("r = " ++ show r) $
   r
 
 -- | NOTE: Also inserts [..., ...] block sizes
@@ -680,38 +650,6 @@ getBlockSizes asn =
     locToPair (Here {}) = Nothing
     locToPair (x :+ i) = Just (x, i+1)
 
-
--- instance Ppr a => Ppr (Expr a) where
---   ppr (Var v) = ppr v
---   ppr (IntLit i) = show i
---   ppr (BoolLit b) = show b
---
---   ppr (And x y) = pprBinOp "&&" x y
---   ppr (Or x y) = pprBinOp "||" x y
---   ppr (Not x) = "(not " ++ ppr x ++ ")"
---
---   ppr (Add x y) = pprBinOp "+" x y
---   ppr (Sub x y) = pprBinOp "-" x y
---   ppr (Mul x y) = pprBinOp "*" x y
---
---   ppr (Equal x y) = pprBinOp "==" x y
---   ppr (Le x y) = pprBinOp "<=" x y
---   ppr (Lt x y) = pprBinOp "<" x y
---
---   ppr (Apply f e) = "(" ++ f ++ " " ++ unwords (map ppr e) ++ ")"
---   ppr (ConstrApply cName args) =
---     "(" ++ cName ++ " " ++ unwords (map ppr args) ++ ")"
---
---   ppr (Lower str e) =
---     "(" ++ "lower" ++ unwords [str, ppr e] ++ ")"
---     -- "(" ++ "lower" ++ "[" ++ intercalate ", " (map ppr suslikArgs) ++ "] " ++ unwords [str, ppr e] ++ ")"
---   ppr (LiftLowerFn lName1 lName2 f) =
---     "(" ++ unwords ["lower", lName1, ".", ppr f, ".", "lift", lName2] ++ ")"
---
--- fsName, suslikName :: String -> Name
--- fsName = MkName
--- suslikName = MkName
---
 data Mode = Input | Output
   deriving (Show, Eq, Ord, Data)
 
@@ -764,30 +702,6 @@ exprForget (Apply f _ suslikArgs args) = Apply f () (replicate (length suslikArg
 exprForget (ConstrApply _ cName args) = ConstrApply () cName (map exprForget args)
 exprForget e = error $ "exprForget: " ++ show e
 
-  -- IntLit
-  -- BoolLit
-
-  -- And :: ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a
-  -- Or :: ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a
-  -- Not :: ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a
-  --
-  -- Add :: ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a
-  -- Sub :: ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a
-  -- Mul :: ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a
-  --
-  -- Equal :: ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a
-  -- Le :: ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a
-  -- Lt :: ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a -> ExprX ty layoutNameTy a
-  --
-  -- Apply ::
-  --   String ->   -- | This becomes the appropriate predicate name in the elaborated version of ExprX
-  --   ty ->       -- | Output layout
-  --   [ty] ->     -- | Input layouts
-  --   [ExprX ty layoutNameTy a] ->
-  --   ExprX ty layoutNameTy a
-  --
-  -- ConstrApply :: ty -> ConstrName -> [ExprX ty layoutNameTy a] -> ExprX ty layoutNameTy a
-  --
 data Assertion a where
   Emp :: Assertion a
   PointsTo :: Mode -> Loc a -> SuSLikExpr a -> Assertion a -> Assertion a
@@ -915,130 +829,6 @@ instance (Show a, Ppr a) => Ppr (Assertion a) where
   ppr (Copy lName src dest) = "func " ++ lName ++ "__copy(" ++ ppr src ++ ", " ++ ppr dest ++ ")"
   ppr (AssertEqual x y rest0) = "(" <> ppr x <> " == " <> ppr y <> ")"
 
-
--- type Assertion' a = Assertion (ExprX () Void a)
-
---
--- -- exprMap :: (Expr a -> Expr a) -> (Assertion a -> Assertion a)
--- -- exprMap f = go
--- --   where
--- --     go Emp = Emp
--- --     go (PointsTo x e rest) = PointsTo x (f e) rest
--- --     go (HeapletApply lName suslikArgs e rest) = 
---
--- instance Semigroup (Assertion a) where
---   Emp <> b = b
---   PointsTo mode x y rest <> b = PointsTo mode x y (rest <> b)
---   HeapletApply lName suslikArgs e rest <> b = HeapletApply lName suslikArgs e (rest <> b)
---
--- instance Monoid (Assertion a) where
---   mempty = Emp
---
--- maybeToEndo :: (a -> Maybe a) -> (a -> a)
--- maybeToEndo f x =
---   case f x of
---     Nothing -> x
---     Just y -> y
---
--- substLayoutAssertion :: Int -> (Int -> LayoutName -> [Expr FsName] -> [Expr FsName] -> Maybe (Assertion' FsName)) -> Assertion' FsName -> Assertion' FsName
--- substLayoutAssertion _level _f Emp = Emp
--- substLayoutAssertion level f (PointsTo mode x y rest) = PointsTo mode x y (substLayoutAssertion level f rest)
--- substLayoutAssertion level f (HeapletApply lName suslikArgs e rest) =
---   case f level lName suslikArgs e of
---     Nothing -> HeapletApply lName suslikArgs e (substLayoutAssertion level f rest)
---     Just r -> r <> substLayoutAssertion (succ level) f rest
---
--- applyLayoutAssertion :: Eq a => [(a, a)] -> [(a, Expr a)] -> Assertion (Expr a) -> Assertion (Expr a)
--- applyLayoutAssertion suslikSubst fsSubst asn =
---   fmap go asn
---   where
---     go origV@(Var n) =
---       case lookup n suslikSubst of
---         Just s -> Var s
---         Nothing ->
---           case lookup n fsSubst of
---             Just e -> e
---             Nothing -> origV
---     go e = e
---
--- -- newtype LayoutBranch f a = MkLayoutBranch { getLayoutBranch :: [f a] }
--- --   deriving (Foldable, Traversable)
--- --               --ListT Expr
--- --
--- -- type LayoutBranchE = LayoutBranch Expr
--- -- type ScopeLayoutBranchE = Scope ParamIndex LayoutBranchE
--- --
--- -- instance IsList (LayoutBranch f a) where
--- --   type Item (LayoutBranch f a) = f a
--- --   fromList = MkLayoutBranch
--- --   toList = getLayoutBranch
--- --
--- -- instance Functor f => Functor (LayoutBranch f) where
--- --   fmap f (MkLayoutBranch xs) = MkLayoutBranch (map (fmap f) xs)
--- --
--- -- instance (Monad f, Traversable f) => Applicative (LayoutBranch f) where
--- --   pure x = MkLayoutBranch [pure x]
--- --   (<*>) = ap
--- --
--- -- instance (Monad f, Traversable f) => Monad (LayoutBranch f) where
--- --   return = pure
--- --   MkLayoutBranch xs >>= f = do
--- --     let zs = concatMap (map join) . fmap sequenceA . fmap (fmap getLayoutBranch) $ map (fmap f) xs
--- --     MkLayoutBranch zs
--- --
--- -- layoutBranchSingle :: Expr a -> LayoutBranchE a
--- -- layoutBranchSingle e = MkLayoutBranch [e]
---
--- instance Applicative Expr where
---   pure = Var
---   (<*>) = ap
---
--- instance Monad Expr where
---   return = pure
---
---   Var x >>= f = f x
---   IntLit i >>= _ = IntLit i
---   BoolLit b >>= _ = BoolLit b
---
---   And x y >>= f = And (x >>= f) (y >>= f)
---   Or x y >>= f = Or (x >>= f) (y >>= f)
---   Not x >>= f = Not (x >>= f)
---
---   Add x y >>= f = Add (x >>= f) (y >>= f)
---   Sub x y >>= f = Sub (x >>= f) (y >>= f)
---   Mul x y >>= f = Mul (x >>= f) (y >>= f)
---
---   Equal x y >>= f = Equal (x >>= f) (y >>= f)
---   Le x y >>= f = Le (x >>= f) (y >>= f)
---   Lt x y >>= f = Lt (x >>= f) (y >>= f)
---
---   Apply fName x >>= f = Apply fName (map (>>= f) x)
---
---   ConstrApply cName args >>= f = ConstrApply cName (map (>>= f) args)
---
---   Lower str x >>= f = Lower str (x >>= f)
---
---   LiftLowerFn l1 l2 x >>= f = LiftLowerFn l1 l2 (x >>= f)
---
---   -- ExprLayoutBranch xs >>= f = do
---   --   xs' <- traverse (traverse f) xs
---   --   ExprLayoutBranch xs'
---
---   -- ExprPointsTo x y >>= f = do
---   --   y' <- fmap f y
---   --   let x' = fmap (>>= f) x
---   --   ExprPointsTo x' y'
---   --
---   -- ExprHeapletApply x y z >>= f = do
---   --   y' <- traverse (fmap f) y
---   --   ExprHeapletApply x y' (z >>= f)
---
---
--- -- data Heaplet a where
--- --   PointsTo :: Loc a -> a -> Heaplet a
--- --   HeapletApply :: String -> [a] -> a -> Heaplet a
--- --   deriving (Show, Functor, Foldable, Traversable)
---
 data Loc a = Here a | a :+ Int
   deriving (Show, Functor, Foldable, Traversable, Eq, Ord, Data)
 
@@ -1129,18 +919,4 @@ instance Size Adt where
 
 instance Size AdtBranch where
   size (MkAdtBranch cName ty) = 2 + sum (map size ty)
-
--- data Adt =
---   MkAdt
---   { adtName :: String
---   , adtBranches :: [AdtBranch]
---   }
---   deriving (Show)
---
--- data AdtBranch =
---   MkAdtBranch
---   { adtBranchConstr :: ConstrName
---   , adtBranchFields :: [Type]
---   }
---   deriving (Show)
 

@@ -442,7 +442,7 @@ requireBoolParam :: Show a => ParamType' a -> TypeCheck ()
 requireBoolParam BoolParam{} = pure ()
 requireBoolParam p = typeError $ "Expecting Bool, found " ++ show p
 
-requirePtrParam :: Show a => ParamType' a -> TypeCheck BaseType
+requirePtrParam :: (HasCallStack, Show a) => ParamType' a -> TypeCheck Type
 requirePtrParam (PtrParam _ ty) = pure ty
 requirePtrParam p = typeError $ "Expecting Ptr _, found " ++ show p
 
@@ -450,6 +450,7 @@ requireTypeP :: (HasCallStack, Show a, Eq a) => ParamType' a -> ParamType' a -> 
 requireTypeP (PtrParam _ ty) (PtrParam _ ty')
   | ty' == ty = pure ()
   | otherwise = typeError $ "Expected Ptr " ++ show ty ++ ", found Ptr " ++ show ty'
+requireTypeP (LayoutParam {}) (PtrParam _ _) = pure ()
 requireTypeP BoolParam{} BoolParam{} = pure ()
 requireTypeP IntParam{} IntParam{} = pure ()
 requireTypeP (LayoutParam x) (LayoutParam y)
@@ -564,8 +565,8 @@ checkExpr gamma e@(LetIn () v rhs body) ty = do
   checkExpr ((v, tyV) : gamma) body ty
 
 requireBaseType :: Show a => ParamType' a -> TypeCheck (BaseType, ParamType' a)
-requireBaseType (IntParam v) = pure (IntBase, PtrParam (fmap Here v) IntBase)
-requireBaseType (BoolParam v) = pure (BoolBase, PtrParam (fmap Here v) BoolBase)
+requireBaseType (IntParam v) = pure (IntBase, PtrParam (fmap Here v) IntType)
+requireBaseType (BoolParam v) = pure (BoolBase, PtrParam (fmap Here v) BoolType)
 requireBaseType p = typeError $ "Expected base type, found " ++ show p
 
 inferExpr :: TcEnv -> Parsed ExprX String -> TypeCheck (ParamTypeP, Elaborated ExprX String)
@@ -587,17 +588,27 @@ inferExpr gamma (Var () v) =
       -- let lowered = overwriteParams r concTy
 
       -- pure $ (lowered, Var lowered v)
-      let ps = loweredParams $ lowered
+      let ps = loweredParams lowered
       let (p:_) = ps
       -- () <- traceM ("inferExpr: " ++ show (v, lowered, p))
-      pure $ (lowered, Var lowered p)
+      pure (lowered, Var lowered p)
 
 inferExpr gamma (Deref () e) = do
   (ty0, e') <- inferExpr gamma e
   baseTy <- requirePtrParam ty0
-  let ty' = case baseTy of
-             IntBase -> IntParam Nothing
-             BoolBase -> BoolParam Nothing
+  ty' <- case baseTy of
+             IntType -> pure $ IntParam Nothing
+             BoolType -> pure $ BoolParam Nothing
+             LayoutType s i -> do
+              -- outLayout <- lookupParamType _
+              -- outVars <- newOutVars outLayout
+              pure $ LayoutParam
+                (MkParametrizedLayoutName
+                  [] -- This will get replaced at a later stage
+                  (MkLayoutName Nothing s))
+             AdtType {} -> error $ "ADT type given for Ptr: " ++ show ty0
+             FnType {} -> error $ "Function type given for Ptr: " ++ show ty0
+             PtrType {} -> error $ "Nested Ptr type" ++ show ty0
 
   pure (ty', Addr ty' e')
 
@@ -610,8 +621,8 @@ inferExpr gamma (Deref () e) = do
 
 inferExpr gamma (Addr () e@(Var () v)) = do
   (ty0, e') <- inferExpr gamma e
-  (baseTy, paramTy) <- requireBaseType ty0
-  let ty' = PtrParam (Just (Here v)) baseTy
+  -- (baseTy, paramTy) <- requireBaseType ty0
+  let ty' = PtrParam (Just (Here v)) (toType ty0)
   -- let ty' = PtrParam Nothing baseTy
 
   pure (ty', Addr ty' e')

@@ -576,9 +576,9 @@ parseBaseType =
     <|>
   (keyword "Bool" *> pure BoolBase)
 
-parsePtrType :: Parser BaseType
+parsePtrType :: Parser Type
 parsePtrType =
-  keyword "Ptr" *> parseBaseType
+  keyword "Ptr" *> parseType
 
 
 -- TODO: Parse layout types
