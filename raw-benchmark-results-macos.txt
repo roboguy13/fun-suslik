@@ -1,0 +1,213 @@
+*** ./tests/filterLt9.fsus
+benchmarking Pika -> SuSLik/Direct translation
+time                 5.651 μs   (5.441 μs .. 6.025 μs)
+                     0.990 R²   (0.979 R² .. 1.000 R²)
+mean                 5.496 μs   (5.450 μs .. 5.663 μs)
+std dev              278.2 ns   (56.44 ns .. 579.7 ns)
+variance introduced by outliers: 63% (severely inflated)
+
+benchmarking Pika -> SuSLik/Indirect translation
+time                 5.700 μs   (5.595 μs .. 5.807 μs)
+                     0.998 R²   (0.997 R² .. 0.999 R²)
+mean                 5.616 μs   (5.572 μs .. 5.672 μs)
+std dev              168.5 ns   (123.9 ns .. 243.9 ns)
+variance introduced by outliers: 37% (moderately inflated)
+
+benchmarking SuSLik -> SusLang/suslik
+time                 6.784 s    (6.380 s .. 7.191 s)
+                     0.999 R²   (0.999 R² .. 1.000 R²)
+mean                 6.814 s    (6.699 s .. 6.910 s)
+std dev              116.6 ms   (39.26 ms .. 147.4 ms)
+variance introduced by outliers: 19% (moderately inflated)
+
+*** ./tests/cons.fsus
+benchmarking Pika -> SuSLik/Direct translation
+time                 4.305 μs   (4.275 μs .. 4.347 μs)
+                     1.000 R²   (0.999 R² .. 1.000 R²)
+mean                 4.297 μs   (4.283 μs .. 4.323 μs)
+std dev              60.63 ns   (40.22 ns .. 100.6 ns)
+variance introduced by outliers: 12% (moderately inflated)
+
+benchmarking Pika -> SuSLik/Indirect translation
+time                 4.026 μs   (3.973 μs .. 4.071 μs)
+                     0.999 R²   (0.999 R² .. 0.999 R²)
+mean                 4.070 μs   (4.030 μs .. 4.114 μs)
+std dev              146.0 ns   (119.8 ns .. 212.9 ns)
+variance introduced by outliers: 47% (moderately inflated)
+
+benchmarking SuSLik -> SusLang/suslik
+time                 5.416 s    (5.083 s .. 5.824 s)
+                     0.999 R²   (0.998 R² .. 1.000 R²)
+mean                 5.285 s    (5.111 s .. 5.383 s)
+std dev              169.4 ms   (47.99 ms .. 225.7 ms)
+variance introduced by outliers: 19% (moderately inflated)
+
+*** ./tests/mapAdd1.fsus
+benchmarking Pika -> SuSLik/Direct translation
+time                 5.098 μs   (5.056 μs .. 5.182 μs)
+                     0.991 R²   (0.976 R² .. 0.999 R²)
+mean                 5.363 μs   (5.190 μs .. 5.822 μs)
+std dev              855.6 ns   (466.1 ns .. 1.572 μs)
+variance introduced by outliers: 95% (severely inflated)
+
+benchmarking Pika -> SuSLik/Indirect translation
+time                 5.174 μs   (5.142 μs .. 5.206 μs)
+                     0.999 R²   (0.998 R² .. 1.000 R²)
+mean                 5.088 μs   (5.038 μs .. 5.155 μs)
+std dev              196.0 ns   (150.9 ns .. 308.1 ns)
+variance introduced by outliers: 50% (moderately inflated)
+
+benchmarking SuSLik -> SusLang/suslik
+time                 5.336 s    (4.828 s .. 6.289 s)
+                     0.996 R²   (0.991 R² .. 1.000 R²)
+mean                 5.756 s    (5.573 s .. 5.940 s)
+std dev              239.4 ms   (116.4 ms .. 321.0 ms)
+variance introduced by outliers: 19% (moderately inflated)
+
+*** ./tests/take.fsus
+benchmarking Pika -> SuSLik/Direct translation
+time                 6.338 μs   (6.321 μs .. 6.358 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 6.338 μs   (6.329 μs .. 6.352 μs)
+std dev              39.64 ns   (32.74 ns .. 49.51 ns)
+
+benchmarking Pika -> SuSLik/Indirect translation
+time                 6.223 μs   (6.191 μs .. 6.253 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 6.238 μs   (6.225 μs .. 6.258 μs)
+std dev              53.99 ns   (39.46 ns .. 82.89 ns)
+
+benchmarking SuSLik -> SusLang/suslik
+time                 10.02 s    (8.245 s .. 11.47 s)
+                     0.996 R²   (0.987 R² .. 1.000 R²)
+mean                 9.989 s    (9.846 s .. 10.26 s)
+std dev              271.4 ms   (1.602 ms .. 320.4 ms)
+variance introduced by outliers: 19% (moderately inflated)
+
+*** ./tests/maximum.fsus
+benchmarking Pika -> SuSLik/Direct translation
+time                 4.873 μs   (4.862 μs .. 4.887 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 4.883 μs   (4.874 μs .. 4.902 μs)
+std dev              43.97 ns   (23.85 ns .. 77.48 ns)
+
+benchmarking Pika -> SuSLik/Indirect translation
+time                 4.637 μs   (4.611 μs .. 4.675 μs)
+                     1.000 R²   (0.999 R² .. 1.000 R²)
+mean                 4.622 μs   (4.608 μs .. 4.643 μs)
+std dev              57.27 ns   (39.50 ns .. 96.49 ns)
+
+benchmarking SuSLik -> SusLang/suslik
+time                 5.960 s    (5.860 s .. 6.115 s)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 6.236 s    (6.123 s .. 6.429 s)
+std dev              188.4 ms   (38.50 ms .. 245.9 ms)
+variance introduced by outliers: 19% (moderately inflated)
+
+*** ./tests/sum.fsus
+benchmarking Pika -> SuSLik/Direct translation
+time                 5.200 μs   (5.185 μs .. 5.222 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 5.267 μs   (5.244 μs .. 5.291 μs)
+std dev              76.91 ns   (65.81 ns .. 91.35 ns)
+variance introduced by outliers: 12% (moderately inflated)
+
+benchmarking Pika -> SuSLik/Indirect translation
+time                 5.126 μs   (5.089 μs .. 5.163 μs)
+                     0.999 R²   (0.999 R² .. 1.000 R²)
+mean                 5.086 μs   (5.052 μs .. 5.124 μs)
+std dev              130.9 ns   (109.0 ns .. 165.0 ns)
+variance introduced by outliers: 30% (moderately inflated)
+
+benchmarking SuSLik -> SusLang/suslik
+time                 5.843 s    (5.682 s .. 6.135 s)
+                     1.000 R²   (0.999 R² .. 1.000 R²)
+mean                 6.116 s    (5.989 s .. 6.336 s)
+std dev              208.6 ms   (45.77 ms .. 266.7 ms)
+variance introduced by outliers: 19% (moderately inflated)
+
+*** ./tests/mapSum.fsus
+benchmarking Pika -> SuSLik/Direct translation
+time                 11.54 μs   (11.49 μs .. 11.60 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 11.42 μs   (11.36 μs .. 11.48 μs)
+std dev              198.5 ns   (171.6 ns .. 235.2 ns)
+variance introduced by outliers: 15% (moderately inflated)
+
+benchmarking Pika -> SuSLik/Indirect translation
+time                 11.18 μs   (11.01 μs .. 11.30 μs)
+                     0.999 R²   (0.998 R² .. 0.999 R²)
+mean                 10.79 μs   (10.68 μs .. 10.92 μs)
+std dev              426.9 ns   (368.1 ns .. 494.8 ns)
+variance introduced by outliers: 48% (moderately inflated)
+
+benchmarking SuSLik -> SusLang/suslik
+time                 6.579 s    (6.021 s .. 7.084 s)
+                     0.999 R²   (0.997 R² .. 1.000 R²)
+mean                 7.067 s    (6.830 s .. 7.373 s)
+std dev              310.5 ms   (114.3 ms .. 424.5 ms)
+variance introduced by outliers: 19% (moderately inflated)
+
+*** ./tests/singleton.fsus
+benchmarking Pika -> SuSLik/Direct translation
+time                 3.328 μs   (3.301 μs .. 3.375 μs)
+                     0.996 R²   (0.986 R² .. 1.000 R²)
+mean                 3.350 μs   (3.301 μs .. 3.507 μs)
+std dev              291.3 ns   (48.70 ns .. 617.0 ns)
+variance introduced by outliers: 84% (severely inflated)
+
+benchmarking Pika -> SuSLik/Indirect translation
+time                 3.045 μs   (3.022 μs .. 3.080 μs)
+                     0.999 R²   (0.999 R² .. 1.000 R²)
+mean                 3.060 μs   (3.040 μs .. 3.093 μs)
+std dev              86.74 ns   (51.62 ns .. 157.7 ns)
+variance introduced by outliers: 36% (moderately inflated)
+
+benchmarking SuSLik -> SusLang/suslik
+time                 4.223 s    (3.910 s .. 4.568 s)
+                     0.999 R²   (0.999 R² .. 1.000 R²)
+mean                 4.099 s    (4.027 s .. 4.155 s)
+std dev              77.79 ms   (31.06 ms .. 107.2 ms)
+variance introduced by outliers: 19% (moderately inflated)
+
+*** ./tests/append.fsus
+benchmarking Pika -> SuSLik/Direct translation
+time                 8.962 μs   (8.916 μs .. 9.001 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 8.934 μs   (8.914 μs .. 8.962 μs)
+std dev              84.62 ns   (62.58 ns .. 117.7 ns)
+
+benchmarking Pika -> SuSLik/Indirect translation
+time                 8.737 μs   (8.690 μs .. 8.803 μs)
+                     1.000 R²   (0.999 R² .. 1.000 R²)
+mean                 8.697 μs   (8.665 μs .. 8.757 μs)
+std dev              140.7 ns   (97.23 ns .. 203.4 ns)
+variance introduced by outliers: 14% (moderately inflated)
+
+benchmarking SuSLik -> SusLang/suslik
+time                 7.995 s    (7.480 s .. 8.382 s)
+                     1.000 R²   (0.998 R² .. 1.000 R²)
+mean                 7.700 s    (7.458 s .. 7.834 s)
+std dev              232.0 ms   (70.23 ms .. 310.3 ms)
+variance introduced by outliers: 19% (moderately inflated)
+
+*** ./tests/leftList.fsus
+benchmarking Pika -> SuSLik/Direct translation
+time                 4.962 μs   (4.954 μs .. 4.968 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 4.956 μs   (4.946 μs .. 4.966 μs)
+std dev              31.49 ns   (25.51 ns .. 40.02 ns)
+
+benchmarking Pika -> SuSLik/Indirect translation
+time                 4.986 μs   (4.929 μs .. 5.041 μs)
+                     0.999 R²   (0.999 R² .. 1.000 R²)
+mean                 4.990 μs   (4.962 μs .. 5.016 μs)
+std dev              91.07 ns   (77.82 ns .. 114.0 ns)
+variance introduced by outliers: 18% (moderately inflated)
+
+benchmarking SuSLik -> SusLang/suslik
+time                 8.808 s    (7.356 s .. 10.10 s)
+                     0.997 R²   (0.988 R² .. 1.000 R²)
+mean                 8.778 s    (8.648 s .. 9.010 s)
+std dev              226.1 ms   (16.13 ms .. 283.7 ms)
+variance introduced by outliers: 19% (moderately inflated)

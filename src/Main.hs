@@ -32,6 +32,9 @@ import Control.Applicative
 import Data.List
 import Data.Maybe
 
+import Criterion
+import Criterion.Main
+
 isBaseTypeName :: String -> Bool
 isBaseTypeName "Int" = True
 isBaseTypeName "Bool" = True
@@ -43,6 +46,7 @@ data Options =
   , optionsOnlyGenerate :: Bool
   , optionsOnlyRW :: Bool
   , optionsIndirectArgs :: Bool
+  , optionsBenchmark :: Bool
   }
 
 data OutputKind = DirectOutput | IndirectOutput
@@ -54,8 +58,9 @@ setupOptions args =
     , optionsOnlyGenerate = "--only-generate" `elem` args
     , optionsOnlyRW = "--only-rw" `elem` args
     , optionsIndirectArgs = "--no-indirect-args" `notElem` args
+    , optionsBenchmark = "--benchmark" `elem` args
     }
-  ,args \\ ["--no-ast-size", "--only-generate", "--only-rw", "--no-indirect-args"]
+  ,args \\ ["--no-ast-size", "--only-generate", "--only-rw", "--no-indirect-args", "--benchmark"]
   )
   -- if "--no-ast-size" `elem` args
   --   then (MkOptions { optionsShowAstSize = False }, args \\ ["--no-ast-size"])
@@ -92,7 +97,7 @@ main = do
       (options, restArgs) = setupOptions restArgs0
   case restArgs of
     [] -> error "Expected a source filename"
-    args@(_ : _ : _) -> error $ "Too many arguments. Expected 1, got " ++ show (length args)
+    args@(_ : _ : _) -> error $ "Unrecognized arguments: " ++ show args
     [fileName] -> do
       fileData <- readFile fileName
       -- fileData <- readFile "examples/List.fsus"
@@ -246,29 +251,48 @@ main = do
       -- (Just stdin_handle, Just stdout_handle, _stderr_handle, procHandle)
       --   <- createProcess (proc "./suslik/suslik" suslikOptions) { std_in = CreatePipe, std_out = CreatePipe }
 
-      putStrLn (unlines outString)
+      if optionsBenchmark options
+        then do
+          putStrLn $ renderBlueString ("*** " ++ fileName)
+          withArgs [] $ defaultMain
+            [ bgroup "Pika -> SuSLik"
+                [ bench "Direct translation" $ nf mkOutString IndirectOutput
+                , bench "Indirect translation" $ nf mkOutString DirectOutput
+                ]
+            , bgroup "SuSLik -> SusLang"
+                [ bench "suslik" $ nfIO $ readCreateProcessWithExitCode (proc suslikCmd susOpts) (unlines outString)
+                ]
+            ]
+        else do
+          putStrLn (unlines outString)
 
-      unless (optionsOnlyGenerate options) $ do
-        (exitCode, suslikOut, stderrOut) <- readCreateProcessWithExitCode (proc suslikCmd susOpts) (unlines outString)
+          unless (optionsOnlyGenerate options) $ do
+            (exitCode, suslikOut, stderrOut) <- readCreateProcessWithExitCode (proc suslikCmd susOpts) (unlines outString)
 
-        -- putStrLn stderrOut
+            -- putStrLn stderrOut
 
 
-        case exitCode of
-          ExitSuccess ->  do
-            putStrLn suslikOut
-            putStrLn stderrOut
-            when (optionsShowAstSize options) $ do
-              putStrLn $ "\n--- Source AST size: " ++ show (size parsed)
-              putStrLn $ "\n--- SuSLik AST size: " ++ show (sum (map size layoutPreds) + sum (map size fnPreds) + sum (map size indirectSpecs))
-          ExitFailure e -> do
-            putStrLn "######### Indirect output failed. Trying direct output..."
-            putStrLn (unlines directOutString)
-            when (optionsShowAstSize options) $ do
-              putStrLn $ "\n--- Source AST size: " ++ show (size parsed)
-              putStrLn $ "\n--- SuSLik AST size: " ++ show (sum (map size layoutPreds) + sum (map size fnPreds) + sum (map size directSpecs))
-            (exitCode, suslikOut, stderrOut) <- readCreateProcessWithExitCode (proc suslikCmd susOpts) (unlines directOutString)
-            putStrLn suslikOut
-            putStrLn stderrOut
-            exitWith exitCode
+            case exitCode of
+              ExitSuccess ->  do
+                putStrLn suslikOut
+                putStrLn stderrOut
+                when (optionsShowAstSize options) $ do
+                  putStrLn $ "\n--- Source AST size: " ++ show (size parsed)
+                  putStrLn $ "\n--- SuSLik AST size: " ++ show (sum (map size layoutPreds) + sum (map size fnPreds) + sum (map size indirectSpecs))
+              ExitFailure e -> do
+                putStrLn "######### Indirect output failed. Trying direct output..."
+                putStrLn (unlines directOutString)
+                when (optionsShowAstSize options) $ do
+                  putStrLn $ "\n--- Source AST size: " ++ show (size parsed)
+                  putStrLn $ "\n--- SuSLik AST size: " ++ show (sum (map size layoutPreds) + sum (map size fnPreds) + sum (map size directSpecs))
+                (exitCode, suslikOut, stderrOut) <- readCreateProcessWithExitCode (proc suslikCmd susOpts) (unlines directOutString)
+                putStrLn suslikOut
+                putStrLn stderrOut
+                exitWith exitCode
+
+renderBlueString :: String -> String
+renderBlueString s = "\ESC[44m" ++ s ++ resetColor
+
+resetColor :: String
+resetColor = "\ESC[0m"
 
